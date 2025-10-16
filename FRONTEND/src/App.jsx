@@ -8,6 +8,7 @@ import ClientSignUp from "./components/Client/SignUp";
 import EmployeeSignUp from "./components/Employee/SignUp";
 import CampaignSignUp from "./components/Campaign/SignUp";
 import RetailerSignUp from "./components/Retailer/SignUp";
+import BulkUpload from "./components/Admin/BulkUpload";
 
 const App = () => {
   return (
@@ -21,6 +22,7 @@ const App = () => {
         <Route path="/employeesignup" element={<EmployeeSignUp />} />
         <Route path="/campaignsignup" element={<CampaignSignUp />} />
         <Route path="/retailersignup" element={<RetailerSignUp />} />
+        <Route path="/bulkupload" element={<BulkUpload />} />
       </Routes>
     </Router>
   );

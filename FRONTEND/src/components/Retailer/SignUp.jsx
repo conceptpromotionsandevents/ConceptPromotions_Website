@@ -1,7 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaUser, FaPhoneAlt, FaEnvelope, FaCalendarAlt, FaIdCard, FaBuilding, FaUniversity, FaFileUpload } from "react-icons/fa";
+import {
+    FaUser,
+    FaPhoneAlt,
+    FaEnvelope,
+    FaCalendarAlt,
+    FaIdCard,
+    FaBuilding,
+    FaPlus,
+    FaTimes,
+} from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
-import { FaPlus, FaTimes } from "react-icons/fa";
 
 const SearchableSelect = ({ label, placeholder, options, value, onChange }) => {
     const [open, setOpen] = useState(false);
@@ -34,7 +42,7 @@ const SearchableSelect = ({ label, placeholder, options, value, onChange }) => {
                         value={open ? search : value || ""}
                         onChange={(e) => {
                             setSearch(e.target.value);
-                            onChange && onChange(""); // clear selection while typing
+                            onChange && onChange("");
                             setOpen(true);
                         }}
                         onFocus={() => setOpen(true)}
@@ -102,8 +110,6 @@ const FileInput = ({ label, accept = "*", file, setFile }) => {
     return (
         <div>
             <label className="block text-sm font-medium mb-1">{label}</label>
-
-            {/* Upload Box */}
             <div
                 className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#E4002B] transition"
                 onClick={() => fileRef.current?.click()}
@@ -149,6 +155,7 @@ const FileInput = ({ label, accept = "*", file, setFile }) => {
         </div>
     );
 };
+
 const SignUp = () => {
     // Personal details
     const [name, setName] = useState("");
@@ -163,8 +170,22 @@ const SignUp = () => {
 
     // Shop details
     const [shopName, setShopName] = useState("");
-    const businessTypeOptions = ["Retail", "Wholesale", "Service", "Manufacturing", "Other"];
-    const ownershipTypeOptions = ["Sole Proprietorship", "Partnership", "Private Ltd", "LLP", "Proprietor"];
+    const businessTypeOptions = [
+        "Grocery Retailer",
+        "Wholesale",
+        "Key Accounts",
+        "Salon / Beauty Parlour",
+        "Self Service Outlet",
+        "Chemist Outlet",
+        "Other",
+    ];
+    const ownershipTypeOptions = [
+        "Sole Proprietorship",
+        "Partnership",
+        "Private Ltd",
+        "LLP",
+        "Proprietor",
+    ];
     const [businessType, setBusinessType] = useState("");
     const [ownershipType, setOwnershipType] = useState("");
     const [gstNo, setGstNo] = useState("");
@@ -172,16 +193,102 @@ const SignUp = () => {
     const [address1, setAddress1] = useState("");
     const [address2, setAddress2] = useState("");
     const [city, setCity] = useState("");
-    const states = [
-        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh",
-        "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
-        "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi",
-        "Jammu and Kashmir", "Ladakh", "Puducherry", "Chandigarh", "Andaman and Nicobar Islands", "Dadra and Nagar Haveli and Daman and Diu", "Lakshadweep"
-    ];
     const [state, setState] = useState("");
+    const [pincode, setPincode] = useState("");
+    const states = [
+        "Andhra Pradesh",
+        "Arunachal Pradesh",
+        "Assam",
+        "Bihar",
+        "Chhattisgarh",
+        "Goa",
+        "Gujarat",
+        "Haryana",
+        "Himachal Pradesh",
+        "Jharkhand",
+        "Karnataka",
+        "Kerala",
+        "Madhya Pradesh",
+        "Maharashtra",
+        "Manipur",
+        "Meghalaya",
+        "Mizoram",
+        "Nagaland",
+        "Odisha",
+        "Punjab",
+        "Rajasthan",
+        "Sikkim",
+        "Tamil Nadu",
+        "Telangana",
+        "Tripura",
+        "Uttar Pradesh",
+        "Uttarakhand",
+        "West Bengal",
+        "Delhi",
+        "Jammu and Kashmir",
+        "Ladakh",
+        "Puducherry",
+        "Chandigarh",
+        "Andaman and Nicobar Islands",
+        "Dadra and Nagar Haveli and Daman and Diu",
+        "Lakshadweep",
+    ];
+
+    const pincodeStateMap = [
+        { state: "Andhra Pradesh", start: 500001, end: 534999 },
+        { state: "Arunachal Pradesh", start: 790001, end: 792999 },
+        { state: "Assam", start: 781001, end: 788999 },
+        { state: "Bihar", start: 800001, end: 855999 },
+        { state: "Chhattisgarh", start: 490001, end: 497999 },
+        { state: "Delhi", start: 110001, end: 110096 },
+        { state: "Goa", start: 403001, end: 403999 },
+        { state: "Gujarat", start: 360001, end: 396999 },
+        { state: "Haryana", start: 121001, end: 127999 },
+        { state: "Himachal Pradesh", start: 171001, end: 177999 },
+        { state: "Jammu & Kashmir", start: 180001, end: 194999 },
+        { state: "Jharkhand", start: 814001, end: 834999 },
+        { state: "Karnataka", start: 560001, end: 591999 },
+        { state: "Kerala", start: 670001, end: 695999 },
+        { state: "Madhya Pradesh", start: 450001, end: 488999 },
+        { state: "Maharashtra", start: 400001, end: 445999 },
+        { state: "Manipur", start: 795001, end: 795999 },
+        { state: "Meghalaya", start: 793001, end: 794999 },
+        { state: "Mizoram", start: 796001, end: 796999 },
+        { state: "Nagaland", start: 797001, end: 798999 },
+        { state: "Odisha", start: 751001, end: 770999 },
+        { state: "Punjab", start: 140001, end: 160999 },
+        { state: "Rajasthan", start: 301001, end: 345999 },
+        { state: "Sikkim", start: 737001, end: 737999 },
+        { state: "Tamil Nadu", start: 600001, end: 643999 },
+        { state: "Telangana", start: 500001, end: 509999 },
+        { state: "Tripura", start: 799001, end: 799999 },
+        { state: "Uttar Pradesh", start: 201001, end: 285999 },
+        { state: "Uttarakhand", start: 246001, end: 263999 },
+        { state: "West Bengal", start: 700001, end: 743999 },
+    ];
+
+    useEffect(() => {
+        if (pincode.length === 6) {
+            const pinNum = parseInt(pincode);
+            const found = pincodeStateMap.find(
+                (item) => pinNum >= item.start && pinNum <= item.end
+            );
+            if (found) {
+                setState(found.state);
+            }
+        }
+    }, [pincode]);
 
     // Bank details
-    const bankOptions = ["HDFC Bank", "State Bank of India", "ICICI Bank", "Axis Bank", "Kotak Mahindra Bank", "Punjab National Bank", "Other"];
+    const bankOptions = [
+        "HDFC Bank",
+        "State Bank of India",
+        "ICICI Bank",
+        "Axis Bank",
+        "Kotak Mahindra Bank",
+        "Punjab National Bank",
+        "Other",
+    ];
     const [bankName, setBankName] = useState("");
     const [accountNumber, setAccountNumber] = useState("");
     const [ifsc, setIfsc] = useState("");
@@ -193,11 +300,12 @@ const SignUp = () => {
     const [registrationFormFile, setRegistrationFormFile] = useState(null);
     const [outletPhoto, setOutletPhoto] = useState(null);
 
-    // submission
+    // Submission
     const [submitting, setSubmitting] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
         const body = {
             name,
             contactNo,
@@ -217,6 +325,7 @@ const SignUp = () => {
                     addressLine2: address2,
                     city,
                     state,
+                    pincode,
                 },
             },
             bankDetails: {
@@ -267,7 +376,6 @@ const SignUp = () => {
                         {/* Personal Details */}
                         <section className="space-y-4">
                             <h3 className="text-lg font-medium">Personal Details</h3>
-
                             <div>
                                 <label className="block text-sm font-medium mb-1">Name</label>
                                 <div className="relative">
@@ -290,8 +398,9 @@ const SignUp = () => {
                                     <input
                                         type="tel"
                                         value={contactNo}
-                                        onChange={(e) => setContactNo(e.target.value)}
+                                        onChange={(e) => setContactNo(e.target.value.replace(/\D/g, ""))}
                                         placeholder="9876543210"
+                                        maxLength={10}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                                         required
                                     />
@@ -437,14 +546,15 @@ const SignUp = () => {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 gap-4">
+                            {/* City, State, and Pincode */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">City</label>
                                     <input
                                         type="text"
                                         value={city}
                                         onChange={(e) => setCity(e.target.value)}
-                                        placeholder="Jaipur"
+                                        placeholder="New Delhi"
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                                     />
                                 </div>
@@ -456,6 +566,21 @@ const SignUp = () => {
                                     value={state}
                                     onChange={setState}
                                 />
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Pincode</label>
+                                    <input
+                                        type="text"
+                                        value={pincode}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, ""); // allow only digits
+                                            setPincode(val);
+                                        }}
+                                        placeholder="110001"
+                                        maxLength={6}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
+                                    />
+                                </div>
                             </div>
                         </section>
 
@@ -476,7 +601,7 @@ const SignUp = () => {
                                 <input
                                     type="text"
                                     value={accountNumber}
-                                    onChange={(e) => setAccountNumber(e.target.value)}
+                                    onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
                                     placeholder="123456789012"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                                 />
@@ -487,8 +612,9 @@ const SignUp = () => {
                                 <input
                                     type="text"
                                     value={ifsc}
-                                    onChange={(e) => setIfsc(e.target.value)}
+                                    onChange={(e) => setIfsc(e.target.value.toUpperCase())}
                                     placeholder="HDFC0001234"
+                                    maxLength={11}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                                 />
                             </div>
@@ -505,14 +631,36 @@ const SignUp = () => {
                             </div>
                         </section>
 
-                        {/* File uploads */}
+                        {/* File Uploads */}
                         <section className="space-y-4">
                             <h3 className="text-lg font-medium">File Uploads</h3>
 
-                            <FileInput label="Govt ID Photo" accept="image/*" file={govtIdPhoto} setFile={setGovtIdPhoto} />
-                            <FileInput label="Person Photo" accept="image/*" file={personPhoto} setFile={setPersonPhoto} />
-                            <FileInput label="Registration Form (PDF/Img)" accept=".pdf,image/*" file={registrationFormFile} setFile={setRegistrationFormFile} />
-                            <FileInput label="Outlet Photo" accept="image/*" file={outletPhoto} setFile={setOutletPhoto} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FileInput
+                                    label="Govt ID Photo"
+                                    accept="image/*"
+                                    file={govtIdPhoto}
+                                    setFile={setGovtIdPhoto}
+                                />
+                                <FileInput
+                                    label="Person Photo"
+                                    accept="image/*"
+                                    file={personPhoto}
+                                    setFile={setPersonPhoto}
+                                />
+                                <FileInput
+                                    label="Registration Form (PDF/Img)"
+                                    accept=".pdf,image/*"
+                                    file={registrationFormFile}
+                                    setFile={setRegistrationFormFile}
+                                />
+                                <FileInput
+                                    label="Outlet Photo"
+                                    accept="image/*"
+                                    file={outletPhoto}
+                                    setFile={setOutletPhoto}
+                                />
+                            </div>
                         </section>
 
                         <div>

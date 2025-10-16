@@ -1,8 +1,5 @@
 import React, { useState } from "react";
-import {
-  FaPlus,
-  FaUser,
-} from "react-icons/fa";
+import { FaPlus, FaUser, FaUpload } from "react-icons/fa";
 import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
 import { Link } from "react-router-dom";
 
@@ -27,7 +24,8 @@ const Dashboard = () => {
       {/* Main Layout */}
       <div className="flex min-h-screen bg-gray-50 pt-20">
         {/* Left Sidebar */}
-        <div className="w-64 bg-white shadow-md h-[calc(100vh-5rem)] fixed top-20 left-0 p-4">
+        <div className="w-64 bg-white shadow-md h-[calc(100vh-5rem)] fixed top-20 left-0 p-4 flex flex-col justify-between">
+          {/* Upper Section */}
           <ul className="space-y-2">
             {/* Create Menu */}
             <li>
@@ -93,6 +91,17 @@ const Dashboard = () => {
               </button>
             </li>
           </ul>
+
+          {/* Bottom Section - Bulk Upload */}
+          <div className="border-t pt-3">
+            <Link
+              to="/bulkupload"
+              className="flex items-center gap-2 text-gray-700 font-medium px-3 py-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              <FaUpload className="text-[#E4002B]" />
+              Bulk Upload
+            </Link>
+          </div>
         </div>
 
         {/* Main Content Area */}

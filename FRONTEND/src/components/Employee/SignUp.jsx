@@ -1,15 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   FaEnvelope,
-  FaLock,
   FaUser,
   FaPhoneAlt,
-  FaBuilding,
 } from "react-icons/fa";
-import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 
 const SignUp = () => {
-  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <>
@@ -82,26 +78,6 @@ const SignUp = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                   required
                 />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
-              <div className="relative">
-                <FaLock className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
-                  required
-                />
-                <div
-                  className="absolute right-3 top-3 text-gray-500 cursor-pointer"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                </div>
               </div>
             </div>
 

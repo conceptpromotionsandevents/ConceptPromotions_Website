@@ -1,52 +1,84 @@
 import React, { useState } from "react";
-import {
-    FaEnvelope,
-    FaLock,
-    FaUser,
-    FaPhoneAlt,
-    FaBuilding,
-} from "react-icons/fa";
-import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
+import { FaUser, FaBuilding } from "react-icons/fa";
 
 const SignUp = () => {
-    const [showPassword, setShowPassword] = useState(false);
-
-    // States for State dropdown
+    // States for dropdowns
     const [stateSearch, setStateSearch] = useState("");
     const [selectedState, setSelectedState] = useState("");
     const [showStateList, setShowStateList] = useState(false);
 
-    // States for Type of Campaign dropdown
     const [campaignSearch, setCampaignSearch] = useState("");
     const [selectedCampaign, setSelectedCampaign] = useState("");
     const [showCampaignList, setShowCampaignList] = useState(false);
 
-    // States for Region dropdown
     const [regionSearch, setRegionSearch] = useState("");
     const [selectedRegion, setSelectedRegion] = useState("");
     const [showRegionList, setShowRegionList] = useState(false);
 
-    const states = [
-        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-        "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-        "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
-        "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
-        "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
-        "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
-        "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir",
-        "Ladakh", "Lakshadweep", "Puducherry"
-    ];
+    //  Region to State mapping
+    const regionStates = {
+        North: [
+            "Jammu and Kashmir",
+            "Ladakh",
+            "Himachal Pradesh",
+            "Punjab",
+            "Haryana",
+            "Uttarakhand",
+            "Uttar Pradesh",
+            "Delhi",
+            "Chandigarh",
+        ],
+        South: [
+            "Andhra Pradesh",
+            "Karnataka",
+            "Kerala",
+            "Tamil Nadu",
+            "Telangana",
+            "Puducherry",
+            "Lakshadweep",
+        ],
+        East: [
+            "Bihar",
+            "Jharkhand",
+            "Odisha",
+            "West Bengal",
+            "Sikkim",
+            "Andaman and Nicobar Islands",
+            "Arunachal Pradesh",
+            "Assam",
+            "Manipur",
+            "Meghalaya",
+            "Mizoram",
+            "Nagaland",
+            "Tripura",
+        ],
+        West: [
+            "Rajasthan",
+            "Gujarat",
+            "Maharashtra",
+            "Madhya Pradesh",
+            "Goa",
+            "Chhattisgarh",
+            "Dadra and Nagar Haveli and Daman and Diu",
+        ],
+    };
 
     const campaignTypes = [
         "Retailer Enrolment",
         "Display Payment",
         "Incentive Payment",
-        "Others"
+        "Others",
     ];
 
     const regions = ["North", "East", "West", "South", "All"];
 
-    const filteredStates = states.filter((state) =>
+    // Filter states based on region + search
+    const statesToShow =
+        selectedRegion && selectedRegion !== "All"
+            ? regionStates[selectedRegion] || []
+            : ["All States", ...Object.values(regionStates).flat()];
+
+    const filteredStates = statesToShow.filter((state) =>
         state.toLowerCase().includes(stateSearch.toLowerCase())
     );
 
@@ -84,7 +116,9 @@ const SignUp = () => {
                     <form className="space-y-5">
                         {/* Campaign Name */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">Campaign Name</label>
+                            <label className="block text-sm font-medium mb-1">
+                                Campaign Name
+                            </label>
                             <div className="relative">
                                 <FaUser className="absolute left-3 top-3 text-gray-400" />
                                 <input
@@ -110,9 +144,11 @@ const SignUp = () => {
                             </div>
                         </div>
 
-                        {/* Type of Campaign (Searchable) */}
+                        {/* Type of Campaign */}
                         <div className="relative">
-                            <label className="block text-sm font-medium mb-1">Type of Campaign</label>
+                            <label className="block text-sm font-medium mb-1">
+                                Type of Campaign
+                            </label>
                             <input
                                 type="text"
                                 placeholder="Search or select type"
@@ -147,7 +183,7 @@ const SignUp = () => {
                             )}
                         </div>
 
-                        {/* Region (Searchable) */}
+                        {/* Region */}
                         <div className="relative">
                             <label className="block text-sm font-medium mb-1">Region</label>
                             <input
@@ -171,6 +207,7 @@ const SignUp = () => {
                                                 onClick={() => {
                                                     setSelectedRegion(region);
                                                     setShowRegionList(false);
+                                                    setSelectedState(""); // reset state when region changes
                                                 }}
                                                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                                             >
@@ -184,12 +221,16 @@ const SignUp = () => {
                             )}
                         </div>
 
-                        {/* State (Searchable) */}
+                        {/* State */}
                         <div className="relative">
                             <label className="block text-sm font-medium mb-1">State</label>
                             <input
                                 type="text"
-                                placeholder="Search or select state"
+                                placeholder={
+                                    selectedRegion
+                                        ? "Search or select state"
+                                        : "Select region first"
+                                }
                                 value={selectedState || stateSearch}
                                 onChange={(e) => {
                                     setStateSearch(e.target.value);
@@ -197,9 +238,13 @@ const SignUp = () => {
                                     setShowStateList(true);
                                 }}
                                 onFocus={() => setShowStateList(true)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
+                                disabled={!selectedRegion}
+                                className={`w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 ${selectedRegion
+                                    ? "focus:ring-[#E4002B]"
+                                    : "bg-gray-100 cursor-not-allowed"
+                                    }`}
                             />
-                            {showStateList && (
+                            {showStateList && selectedRegion && (
                                 <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-lg max-h-48 overflow-y-auto mt-1">
                                     {filteredStates.length > 0 ? (
                                         filteredStates.map((state, index) => (
@@ -221,30 +266,10 @@ const SignUp = () => {
                             )}
                         </div>
 
-                        {/* Password */}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Password</label>
-                            <div className="relative">
-                                <FaLock className="absolute left-3 top-3 text-gray-400" />
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="At least 8 characters"
-                                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
-                                    required
-                                />
-                                <div
-                                    className="absolute right-3 top-3 text-gray-500 cursor-pointer"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                >
-                                    {showPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Submit Button */}
+                        {/* Submit */}
                         <button
                             type="submit"
-                            className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition"
+                            className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition mb-10"
                         >
                             Sign Up
                         </button>
