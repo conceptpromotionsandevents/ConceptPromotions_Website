@@ -12,11 +12,11 @@ const stats = [
 
 const OurNetwork = () => {
   return (
-    <section className="bg-black text-white py-4 px-6 md:px-20">
+    <section className="bg-black text-white py-10 px-6 md:px-20">
       <div className="max-w-7xl mx-auto">
 
         {/* Heading */}
-        <div className="text-center mb-10">
+        <div className="text-center mt-20 mb-10">
           <h2 className="text-4xl md:text-5xl font-extrabold mb-3">
             Our <span className="text-red-500">Network</span>
           </h2>
@@ -78,7 +78,6 @@ const OurNetwork = () => {
           </motion.div>
         </div>
       </div>
-      <div className="border-b border-gray-700 mx-auto mt-20"></div>
     </section>
   );
 };

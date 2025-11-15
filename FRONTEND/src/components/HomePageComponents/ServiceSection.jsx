@@ -104,6 +104,7 @@ const ServiceSection = () => {
             <div className="relative z-10 text-center mt-auto">
               <Link
                 to="/services"
+                state={{ openService: item.title }}  
                 className="inline-flex items-center gap-1 text-red-500 hover:text-red-700 hover:underline text-sm font-medium transition-all"
               >
                 Read More <FaArrowRight className="text-xs mt-[2px]" />

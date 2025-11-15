@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   FaBullhorn,
@@ -10,6 +10,7 @@ import {
   FaHome,
   FaMoneyCheckAlt,
 } from "react-icons/fa";
+import { useLocation } from "react-router-dom";
 
 /* ---------- SERVICE DATA ---------- */
 
@@ -19,10 +20,7 @@ const services = [
     title: "In-Store Promotions",
     description:
       "Our in-store promotions are crafted to increase visibility, drive immediate sales, and build brand loyalty. We combine creativity with data-driven strategy to execute impactful retail campaigns. From interactive displays to personalized customer experiences, our focus is to turn foot traffic into loyal customers through strategic engagement and memorable interactions.",
-    images: [
-      "/inStorePromo1.jpg",
-    //   "/inStorePromo2.jpg",
-    ],
+    images: ["/inStorePromo1.jpg"],
   },
   {
     icon: <FaUsers />,
@@ -49,7 +47,6 @@ const services = [
       "Effective merchandising drives visibility and conversion. We optimize shelf arrangements, displays, and promotional placements to enhance consumer experience and brand recall.",
     images: [
       "/Merchandising1.jpg",
-    //   "/Merchandising2.jpg",
       "/Merchandising3.jpg",
       "/Merchandising4.jpg",
       "/Merchandising5.jpg",
@@ -60,22 +57,14 @@ const services = [
     title: "Training",
     description:
       "Empower your workforce through structured and engaging training programs. We combine industry knowledge with practical approaches to ensure measurable growth in performance and productivity.",
-    images: [
-      "/Training1.jpg",
-      "/Training2.jpg",
-      "/Training3.jpg",
-    ],
+    images: ["/Training1.jpg", "/Training2.jpg", "/Training3.jpg"],
   },
   {
     icon: <FaFlask />,
     title: "Wet Sampling",
     description:
       "We provide accurate and consistent wet sampling services ensuring reliable results that align with regulatory standards.",
-    images: [
-      "/WetSampling1.jpg",
-      "/WetSampling2.jpg",
-      "/WetSampling3.jpg",
-    ],
+    images: ["/WetSampling1.jpg", "/WetSampling2.jpg", "/WetSampling3.jpg"],
   },
   {
     icon: <FaHome />,
@@ -103,10 +92,8 @@ const services = [
 const ServiceItem = ({ item, reversed }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Normalize to an image array
   const images = item.images || [item.image];
 
-  // Auto-rotate only if multiple images
   useEffect(() => {
     if (!item.images) return;
 
@@ -127,12 +114,8 @@ const ServiceItem = ({ item, reversed }) => {
         reversed ? "md:flex-row-reverse" : ""
       }`}
     >
-      {/* IMAGE */}
-      <motion.div
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        className="w-full md:w-1/2"
-      >
+      {/* IMAGE (NO FLOAT ANIMATION) */}
+      <motion.div className="w-full md:w-1/2">
         <img
           src={images[currentIndex]}
           alt={item.title}
@@ -140,12 +123,8 @@ const ServiceItem = ({ item, reversed }) => {
         />
       </motion.div>
 
-      {/* TEXT */}
-      <motion.div
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        className="w-full md:w-1/2"
-      >
+      {/* TEXT (NO FLOAT ANIMATION) */}
+      <motion.div className="w-full md:w-1/2">
         <div className="flex items-center gap-4 mb-5">
           <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gray-800 border-4 border-red-600 text-3xl text-red-500">
             {item.icon}
@@ -164,6 +143,29 @@ const ServiceItem = ({ item, reversed }) => {
 /* ---------- MAIN COMPONENT ---------- */
 
 const ServiceSection = () => {
+  const location = useLocation();
+  const serviceRefs = useRef([]);
+
+  useEffect(() => {
+    if (location.state?.openService) {
+      const index = services.findIndex(
+        (s) => s.title === location.state.openService
+      );
+
+      if (index !== -1 && serviceRefs.current[index]) {
+        setTimeout(() => {
+          const element = serviceRefs.current[index];
+          const offset = element.offsetTop - 130; 
+
+          window.scrollTo({
+            top: offset,
+            behavior: "smooth",
+          });
+        }, 300);
+      }
+    }
+  }, [location.state]);
+
   return (
     <section
       id="services"
@@ -183,11 +185,9 @@ const ServiceSection = () => {
       {/* LIST */}
       <div className="space-y-24">
         {services.map((item, index) => (
-          <ServiceItem
-            key={index}
-            item={item}
-            reversed={index % 2 === 1}
-          />
+          <div key={index} ref={(el) => (serviceRefs.current[index] = el)}>
+            <ServiceItem item={item} reversed={index % 2 === 1} />
+          </div>
         ))}
       </div>
     </section>

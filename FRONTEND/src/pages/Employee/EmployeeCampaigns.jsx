@@ -1,7 +1,7 @@
-import { useState } from "react"
-import { FaCheck, FaTimes } from "react-icons/fa"
+import React, { useState } from "react";
+import { FaCheck, FaTimes } from "react-icons/fa";
 
-const RetailerCampaigns = ({ campaigns = [], onView }) => {
+const EmployeeCampaign = ({ campaigns = [], onView }) => {
   // Dummy campaigns if no data is passed
   const demoCampaigns = [
     {
@@ -22,12 +22,12 @@ const RetailerCampaigns = ({ campaigns = [], onView }) => {
       startDate: "05-Apr-25",
       endDate: "20-Apr-25",
     },
-  ]
+  ];
 
-  const campaignData = campaigns.length ? campaigns : demoCampaigns
+  const campaignData = campaigns.length ? campaigns : demoCampaigns;
 
   // Track accept/reject state
-  const [status, setStatus] = useState({})
+  const [status, setStatus] = useState({});
 
   return (
     <div>
@@ -36,13 +36,15 @@ const RetailerCampaigns = ({ campaigns = [], onView }) => {
       {campaignData.length === 0 ? (
         <p className="text-gray-600">No campaigns found.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaignData.map((campaign) => (
             <div
               key={campaign.id}
               className="border border-gray-300 rounded-lg p-6 shadow-sm hover:shadow-md transition"
             >
-              <h3 className="text-lg font-semibold mb-2 text-gray-800">{campaign.name}</h3>
+              <h3 className="text-lg font-semibold mb-2 text-gray-800">
+                {campaign.name}
+              </h3>
 
               <p className="text-sm text-gray-600 mb-1">
                 <span className="font-medium">Start:</span> {campaign.startDate}
@@ -62,28 +64,11 @@ const RetailerCampaigns = ({ campaigns = [], onView }) => {
 
               {/* STATUS MESSAGE */}
               {status[campaign.id] === "accepted" && (
-                <p className="text-green-600 font-semibold flex items-center gap-2 text-sm mb-2">
+                <p className="text-green-600 font-semibold flex items-center gap-2 text-sm mb-3">
                   <FaCheck className="text-sm" /> Campaign Accepted
                 </p>
               )}
 
-              {/* EMPLOYEE LIST (ONLY WHEN ACCEPTED) */}
-              {status[campaign.id] === "accepted" && (
-                <div className="mt-2 mb-4 bg-gray-50 p-3 rounded-md border border-gray-200">
-                  <p className="font-medium text-gray-700 mb-2">Assigned Employees:</p>
-
-                  <div className="text-sm text-gray-700 space-y-1">
-                    <p>
-                      <span className="font-semibold">Rohit Sharma</span> — 9876543210
-                    </p>
-                    <p>
-                      <span className="font-semibold">Anjali Verma</span> — 9123456780
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* REJECTED MESSAGE */}
               {status[campaign.id] === "rejected" && (
                 <p className="text-red-600 font-semibold flex items-center gap-2 text-sm mb-3">
                   <FaTimes className="text-sm" /> Campaign Rejected
@@ -95,25 +80,30 @@ const RetailerCampaigns = ({ campaigns = [], onView }) => {
                 <div className="flex gap-2">
                   <button
                     className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-1.5 rounded-md text-xs hover:bg-green-700 transition"
-                    onClick={() => setStatus((prev) => ({ ...prev, [campaign.id]: "accepted" }))}
+                    onClick={() =>
+                      setStatus((prev) => ({ ...prev, [campaign.id]: "accepted" }))
+                    }
                   >
                     <FaCheck /> Accept
                   </button>
 
                   <button
                     className="flex-1 flex items-center justify-center gap-1 bg-red-600 text-white py-1.5 rounded-md text-xs hover:bg-red-700 transition"
-                    onClick={() => setStatus((prev) => ({ ...prev, [campaign.id]: "rejected" }))}
+                    onClick={() =>
+                      setStatus((prev) => ({ ...prev, [campaign.id]: "rejected" }))
+                    }
                   >
                     <FaTimes /> Reject
                   </button>
                 </div>
               )}
+
             </div>
           ))}
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default RetailerCampaigns
+export default EmployeeCampaign;

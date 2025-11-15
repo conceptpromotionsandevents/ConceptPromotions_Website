@@ -14,10 +14,10 @@ const testimonials = [
 
 const Testimonials = () => {
   return (
-    <section className="bg-gradient-to-b from-red-950 via-gray-900 to-black text-white py-5 px-6 md:px-20">
+    <section className="bg-gradient-to-b from-red-950 via-gray-900 to-black text-white py-5 px-6 md:px-20 mb-10">
       <div className="text-center mb-16">
         <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-          What Our <span className="text-red-500">Clients Say</span>
+          <span className="text-red-500">Testimonials</span>
         </h2>
         <p className="text-gray-300 max-w-2xl mx-auto text-base md:text-lg">
           We take pride in building long-lasting partnerships. Here's what our clients have to say

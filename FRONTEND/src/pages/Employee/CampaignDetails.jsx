@@ -5,7 +5,7 @@ import Gratification from "./Gratification";
 import Report from "./Report";
 import Period from "./Period";
 import Status from "./Status";
-import Leaderboard from "./Leaderboard";
+import OutletsAssigned from "./OutletsAssigned";
 import SubmitReport from "./SubmitReport";
 
 const dummyData = {
@@ -13,39 +13,41 @@ const dummyData = {
     name: "Monte Carlo Winter Festival",
     startDate: "01-Apr-25",
     endDate: "15-Apr-25",
-    description: "Premium promotion on winter wear.",
+    description: "Employee incentive campaign for promoting winter wear.",
     status: "Active",
-    gratification: "Buy 2 Get 1 Free",
+    gratification: "Earn bonus points for each sale",
     terms: [
-      "Only valid for registered retailers.",
+      "Only valid for registered employees.",
       "Applicable only on winter category products.",
-      "Cannot be clubbed with other offers.",
+      "Performance will be reviewed weekly.",
     ],
   },
+
   2: {
-    name: "ABCD Campaign",
+    name: "ABCD Employee Drive",
     startDate: "10-Apr-25",
     endDate: "25-Apr-25",
-    description: "Premium promotion on winter wear.",
+    description: "Sales push campaign with performance rewards.",
     status: "Active",
-    gratification: "Buy 2 Get 1 Free",
+    gratification: "Top performers receive gift vouchers",
     terms: [
-      "Only valid for registered retailers.",
-      "Applicable only on winter category products.",
-      "Cannot be clubbed with other offers.",
+      "Only valid for active employees.",
+      "Daily reporting is mandatory.",
+      "Employees must follow product guidelines.",
     ],
   },
+
   3: {
     name: "Winter Dhamaka 2025",
     startDate: "05-Apr-25",
     endDate: "20-Apr-25",
-    description: "Premium promotion on winter wear.",
+    description: "Sales performance campaign for winter collection.",
     status: "Active",
-    gratification: "Buy 2 Get 1 Free",
+    gratification: "Earn up to ₹5000 bonus based on targets",
     terms: [
-      "Only valid for registered retailers.",
-      "Applicable only on winter category products.",
-      "Cannot be clubbed with other offers.",
+      "Employees must meet minimum weekly targets.",
+      "Only sales of eligible winter items count.",
+      "Bonus will be credited post-campaign.",
     ],
   },
 };
@@ -62,7 +64,7 @@ const CampaignDetails = ({ campaignId, onBack }) => {
     report: <Report campaign={campaign} />,
     period: <Period campaign={campaign} />,
     status: <Status campaign={campaign} />,
-    leaderboard: <Leaderboard campaign={campaign} />,
+    outlets: <OutletsAssigned campaign={campaign} />,
     submitReport: <SubmitReport campaign={campaign} />,
   };
 
@@ -100,8 +102,8 @@ const CampaignDetails = ({ campaignId, onBack }) => {
           { key: "gratification", label: "Gratification" },
           { key: "report", label: "View Report" },
           { key: "period", label: "Period" },
+          { key: "outlets", label: "Outlets Assigned" },
           { key: "status", label: "Status" },
-          { key: "leaderboard", label: "Leaderboard" },
         ].map((item) => (
           <button
             key={item.key}

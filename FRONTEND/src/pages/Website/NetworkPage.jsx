@@ -1,18 +1,18 @@
 import React from "react";
 import Navbar from "../../components/CommonComponents/Navbar";
-import AboutSection from "../../components/AboutPageComponents/AboutSection";
+import OurNetwork from "../../components/NetworkPageComponents/OurNetwork";
 import Footer from "../../components/CommonComponents/Footer";
-import DiversitySection from "../../components/AboutPageComponents/DiversitySection";
+import ReachCoverage from "../../components/NetworkPageComponents/ReachCoverage";
 
-const About = () => {
+const Network = () => {
   return (
     <div className="bg-black text-white">
       <Navbar />
-      <AboutSection />
-      <DiversitySection />
+      <OurNetwork />
+      <ReachCoverage />
       <Footer />
     </div>
   );
 };
 
-export default About;
+export default Network;
