@@ -109,7 +109,7 @@ const JobSeekers = () => {
         return;
       }
 
-      toast.success("Application submitted successfully! ✅", {
+      toast.success("Application submitted successfully!", {
         position: "top-right",
         autoClose: 3000,
         theme: "dark",

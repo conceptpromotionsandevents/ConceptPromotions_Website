@@ -52,7 +52,7 @@ const DiversitySection = () => {
                             At Concept Promotions, diversity is not just a principle—it's a driving force
                             behind our growth and culture. With an outstanding
                             <span className="text-red-500 font-semibold"> 89.2% women workforce</span>,
-                            we empower careers and foster leadership across India.
+                            we empower careers and foster leadership across India.(fig. as per Oct'25)
                         </p>
 
                         <p className="text-gray-300 mt-4 text-lg leading-relaxed">

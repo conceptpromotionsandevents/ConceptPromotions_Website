@@ -45,7 +45,7 @@ const Footer = () => {
             <div className="flex justify-center md:justify-start items-start space-x-3">
               <FaMapMarkerAlt className="text-red-600 mt-1" />
               <p>
-                Communication Address: 32-33, WC-5, <br />
+                Communication Address: 40-41, WC-5, <br />
                 Bakshi House, Nehru Place, <br />
                 New Delhi - 110019
               </p>

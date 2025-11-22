@@ -84,7 +84,7 @@ const ContactForm = () => {
                 <FiMapPin size={16} />
               </div>
               <p className="font-semibold">
-                Communication Address: 32-33, WC-5, <br /> Bakshi House, Nehru Place, <br /> New Delhi - 110019
+                Communication Address: 40-41, WC-5, <br /> Bakshi House, Nehru Place, <br /> New Delhi - 110019
               </p>
             </div>
           </div>
