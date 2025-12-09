@@ -4,17 +4,17 @@ const paymentTransactionSchema = new mongoose.Schema(
     {
         client: {
             type: String,
-            ref: "ClientAdmin", // or whatever your client model is named
+            // ref: "ClientAdmin", // or whatever your client model is named
             required: true,
         },
         retailer: {
             type: String,
-            ref: "Retailer",
+            // ref: "Retailer",
             required: true,
         },
         campaign: {
             type: String,
-            ref: "Campaign",
+            // ref: "Campaign",
             required: true,
         },
         shopName: {
@@ -40,11 +40,6 @@ const paymentTransactionSchema = new mongoose.Schema(
         },
         paymentDate: {
             type: Date,
-            required: true,
-        },
-        createdBy: {
-            type: String,
-            ref: "Admin",
             required: true,
         },
         remarks: {
