@@ -3,17 +3,17 @@ import mongoose from "mongoose";
 const paymentTransactionSchema = new mongoose.Schema(
     {
         client: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: String,
             ref: "ClientAdmin", // or whatever your client model is named
             required: true,
         },
         retailer: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: String,
             ref: "Retailer",
             required: true,
         },
         campaign: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: String,
             ref: "Campaign",
             required: true,
         },
@@ -43,7 +43,7 @@ const paymentTransactionSchema = new mongoose.Schema(
             required: true,
         },
         createdBy: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: String,
             ref: "Admin",
             required: true,
         },
