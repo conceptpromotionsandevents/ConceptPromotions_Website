@@ -10,6 +10,7 @@ import {
     updateCampaignTCA,
     deleteCampaign,
     getPaymentStatistics,
+    addCampaignTCA,
 } from "../controllers/payment.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 
