@@ -125,7 +125,108 @@ export const getBudgetByRetailerId = async (req, res) => {
     }
 };
 
-// ✅ ADD PAYMENT (Create or Update Budget)
+// ✅ ADD CAMPAIGN TCA (Set budget for a campaign without payment)
+export const addCampaignTCA = async (req, res) => {
+    try {
+        const {
+            retailerId,
+            retailerName,
+            state,
+            shopName,
+            outletCode,
+            campaignId,
+            campaignName,
+            tca,
+        } = req.body;
+
+        // Validation
+        if (!retailerId || !campaignId || !tca) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: retailerId, campaignId, tca",
+            });
+        }
+
+        if (tca <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "TCA must be greater than 0",
+            });
+        }
+
+        // Validate ObjectIds
+        if (
+            !mongoose.Types.ObjectId.isValid(retailerId) ||
+            !mongoose.Types.ObjectId.isValid(campaignId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid retailer ID or campaign ID",
+            });
+        }
+
+        // Find existing budget or create new
+        let budget = await RetailerBudget.findOne({ retailerId });
+
+        if (!budget) {
+            // Create new budget entry
+            budget = new RetailerBudget({
+                retailerId,
+                retailerName,
+                state,
+                shopName,
+                outletCode,
+                campaigns: [
+                    {
+                        campaignId,
+                        campaignName,
+                        tca: parseFloat(tca),
+                        installments: [],
+                    },
+                ],
+            });
+        } else {
+            // Check if campaign already exists
+            const campaignExists = budget.campaigns.some(
+                (c) => c.campaignId.toString() === campaignId.toString()
+            );
+
+            if (campaignExists) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Campaign budget already exists for this retailer. Use update to modify.",
+                });
+            }
+
+            // Add new campaign to existing budget
+            budget.campaigns.push({
+                campaignId,
+                campaignName,
+                tca: parseFloat(tca),
+                installments: [],
+            });
+        }
+
+        // Save (pre-save middleware will calculate all totals)
+        await budget.save();
+
+        res.status(201).json({
+            success: true,
+            message: "Campaign TCA added successfully",
+            budget,
+        });
+    } catch (error) {
+        console.error("Error adding campaign TCA:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to add campaign TCA",
+            error: error.message,
+        });
+    }
+};
+
+// ✅ ADD PAYMENT (Add installment to existing campaign)
 export const addPayment = async (req, res) => {
     try {
         const {
@@ -387,14 +488,6 @@ export const deletePayment = async (req, res) => {
 
         // Remove installment
         campaign.installments.splice(installmentIndex, 1);
-
-        // Optional: Remove campaign if no installments remain
-        if (campaign.installments.length === 0) {
-            const campaignIndex = budget.campaigns.findIndex(
-                (c) => c._id.toString() === campaignId
-            );
-            budget.campaigns.splice(campaignIndex, 1);
-        }
 
         // Save (pre-save middleware will recalculate all totals)
         await budget.save();

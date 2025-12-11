@@ -25,6 +25,7 @@ router.get("/:budgetId", getBudgetById);
 router.get("/retailer/:retailerId", getBudgetByRetailerId);
 
 // POST routes
+router.post("/set-campaign-tca", addCampaignTCA);
 router.post("/add-payment", addPayment);
 
 // PUT/PATCH routes
