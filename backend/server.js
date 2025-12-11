@@ -53,7 +53,7 @@ app.use("/api/employee", employeeRoutes);
 app.use("/api/client", clientRoutes);
 app.use("/api/career", careerRoutes); // ✅ Career API
 app.use("/api/contact", contactRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/budgets", paymentRoutes);
 // ===== Health Check =====
 app.get("/", (req, res) => {
     res.status(200).send("Supreme Backend API is running");

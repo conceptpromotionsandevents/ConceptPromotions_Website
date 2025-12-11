@@ -1,357 +1,595 @@
-import PaymentTransaction from "../models/payments.model.js";
+// controllers/payment.controller.js
+import { RetailerBudget } from "../models/payments.model.js";
+import mongoose from "mongoose";
 
-/* ======================================================
-   CREATE PAYMENT TRANSACTION
-====================================================== */
-export const createPaymentTransaction = async (req, res) => {
+// ✅ GET ALL BUDGETS with optional filters
+export const getAllBudgets = async (req, res) => {
     try {
-        const {
-            client,
-            retailer,
-            campaign,
-            shopName,
-            outletCode,
-            paymentAmount,
-            utrNumber,
-            paymentDate, // expected format: "dd/mm/yyyy"
-            remarks,
-        } = req.body;
+        const { state, retailerId, campaignId, outletCode } = req.query;
 
-        // Authorization check
-        if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can add payments" });
-        }
+        const filter = {};
+        if (state) filter.state = state;
+        if (retailerId) filter.retailerId = retailerId;
+        if (outletCode) filter.outletCode = outletCode;
+        if (campaignId) filter["campaigns.campaignId"] = campaignId;
 
-        // Validate required fields
-        if (
-            !client ||
-            !retailer ||
-            !campaign ||
-            !shopName ||
-            !outletCode ||
-            !paymentAmount ||
-            !utrNumber ||
-            !paymentDate
-        ) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
+        const budgets = await RetailerBudget.find(filter)
+            .populate("retailerId", "name uniqueId shopDetails")
+            .populate("campaigns.campaignId", "name client")
+            .sort({ createdAt: -1 });
 
-        // Validate payment amount
-        const amount = Number(paymentAmount);
-        if (!Number.isFinite(amount) || amount <= 0) {
-            return res
-                .status(400)
-                .json({ message: "Payment amount must be a positive number" });
-        }
+        // Calculate aggregate statistics
+        const stats = {
+            totalRetailers: budgets.length,
+            totalTAR: budgets.reduce((sum, b) => sum + b.tar, 0),
+            totalPaid: budgets.reduce((sum, b) => sum + b.taPaid, 0),
+            totalPending: budgets.reduce((sum, b) => sum + b.taPending, 0),
+            totalInstallments: budgets.reduce((sum, b) => {
+                return (
+                    sum +
+                    b.campaigns.reduce(
+                        (cSum, c) => cSum + c.installments.length,
+                        0
+                    )
+                );
+            }, 0),
+        };
 
-        // Validate and parse date (dd/mm/yyyy)
-        const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-        if (!dateRegex.test(paymentDate)) {
-            return res.status(400).json({
-                message: "Date must be in dd/mm/yyyy format",
-            });
-        }
-
-        const [day, month, year] = paymentDate.split("/");
-        const parsedDate = new Date(`${year}-${month}-${day}`);
-
-        if (isNaN(parsedDate.getTime())) {
-            return res.status(400).json({ message: "Invalid date provided" });
-        }
-
-        // Check for duplicate UTR
-        const existingUTR = await PaymentTransaction.findOne({
-            utrNumber: utrNumber.trim(),
-            isDeleted: false,
-        });
-
-        if (existingUTR) {
-            return res.status(400).json({
-                message: "UTR number already exists in the system",
-            });
-        }
-
-        // Create payment transaction
-        const payment = await PaymentTransaction.create({
-            client: client.trim(),
-            retailer: retailer.trim(),
-            campaign: campaign.trim(),
-            shopName: shopName.trim(),
-            outletCode: outletCode.trim(),
-            paymentAmount: amount,
-            utrNumber: utrNumber.trim(),
-            paymentDate: parsedDate,
-            remarks: remarks?.trim() || "",
-        });
-
-        res.status(201).json({
-            message: "Payment transaction created successfully",
-            payment,
+        res.status(200).json({
+            success: true,
+            count: budgets.length,
+            stats,
+            budgets,
         });
     } catch (error) {
-        console.error("Create payment error:", error);
+        console.error("Error fetching budgets:", error);
         res.status(500).json({
-            message: "Server error",
+            success: false,
+            message: "Failed to fetch budgets",
             error: error.message,
         });
     }
 };
 
-/* ======================================================
-   GET ALL PAYMENT TRANSACTIONS (WITH FILTERS)
-====================================================== */
-export const getAllPaymentTransactions = async (req, res) => {
+// ✅ GET SINGLE BUDGET BY ID
+export const getBudgetById = async (req, res) => {
     try {
-        const {
-            campaign,
-            retailer,
-            client,
-            startDate,
-            endDate,
-            utrNumber,
-            page = 1,
-            limit = 50,
-        } = req.query;
+        const { budgetId } = req.params;
 
-        // Authorization check
-        if (!req.user) {
-            return res.status(401).json({ message: "Authentication required" });
+        if (!mongoose.Types.ObjectId.isValid(budgetId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid budget ID",
+            });
         }
 
-        // Build filter
-        const filter = { isDeleted: false };
+        const budget = await RetailerBudget.findById(budgetId)
+            .populate("retailerId", "name uniqueId shopDetails state")
+            .populate("campaigns.campaignId", "name client");
 
-        if (campaign) filter.campaign = new RegExp(campaign, "i");
-        if (retailer) filter.retailer = new RegExp(retailer, "i");
-        if (client) filter.client = new RegExp(client, "i");
-        if (utrNumber) filter.utrNumber = new RegExp(utrNumber, "i");
-
-        // Date range filter
-        if (startDate || endDate) {
-            filter.paymentDate = {};
-            if (startDate) {
-                const [day, month, year] = startDate.split("/");
-                filter.paymentDate.$gte = new Date(`${year}-${month}-${day}`);
-            }
-            if (endDate) {
-                const [day, month, year] = endDate.split("/");
-                filter.paymentDate.$lte = new Date(
-                    `${year}-${month}-${day}T23:59:59`
-                );
-            }
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "Budget not found",
+            });
         }
-
-        // Pagination
-        const skip = (Number(page) - 1) * Number(limit);
-
-        const [payments, total] = await Promise.all([
-            PaymentTransaction.find(filter)
-                .sort({ paymentDate: -1, createdAt: -1 })
-                .skip(skip)
-                .limit(Number(limit)),
-            PaymentTransaction.countDocuments(filter),
-        ]);
 
         res.status(200).json({
-            payments,
-            pagination: {
-                total,
-                page: Number(page),
-                pages: Math.ceil(total / Number(limit)),
-                limit: Number(limit),
-            },
+            success: true,
+            budget,
         });
     } catch (error) {
-        console.error("Get payments error:", error);
-        res.status(500).json({ message: error.message });
+        console.error("Error fetching budget:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch budget",
+            error: error.message,
+        });
     }
 };
 
-/* ======================================================
-   GET SINGLE PAYMENT TRANSACTION BY ID
-====================================================== */
-export const getPaymentTransactionById = async (req, res) => {
+// ✅ GET BUDGET BY RETAILER ID
+export const getBudgetByRetailerId = async (req, res) => {
     try {
-        const { id } = req.params;
+        const { retailerId } = req.params;
 
-        if (!req.user) {
-            return res.status(401).json({ message: "Authentication required" });
+        if (!mongoose.Types.ObjectId.isValid(retailerId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid retailer ID",
+            });
         }
 
-        const payment = await PaymentTransaction.findOne({
-            _id: id,
-            isDeleted: false,
+        const budget = await RetailerBudget.findOne({ retailerId })
+            .populate("retailerId", "name uniqueId shopDetails state")
+            .populate("campaigns.campaignId", "name client");
+
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "No budget found for this retailer",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            budget,
         });
-
-        if (!payment) {
-            return res.status(404).json({ message: "Payment not found" });
-        }
-
-        res.status(200).json({ payment });
     } catch (error) {
-        console.error("Get payment by ID error:", error);
-        res.status(500).json({ message: error.message });
+        console.error("Error fetching retailer budget:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch retailer budget",
+            error: error.message,
+        });
     }
 };
 
-/* ======================================================
-   UPDATE PAYMENT TRANSACTION
-====================================================== */
-export const updatePaymentTransaction = async (req, res) => {
+// ✅ ADD PAYMENT (Create or Update Budget)
+export const addPayment = async (req, res) => {
     try {
-        const { id } = req.params;
         const {
-            client,
-            retailer,
-            campaign,
+            retailerId,
+            retailerName,
+            state,
             shopName,
             outletCode,
-            paymentAmount,
-            utrNumber,
-            paymentDate,
-            remarks,
+            campaignId,
+            campaignName,
+            tca,
+            installment, // { installmentNo, installmentAmount, dateOfInstallment, utrNumber, remarks }
         } = req.body;
 
-        // Authorization check
-        if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can edit payments" });
+        // Validation
+        if (!retailerId || !campaignId || !installment) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Missing required fields: retailerId, campaignId, installment",
+            });
         }
 
-        const payment = await PaymentTransaction.findOne({
-            _id: id,
-            isDeleted: false,
+        if (
+            !installment.installmentAmount ||
+            !installment.utrNumber ||
+            !installment.dateOfInstallment
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Installment must have installmentAmount, utrNumber, and dateOfInstallment",
+            });
+        }
+
+        // Check for duplicate UTR number
+        const existingUTR = await RetailerBudget.findOne({
+            "campaigns.installments.utrNumber": installment.utrNumber,
         });
 
-        if (!payment) {
-            return res.status(404).json({ message: "Payment not found" });
+        if (existingUTR) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "UTR number already exists. Please use a unique UTR number.",
+            });
         }
 
-        // Update client
-        if (client !== undefined) {
-            payment.client = client.trim();
-        }
+        // Add timestamps to installment
+        installment.createdAt = new Date();
+        installment.updatedAt = new Date();
 
-        // Update retailer
-        if (retailer !== undefined) {
-            payment.retailer = retailer.trim();
-        }
+        // Find existing budget or create new
+        let budget = await RetailerBudget.findOne({ retailerId });
 
-        // Update campaign
-        if (campaign !== undefined) {
-            payment.campaign = campaign.trim();
-        }
+        if (!budget) {
+            // Create new budget entry
+            budget = new RetailerBudget({
+                retailerId,
+                retailerName,
+                state,
+                shopName,
+                outletCode,
+                campaigns: [
+                    {
+                        campaignId,
+                        campaignName,
+                        tca: tca || 0,
+                        installments: [installment],
+                    },
+                ],
+            });
+        } else {
+            // Update existing budget
+            const campaignIndex = budget.campaigns.findIndex(
+                (c) => c.campaignId.toString() === campaignId.toString()
+            );
 
-        // Update shop name
-        if (shopName !== undefined) {
-            payment.shopName = shopName.trim();
-        }
+            if (campaignIndex === -1) {
+                // Add new campaign to existing budget
+                budget.campaigns.push({
+                    campaignId,
+                    campaignName,
+                    tca: tca || 0,
+                    installments: [installment],
+                });
+            } else {
+                // Update existing campaign
+                if (tca !== undefined && tca !== null) {
+                    budget.campaigns[campaignIndex].tca = tca;
+                }
 
-        // Update outlet code
-        if (outletCode !== undefined) {
-            payment.outletCode = outletCode.trim();
-        }
-
-        // Update payment amount
-        if (paymentAmount !== undefined) {
-            const amount = Number(paymentAmount);
-            if (!Number.isFinite(amount) || amount <= 0) {
-                return res
-                    .status(400)
-                    .json({ message: "Invalid payment amount" });
+                // Add installment to existing campaign
+                budget.campaigns[campaignIndex].installments.push(installment);
             }
-            payment.paymentAmount = amount;
         }
 
-        // Update UTR number (check for duplicates)
-        if (utrNumber && utrNumber.trim() !== payment.utrNumber) {
-            const existingUTR = await PaymentTransaction.findOne({
-                utrNumber: utrNumber.trim(),
-                _id: { $ne: id },
-                isDeleted: false,
+        // Save (pre-save middleware will calculate all totals)
+        await budget.save();
+
+        res.status(201).json({
+            success: true,
+            message: "Payment added successfully",
+            budget,
+        });
+    } catch (error) {
+        console.error("Error adding payment:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to add payment",
+            error: error.message,
+        });
+    }
+};
+
+// ✅ EDIT PAYMENT
+export const editPayment = async (req, res) => {
+    try {
+        const { budgetId, campaignId, installmentId } = req.params;
+        const updateData = req.body; // { installmentAmount, dateOfInstallment, utrNumber, remarks, installmentNo }
+
+        // Validation
+        if (
+            !mongoose.Types.ObjectId.isValid(budgetId) ||
+            !mongoose.Types.ObjectId.isValid(campaignId) ||
+            !mongoose.Types.ObjectId.isValid(installmentId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid ID format",
+            });
+        }
+
+        const budget = await RetailerBudget.findById(budgetId);
+
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "Budget not found",
+            });
+        }
+
+        // Find campaign
+        const campaign = budget.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found in budget",
+            });
+        }
+
+        // Find installment
+        const installment = campaign.installments.id(installmentId);
+        if (!installment) {
+            return res.status(404).json({
+                success: false,
+                message: "Installment not found",
+            });
+        }
+
+        // Check for duplicate UTR if being changed
+        if (
+            updateData.utrNumber &&
+            updateData.utrNumber !== installment.utrNumber
+        ) {
+            const existingUTR = await RetailerBudget.findOne({
+                "campaigns.installments.utrNumber": updateData.utrNumber,
             });
 
             if (existingUTR) {
                 return res.status(400).json({
+                    success: false,
                     message: "UTR number already exists",
                 });
             }
-            payment.utrNumber = utrNumber.trim();
         }
 
-        // Update payment date
-        if (paymentDate) {
-            const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-            if (!dateRegex.test(paymentDate)) {
-                return res.status(400).json({
-                    message: "Date must be in dd/mm/yyyy format",
-                });
-            }
+        // Update installment fields
+        if (updateData.installmentAmount !== undefined)
+            installment.installmentAmount = updateData.installmentAmount;
+        if (updateData.dateOfInstallment)
+            installment.dateOfInstallment = updateData.dateOfInstallment;
+        if (updateData.utrNumber) installment.utrNumber = updateData.utrNumber;
+        if (updateData.remarks !== undefined)
+            installment.remarks = updateData.remarks;
+        if (updateData.installmentNo !== undefined)
+            installment.installmentNo = updateData.installmentNo;
+        installment.updatedAt = new Date();
 
-            const [day, month, year] = paymentDate.split("/");
-            const parsedDate = new Date(`${year}-${month}-${day}`);
-
-            if (isNaN(parsedDate.getTime())) {
-                return res
-                    .status(400)
-                    .json({ message: "Invalid date provided" });
-            }
-
-            payment.paymentDate = parsedDate;
+        // Update TCA if provided
+        if (updateData.tca !== undefined && updateData.tca !== null) {
+            campaign.tca = updateData.tca;
         }
 
-        // Update remarks
-        if (remarks !== undefined) {
-            payment.remarks = remarks.trim();
-        }
-
-        await payment.save();
+        // Save (pre-save middleware will recalculate all totals)
+        await budget.save();
 
         res.status(200).json({
+            success: true,
             message: "Payment updated successfully",
-            payment,
+            budget,
         });
     } catch (error) {
-        console.error("Update payment error:", error);
-        res.status(500).json({ message: error.message });
+        console.error("Error editing payment:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to edit payment",
+            error: error.message,
+        });
     }
 };
 
-/* ======================================================
-   DELETE PAYMENT TRANSACTION (SOFT DELETE)
-====================================================== */
-export const deletePaymentTransaction = async (req, res) => {
+// ✅ DELETE PAYMENT
+export const deletePayment = async (req, res) => {
     try {
-        const { id } = req.params;
+        const { budgetId, campaignId, installmentId } = req.params;
 
-        // Authorization check
-        if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can delete payments" });
+        // Validation
+        if (
+            !mongoose.Types.ObjectId.isValid(budgetId) ||
+            !mongoose.Types.ObjectId.isValid(campaignId) ||
+            !mongoose.Types.ObjectId.isValid(installmentId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid ID format",
+            });
         }
 
-        const payment = await PaymentTransaction.findOne({
-            _id: id,
-            isDeleted: false,
-        });
+        const budget = await RetailerBudget.findById(budgetId);
 
-        if (!payment) {
-            return res.status(404).json({ message: "Payment not found" });
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "Budget not found",
+            });
         }
 
-        // Soft delete
-        payment.isDeleted = true;
-        await payment.save();
+        // Find campaign
+        const campaign = budget.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found in budget",
+            });
+        }
+
+        // Find and remove installment
+        const installmentIndex = campaign.installments.findIndex(
+            (inst) => inst._id.toString() === installmentId
+        );
+
+        if (installmentIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: "Installment not found",
+            });
+        }
+
+        // Remove installment
+        campaign.installments.splice(installmentIndex, 1);
+
+        // Optional: Remove campaign if no installments remain
+        if (campaign.installments.length === 0) {
+            const campaignIndex = budget.campaigns.findIndex(
+                (c) => c._id.toString() === campaignId
+            );
+            budget.campaigns.splice(campaignIndex, 1);
+        }
+
+        // Save (pre-save middleware will recalculate all totals)
+        await budget.save();
 
         res.status(200).json({
+            success: true,
             message: "Payment deleted successfully",
+            budget,
         });
     } catch (error) {
-        console.error("Delete payment error:", error);
-        res.status(500).json({ message: error.message });
+        console.error("Error deleting payment:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete payment",
+            error: error.message,
+        });
+    }
+};
+
+// ✅ UPDATE CAMPAIGN TCA
+export const updateCampaignTCA = async (req, res) => {
+    try {
+        const { budgetId, campaignId } = req.params;
+        const { tca } = req.body;
+
+        if (!tca || tca < 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid TCA amount is required",
+            });
+        }
+
+        const budget = await RetailerBudget.findById(budgetId);
+
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "Budget not found",
+            });
+        }
+
+        const campaign = budget.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found",
+            });
+        }
+
+        campaign.tca = tca;
+        await budget.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Campaign TCA updated successfully",
+            budget,
+        });
+    } catch (error) {
+        console.error("Error updating TCA:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update TCA",
+            error: error.message,
+        });
+    }
+};
+
+// ✅ DELETE ENTIRE CAMPAIGN FROM BUDGET
+export const deleteCampaign = async (req, res) => {
+    try {
+        const { budgetId, campaignId } = req.params;
+
+        const budget = await RetailerBudget.findById(budgetId);
+
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "Budget not found",
+            });
+        }
+
+        const campaignIndex = budget.campaigns.findIndex(
+            (c) => c._id.toString() === campaignId
+        );
+
+        if (campaignIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found",
+            });
+        }
+
+        budget.campaigns.splice(campaignIndex, 1);
+        await budget.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Campaign deleted successfully",
+            budget,
+        });
+    } catch (error) {
+        console.error("Error deleting campaign:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete campaign",
+            error: error.message,
+        });
+    }
+};
+
+// ✅ GET PAYMENT STATISTICS
+export const getPaymentStatistics = async (req, res) => {
+    try {
+        const { state, campaignId } = req.query;
+
+        const filter = {};
+        if (state) filter.state = state;
+        if (campaignId) filter["campaigns.campaignId"] = campaignId;
+
+        const budgets = await RetailerBudget.find(filter);
+
+        // Aggregate statistics
+        const statistics = {
+            totalRetailers: budgets.length,
+            totalTAR: 0,
+            totalPaid: 0,
+            totalPending: 0,
+            totalCampaigns: 0,
+            totalInstallments: 0,
+            averagePaymentPerRetailer: 0,
+            stateWiseBreakdown: {},
+            campaignWiseBreakdown: {},
+        };
+
+        budgets.forEach((budget) => {
+            statistics.totalTAR += budget.tar;
+            statistics.totalPaid += budget.taPaid;
+            statistics.totalPending += budget.taPending;
+
+            // State-wise breakdown
+            if (!statistics.stateWiseBreakdown[budget.state]) {
+                statistics.stateWiseBreakdown[budget.state] = {
+                    retailers: 0,
+                    tar: 0,
+                    paid: 0,
+                    pending: 0,
+                };
+            }
+            statistics.stateWiseBreakdown[budget.state].retailers++;
+            statistics.stateWiseBreakdown[budget.state].tar += budget.tar;
+            statistics.stateWiseBreakdown[budget.state].paid += budget.taPaid;
+            statistics.stateWiseBreakdown[budget.state].pending +=
+                budget.taPending;
+
+            budget.campaigns.forEach((campaign) => {
+                statistics.totalCampaigns++;
+                statistics.totalInstallments += campaign.installments.length;
+
+                // Campaign-wise breakdown
+                const campName = campaign.campaignName;
+                if (!statistics.campaignWiseBreakdown[campName]) {
+                    statistics.campaignWiseBreakdown[campName] = {
+                        retailers: 0,
+                        tca: 0,
+                        paid: 0,
+                        pending: 0,
+                        installments: 0,
+                    };
+                }
+                statistics.campaignWiseBreakdown[campName].retailers++;
+                statistics.campaignWiseBreakdown[campName].tca += campaign.tca;
+                statistics.campaignWiseBreakdown[campName].paid +=
+                    campaign.cPaid;
+                statistics.campaignWiseBreakdown[campName].pending +=
+                    campaign.cPending;
+                statistics.campaignWiseBreakdown[campName].installments +=
+                    campaign.installments.length;
+            });
+        });
+
+        statistics.averagePaymentPerRetailer =
+            statistics.totalRetailers > 0
+                ? statistics.totalPaid / statistics.totalRetailers
+                : 0;
+
+        res.status(200).json({
+            success: true,
+            statistics,
+        });
+    } catch (error) {
+        console.error("Error fetching statistics:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch statistics",
+            error: error.message,
+        });
     }
 };

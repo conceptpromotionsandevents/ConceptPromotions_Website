@@ -1,55 +1,121 @@
+// models/payments.model.js
 import mongoose from "mongoose";
 
-const paymentTransactionSchema = new mongoose.Schema(
+// Installment/Payment sub-schema
+const installmentSchema = new mongoose.Schema(
     {
-        client: {
-            type: String,
-            // ref: "ClientAdmin", // or whatever your client model is named
+        installmentNo: {
+            type: Number,
             required: true,
         },
-        retailer: {
+        installmentAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        dateOfInstallment: {
             type: String,
-            // ref: "Retailer",
+            required: true,
+        }, // dd/mm/yyyy format
+        utrNumber: {
+            type: String,
+            required: true,
+            trim: true,
+            unique: true,
+        },
+        remarks: {
+            type: String,
+            default: "",
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+        },
+        updatedAt: {
+            type: Date,
+            default: Date.now,
+        },
+    },
+    { _id: true }
+);
+
+// Campaign budget sub-schema
+const campaignBudgetSchema = new mongoose.Schema(
+    {
+        campaignId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Campaign",
             required: true,
         },
-        campaign: {
+        campaignName: {
             type: String,
-            // ref: "Campaign",
             required: true,
+        },
+        tca: {
+            type: Number,
+            required: true,
+            default: 0,
+            min: 0,
+        },
+        cPaid: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        cPending: {
+            type: Number,
+            default: 0,
+        },
+        installments: [installmentSchema],
+    },
+    { _id: true }
+);
+
+// Main Retailer Budget schema
+const retailerBudgetSchema = new mongoose.Schema(
+    {
+        retailerId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Retailer",
+            required: true,
+            index: true,
+        },
+        retailerName: {
+            type: String,
+            required: true,
+            index: true,
+        },
+        state: {
+            type: String,
+            required: true,
+            index: true,
         },
         shopName: {
             type: String,
             required: true,
-            trim: true,
         },
         outletCode: {
             type: String,
             required: true,
-            trim: true,
+            index: true,
         },
-        paymentAmount: {
+
+        tar: {
             type: Number,
-            required: true,
-            min: [0, "Payment amount must be positive"],
+            default: 0,
+            min: 0,
         },
-        utrNumber: {
-            type: String,
-            required: true,
-            unique: true,
-            trim: true,
+        taPaid: {
+            type: Number,
+            default: 0,
+            min: 0,
         },
-        paymentDate: {
-            type: Date,
-            required: true,
+        taPending: {
+            type: Number,
+            default: 0,
         },
-        remarks: {
-            type: String,
-            trim: true,
-        },
-        isDeleted: {
-            type: Boolean,
-            default: false,
-        },
+
+        campaigns: [campaignBudgetSchema],
     },
     {
         timestamps: true,
@@ -58,23 +124,63 @@ const paymentTransactionSchema = new mongoose.Schema(
     }
 );
 
-// Index for better query performance
-paymentTransactionSchema.index({ campaign: 1, paymentDate: -1 });
-paymentTransactionSchema.index({ retailer: 1, paymentDate: -1 });
-paymentTransactionSchema.index({ utrNumber: 1 });
+// ✅ PRE-SAVE MIDDLEWARE: Fixed to use installmentAmount
+retailerBudgetSchema.pre("save", function (next) {
+    try {
+        // Calculate per-campaign totals
+        this.campaigns.forEach((campaign) => {
+            // Sum all installment amounts for this campaign
+            campaign.cPaid = campaign.installments.reduce((sum, inst) => {
+                return sum + (inst.installmentAmount || 0);
+            }, 0);
 
-// Virtual for formatted date (dd/mm/yyyy)
-paymentTransactionSchema.virtual("formattedDate").get(function () {
-    const date = this.paymentDate;
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+            // Calculate pending amount
+            campaign.cPending = campaign.tca - campaign.cPaid;
+        });
+
+        // Calculate retailer-level totals
+        this.tar = this.campaigns.reduce((sum, campaign) => {
+            return sum + (campaign.tca || 0);
+        }, 0);
+
+        this.taPaid = this.campaigns.reduce((sum, campaign) => {
+            return sum + (campaign.cPaid || 0);
+        }, 0);
+
+        this.taPending = this.tar - this.taPaid;
+
+        next();
+    } catch (error) {
+        next(error);
+    }
 });
 
-const PaymentTransaction = mongoose.model(
-    "PaymentTransaction",
-    paymentTransactionSchema
-);
+// Compound index for efficient filtering
+retailerBudgetSchema.index({
+    state: 1,
+    retailerId: 1,
+    "campaigns.campaignId": 1,
+});
 
-export default PaymentTransaction;
+// Virtual for getting UTR list - Fixed field names
+retailerBudgetSchema.virtual("utrList").get(function () {
+    const utrs = [];
+    this.campaigns.forEach((campaign) => {
+        campaign.installments.forEach((inst) => {
+            utrs.push({
+                campaignId: campaign.campaignId,
+                campaignName: campaign.campaignName,
+                utrNumber: inst.utrNumber,
+                installmentAmount: inst.installmentAmount,
+                dateOfInstallment: inst.dateOfInstallment,
+                installmentNo: inst.installmentNo,
+            });
+        });
+    });
+    return utrs;
+});
+
+export const RetailerBudget = mongoose.model(
+    "RetailerBudget",
+    retailerBudgetSchema
+);

@@ -1,28 +1,44 @@
+// routes/budgetRoutes.js
 import express from "express";
-import { protect } from "../controllers/adminController.js";
 import {
-    createPaymentTransaction,
-    deletePaymentTransaction,
-    getAllPaymentTransactions,
-    getPaymentTransactionById,
-    updatePaymentTransaction,
+    getAllBudgets,
+    getBudgetById,
+    getBudgetByRetailerId,
+    addPayment,
+    editPayment,
+    deletePayment,
+    updateCampaignTCA,
+    deleteCampaign,
+    getPaymentStatistics,
 } from "../controllers/payment.controller.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Create payment
-router.post("/", protect, createPaymentTransaction);
+// Apply authentication middleware to all routes
+router.use(protect);
 
-// Get all payments (with filters)
-router.get("/", protect, getAllPaymentTransactions);
+// GET routes
+router.get("/", getAllBudgets);
+router.get("/statistics", getPaymentStatistics);
+router.get("/:budgetId", getBudgetById);
+router.get("/retailer/:retailerId", getBudgetByRetailerId);
 
-// Get single payment by ID
-router.get("/:id", protect, getPaymentTransactionById);
+// POST routes
+router.post("/add-payment", addPayment);
 
-// Update payment
-router.put("/:id", protect, updatePaymentTransaction);
+// PUT/PATCH routes
+router.put(
+    "/:budgetId/campaign/:campaignId/installment/:installmentId",
+    editPayment
+);
+router.patch("/:budgetId/campaign/:campaignId/tca", updateCampaignTCA);
 
-// Delete payment (soft delete)
-router.delete("/:id", protect, deletePaymentTransaction);
+// DELETE routes
+router.delete(
+    "/:budgetId/campaign/:campaignId/installment/:installmentId",
+    deletePayment
+);
+router.delete("/:budgetId/campaign/:campaignId", deleteCampaign);
 
 export default router;
