@@ -26,7 +26,7 @@ router.get("/statistics", getPaymentStatistics);
 router.get("/:budgetId", getBudgetById);
 router.get("/retailer/:retailerId", getBudgetByRetailerId);
 
-router.get("/budgets/passbook", getPassbookData);
+router.get("/passbook", getPassbookData);
 
 // POST routes
 router.post("/set-campaign-tca", addCampaignTCA);
