@@ -11,6 +11,7 @@ import {
     deleteCampaign,
     getPaymentStatistics,
     addCampaignTCA,
+    getPassbookData,
 } from "../controllers/payment.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -24,6 +25,8 @@ router.get("/", getAllBudgets);
 router.get("/statistics", getPaymentStatistics);
 router.get("/:budgetId", getBudgetById);
 router.get("/retailer/:retailerId", getBudgetByRetailerId);
+
+router.get("/budgets/passbook", getPassbookData);
 
 // POST routes
 router.post("/set-campaign-tca", addCampaignTCA);

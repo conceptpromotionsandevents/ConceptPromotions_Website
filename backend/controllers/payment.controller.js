@@ -342,7 +342,7 @@ export const addPayment = async (req, res) => {
     }
 };
 
-// ✅ EDIT PAYMENT
+// ✅ EDIT PAYMENT (Edit installment to existing campaign)
 export const editPayment = async (req, res) => {
     try {
         const { budgetId, campaignId, installmentId } = req.params;
@@ -439,7 +439,7 @@ export const editPayment = async (req, res) => {
     }
 };
 
-// ✅ DELETE PAYMENT
+// ✅ DELETE PAYMENT (Delete installment to existing campaign)
 export const deletePayment = async (req, res) => {
     try {
         const { budgetId, campaignId, installmentId } = req.params;
@@ -598,90 +598,40 @@ export const deleteCampaign = async (req, res) => {
     }
 };
 
-// ✅ GET PAYMENT STATISTICS
-export const getPaymentStatistics = async (req, res) => {
+// ✅ GET PASSBOOK
+export const getPassbookData = async (req, res) => {
     try {
-        const { state, campaignId } = req.query;
+        const { state, campaignId, retailerId } = req.query;
 
+        // Build filter based on query parameters
         const filter = {};
         if (state) filter.state = state;
         if (campaignId) filter["campaigns.campaignId"] = campaignId;
+        if (retailerId) filter.retailerId = retailerId;
 
-        const budgets = await RetailerBudget.find(filter);
-
-        // Aggregate statistics
-        const statistics = {
-            totalRetailers: budgets.length,
-            totalTAR: 0,
-            totalPaid: 0,
-            totalPending: 0,
-            totalCampaigns: 0,
-            totalInstallments: 0,
-            averagePaymentPerRetailer: 0,
-            stateWiseBreakdown: {},
-            campaignWiseBreakdown: {},
-        };
-
-        budgets.forEach((budget) => {
-            statistics.totalTAR += budget.tar;
-            statistics.totalPaid += budget.taPaid;
-            statistics.totalPending += budget.taPending;
-
-            // State-wise breakdown
-            if (!statistics.stateWiseBreakdown[budget.state]) {
-                statistics.stateWiseBreakdown[budget.state] = {
-                    retailers: 0,
-                    tar: 0,
-                    paid: 0,
-                    pending: 0,
-                };
-            }
-            statistics.stateWiseBreakdown[budget.state].retailers++;
-            statistics.stateWiseBreakdown[budget.state].tar += budget.tar;
-            statistics.stateWiseBreakdown[budget.state].paid += budget.taPaid;
-            statistics.stateWiseBreakdown[budget.state].pending +=
-                budget.taPending;
-
-            budget.campaigns.forEach((campaign) => {
-                statistics.totalCampaigns++;
-                statistics.totalInstallments += campaign.installments.length;
-
-                // Campaign-wise breakdown
-                const campName = campaign.campaignName;
-                if (!statistics.campaignWiseBreakdown[campName]) {
-                    statistics.campaignWiseBreakdown[campName] = {
-                        retailers: 0,
-                        tca: 0,
-                        paid: 0,
-                        pending: 0,
-                        installments: 0,
-                    };
-                }
-                statistics.campaignWiseBreakdown[campName].retailers++;
-                statistics.campaignWiseBreakdown[campName].tca += campaign.tca;
-                statistics.campaignWiseBreakdown[campName].paid +=
-                    campaign.cPaid;
-                statistics.campaignWiseBreakdown[campName].pending +=
-                    campaign.cPending;
-                statistics.campaignWiseBreakdown[campName].installments +=
-                    campaign.installments.length;
-            });
-        });
-
-        statistics.averagePaymentPerRetailer =
-            statistics.totalRetailers > 0
-                ? statistics.totalPaid / statistics.totalRetailers
-                : 0;
+        // ✅ Fetch only schema data with populated references
+        const budgets = await RetailerBudget.find(filter)
+            .populate({
+                path: "retailerId",
+                select: "uniqueId shopDetails contactDetails",
+            })
+            .populate({
+                path: "campaigns.campaignId",
+                select: "name client type",
+            })
+            .sort({ createdAt: -1 }) // Most recent first
+            .lean(); // Convert to plain JavaScript objects
 
         res.status(200).json({
             success: true,
-            statistics,
+            count: budgets.length,
+            data: budgets,
         });
     } catch (error) {
-        console.error("Error fetching statistics:", error);
+        console.error("Error fetching passbook data:", error);
         res.status(500).json({
             success: false,
-            message: "Failed to fetch statistics",
+            message: "Failed to fetch passbook data",
             error: error.message,
         });
     }
