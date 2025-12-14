@@ -1,6 +1,6 @@
 // controllers/payment.controller.js
-import { RetailerBudget } from "../models/payments.model.js";
 import mongoose from "mongoose";
+import { RetailerBudget } from "../models/payments.model.js";
 
 // ✅ GET ALL BUDGETS with optional filters
 export const getAllBudgets = async (req, res) => {
@@ -603,11 +603,21 @@ export const getPassbookData = async (req, res) => {
     try {
         const { state, campaignId, retailerId } = req.query;
 
+        // ✅ Validate that at least retailerId is provided
+        if (!retailerId) {
+            return res.status(400).json({
+                success: false,
+                message: "Retailer ID is required",
+            });
+        }
+
         // Build filter based on query parameters
-        const filter = {};
+        const filter = { retailerId }; // retailerId is mandatory
+
         if (state) filter.state = state;
         if (campaignId) filter["campaigns.campaignId"] = campaignId;
-        if (retailerId) filter.retailerId = retailerId;
+
+        console.log("Filter applied:", filter); // ✅ Debug log
 
         // ✅ Fetch only schema data with populated references
         const budgets = await RetailerBudget.find(filter)
@@ -621,6 +631,15 @@ export const getPassbookData = async (req, res) => {
             })
             .sort({ createdAt: -1 }) // Most recent first
             .lean(); // Convert to plain JavaScript objects
+
+        // ✅ Check if any data found
+        if (!budgets || budgets.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No passbook data found for this retailer",
+                data: [],
+            });
+        }
 
         res.status(200).json({
             success: true,
