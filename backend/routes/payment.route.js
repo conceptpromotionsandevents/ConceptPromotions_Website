@@ -1,17 +1,16 @@
 // routes/budgetRoutes.js
 import express from "express";
 import {
+    addCampaignTCA,
+    addPayment,
+    deleteCampaign,
+    deletePayment,
+    editPayment,
     getAllBudgets,
     getBudgetById,
     getBudgetByRetailerId,
-    addPayment,
-    editPayment,
-    deletePayment,
-    updateCampaignTCA,
-    deleteCampaign,
-    getPaymentStatistics,
-    addCampaignTCA,
     getPassbookData,
+    updateCampaignTCA,
 } from "../controllers/payment.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -22,7 +21,6 @@ router.use(protect);
 
 // GET routes
 router.get("/", getAllBudgets);
-router.get("/statistics", getPaymentStatistics);
 router.get("/:budgetId", getBudgetById);
 router.get("/retailer/:retailerId", getBudgetByRetailerId);
 
