@@ -21,10 +21,15 @@ router.use(protect);
 
 // GET routes
 router.get("/", getAllBudgets);
-router.get("/:budgetId", getBudgetById);
+
+// ✅ MOVE PASSBOOK ROUTE BEFORE DYNAMIC ROUTES
+router.get("/passbook", getPassbookData);
+
+// ✅ Keep specific routes BEFORE dynamic parameter routes
 router.get("/retailer/:retailerId", getBudgetByRetailerId);
 
-router.get("/passbook", getPassbookData);
+// ✅ Dynamic routes should come LAST
+router.get("/:budgetId", getBudgetById);
 
 // POST routes
 router.post("/set-campaign-tca", addCampaignTCA);
