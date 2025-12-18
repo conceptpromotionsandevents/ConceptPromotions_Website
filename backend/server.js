@@ -10,6 +10,7 @@ import clientRoutes from "./routes/clientRoutes.js";
 import careerRoutes from "./routes/careerRoutes.js"; // ✅ added
 import contactRoutes from "./routes/contactUsRoutes.js";
 import paymentRoutes from "./routes/payment.route.js";
+import reportRoutes from "./routes/report.route.js";
 dotenv.config();
 
 const app = express();
@@ -54,6 +55,7 @@ app.use("/api/client", clientRoutes);
 app.use("/api/career", careerRoutes); // ✅ Career API
 app.use("/api/contact", contactRoutes);
 app.use("/api/budgets", paymentRoutes);
+app.use("/api/reports", reportRoutes);
 // ===== Health Check =====
 app.get("/", (req, res) => {
     res.status(200).send("Supreme Backend API is running");
