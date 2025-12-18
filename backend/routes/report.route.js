@@ -11,6 +11,7 @@ import {
     getReportsByRetailer,
 } from "../controllers/report.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -19,7 +20,16 @@ const router = express.Router();
 =============================== */
 
 // Create new report (Employee, Retailer, or Admin)
-router.post("/create", protect, createReport);
+router.post(
+    "/create",
+    protect,
+    upload.fields([
+        { name: "shopDisplayImages", maxCount: 20 },
+        { name: "billCopies", maxCount: 20 },
+        { name: "files", maxCount: 20 },
+    ]),
+    createReport
+);
 
 // Get all reports with filters (Admin view)
 router.get("/all", protect, getAllReports);
@@ -32,7 +42,16 @@ router.get("/:id", protect, getReportById);
 =============================== */
 
 // Update any report (Admin only)
-router.put("/update/:id", protect, updateReport);
+router.put(
+    "/update/:id",
+    protect,
+    upload.fields([
+        { name: "shopDisplayImages", maxCount: 20 },
+        { name: "billCopies", maxCount: 20 },
+        { name: "files", maxCount: 20 },
+    ]),
+    updateReport
+);
 
 // Delete any report (Admin only)
 router.delete("/delete/:id", protect, deleteReport);

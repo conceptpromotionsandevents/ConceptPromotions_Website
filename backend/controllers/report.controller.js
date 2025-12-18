@@ -31,16 +31,19 @@ const getReportModel = (reportType) => {
 =============================== */
 export const createReport = async (req, res) => {
     try {
+        console.log("BODY:", req.body);
+        console.log("FILES:", req.files);
+
+        // When using multer with FormData, nested objects like submittedBy / retailer
+        // should be sent from frontend as bracket-style fields:
+        // submittedBy[role], submittedBy[userId], retailer[retailerId], etc.
+        // So we reconstruct them here.
         const {
             reportType,
             campaignId,
-            submittedBy,
-            retailer,
-            employee,
             visitScheduleId,
             typeOfVisit,
             attendedVisit,
-            reasonForNonAttendance,
             frequency,
             dateOfSubmission,
             remarks,
@@ -54,8 +57,49 @@ export const createReport = async (req, res) => {
             quantity,
         } = req.body;
 
+        const submittedBy =
+            req.body.submittedBy && typeof req.body.submittedBy === "object"
+                ? req.body.submittedBy
+                : {
+                      role: req.body["submittedBy[role]"],
+                      userId: req.body["submittedBy[userId]"],
+                  };
+
+        const retailerObj =
+            req.body.retailer && typeof req.body.retailer === "object"
+                ? req.body.retailer
+                : {
+                      retailerId: req.body["retailer[retailerId]"],
+                      outletName: req.body["retailer[outletName]"],
+                      retailerName: req.body["retailer[retailerName]"],
+                      outletCode: req.body["retailer[outletCode]"],
+                  };
+
+        let employeeObj;
+        if (req.body.employee && typeof req.body.employee === "object") {
+            employeeObj = req.body.employee;
+        } else if (req.body["employee[employeeId]"]) {
+            employeeObj = {
+                employeeId: req.body["employee[employeeId]"],
+                employeeName: req.body["employee[employeeName]"],
+                employeeCode: req.body["employee[employeeCode]"],
+            };
+        }
+
+        const reasonForNonAttendance =
+            req.body.reasonForNonAttendance &&
+            typeof req.body.reasonForNonAttendance === "object"
+                ? req.body.reasonForNonAttendance
+                : req.body["reasonForNonAttendance[reason]"]
+                ? {
+                      reason: req.body["reasonForNonAttendance[reason]"],
+                      otherReason:
+                          req.body["reasonForNonAttendance[otherReason]"],
+                  }
+                : undefined;
+
         // Validate required fields
-        if (!reportType || !campaignId || !submittedBy || !retailer) {
+        if (!reportType || !campaignId || !submittedBy || !retailerObj) {
             return res.status(400).json({
                 success: false,
                 message: "Missing required fields",
@@ -72,7 +116,7 @@ export const createReport = async (req, res) => {
         }
 
         // Validate retailer exists
-        const retailerDoc = await Retailer.findById(retailer.retailerId);
+        const retailerDoc = await Retailer.findById(retailerObj.retailerId);
         if (!retailerDoc) {
             return res.status(404).json({
                 success: false,
@@ -81,8 +125,8 @@ export const createReport = async (req, res) => {
         }
 
         // If employee submission, validate employee
-        if (submittedBy.role === "Employee" && employee?.employeeId) {
-            const employeeDoc = await Employee.findById(employee.employeeId);
+        if (submittedBy.role === "Employee" && employeeObj?.employeeId) {
+            const employeeDoc = await Employee.findById(employeeObj.employeeId);
             if (!employeeDoc) {
                 return res.status(404).json({
                     success: false,
@@ -110,8 +154,8 @@ export const createReport = async (req, res) => {
             reportType,
             campaignId,
             submittedBy,
-            retailer,
-            employee: employee || undefined,
+            retailer: retailerObj,
+            employee: employeeObj || undefined,
             visitScheduleId: visitScheduleId || undefined,
             typeOfVisit: typeOfVisit || undefined,
             attendedVisit: attendedVisit || undefined,
@@ -143,7 +187,8 @@ export const createReport = async (req, res) => {
             }
         }
 
-        // Handle file uploads (images/bills/files)
+        // Handle file uploads (images/bills/files) with multer (memoryStorage)
+        // upload.fields([{ name: "shopDisplayImages" }, { name: "billCopies" }, { name: "files" }])
         if (req.files) {
             if (
                 reportType === "Window Display" &&
@@ -154,9 +199,9 @@ export const createReport = async (req, res) => {
                     : [req.files.shopDisplayImages];
 
                 reportData.shopDisplayImages = images.map((file) => ({
-                    data: file.data,
+                    data: file.buffer, // multer: buffer
                     contentType: file.mimetype,
-                    fileName: file.name,
+                    fileName: file.originalname,
                 }));
             }
 
@@ -166,9 +211,9 @@ export const createReport = async (req, res) => {
                     : [req.files.billCopies];
 
                 reportData.billCopies = bills.map((file) => ({
-                    data: file.data,
+                    data: file.buffer,
                     contentType: file.mimetype,
-                    fileName: file.name,
+                    fileName: file.originalname,
                 }));
             }
 
@@ -178,9 +223,9 @@ export const createReport = async (req, res) => {
                     : [req.files.files];
 
                 reportData.files = otherFiles.map((file) => ({
-                    data: file.data,
+                    data: file.buffer,
                     contentType: file.mimetype,
-                    fileName: file.name,
+                    fileName: file.originalname,
                 }));
             }
         }
@@ -322,7 +367,28 @@ export const getReportById = async (req, res) => {
 export const updateReport = async (req, res) => {
     try {
         const { id } = req.params;
-        const updateData = req.body;
+        const updateData = { ...req.body };
+
+        console.log("UPDATE BODY:", req.body);
+        console.log("UPDATE FILES:", req.files);
+
+        // If frontend sends bracket-style fields for nested objects on update as well,
+        // reconstruct them similarly (optional, depending on your UI).
+        if (req.body["retailer[retailerId]"]) {
+            updateData.retailer = {
+                retailerId: req.body["retailer[retailerId]"],
+                outletName: req.body["retailer[outletName]"],
+                retailerName: req.body["retailer[retailerName]"],
+                outletCode: req.body["retailer[outletCode]"],
+            };
+        }
+        if (req.body["employee[employeeId]"]) {
+            updateData.employee = {
+                employeeId: req.body["employee[employeeId]"],
+                employeeName: req.body["employee[employeeName]"],
+                employeeCode: req.body["employee[employeeCode]"],
+            };
+        }
 
         // Find existing report
         const existingReport = await Report.findById(id);
@@ -368,7 +434,7 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // Handle file updates if provided
+        // Handle file updates if provided (multer)
         if (req.files) {
             if (
                 existingReport.reportType === "Window Display" &&
@@ -379,9 +445,9 @@ export const updateReport = async (req, res) => {
                     : [req.files.shopDisplayImages];
 
                 updateData.shopDisplayImages = images.map((file) => ({
-                    data: file.data,
+                    data: file.buffer,
                     contentType: file.mimetype,
-                    fileName: file.name,
+                    fileName: file.originalname,
                 }));
             }
 
@@ -391,9 +457,9 @@ export const updateReport = async (req, res) => {
                     : [req.files.billCopies];
 
                 updateData.billCopies = bills.map((file) => ({
-                    data: file.data,
+                    data: file.buffer,
                     contentType: file.mimetype,
-                    fileName: file.name,
+                    fileName: file.originalname,
                 }));
             }
 
@@ -403,9 +469,9 @@ export const updateReport = async (req, res) => {
                     : [req.files.files];
 
                 updateData.files = otherFiles.map((file) => ({
-                    data: file.data,
+                    data: file.buffer,
                     contentType: file.mimetype,
-                    fileName: file.name,
+                    fileName: file.originalname,
                 }));
             }
         }
