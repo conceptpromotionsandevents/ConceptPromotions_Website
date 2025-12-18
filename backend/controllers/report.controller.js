@@ -362,7 +362,7 @@ export const getReportById = async (req, res) => {
 };
 
 /* ===============================
-   UPDATE REPORT (ADMIN ONLY)
+   UPDATE REPORT (ADMIN ONLY) - FIXED VERSION
 =============================== */
 export const updateReport = async (req, res) => {
     try {
@@ -372,8 +372,7 @@ export const updateReport = async (req, res) => {
         console.log("UPDATE BODY:", req.body);
         console.log("UPDATE FILES:", req.files);
 
-        // If frontend sends bracket-style fields for nested objects on update as well,
-        // reconstruct them similarly (optional, depending on your UI).
+        // Reconstruct nested objects if needed
         if (req.body["retailer[retailerId]"]) {
             updateData.retailer = {
                 retailerId: req.body["retailer[retailerId]"],
@@ -399,27 +398,23 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // If changing report type, need to handle discriminator change
+        // If changing report type, handle discriminator change
         if (
             updateData.reportType &&
             updateData.reportType !== existingReport.reportType
         ) {
-            // Delete old report and create new one with different type
             const oldData = existingReport.toObject();
             await Report.findByIdAndDelete(id);
 
-            // Get new model
             const NewReportModel = getReportModel(updateData.reportType);
 
-            // Merge old data with updates
             const newReportData = {
                 ...oldData,
                 ...updateData,
-                _id: id, // Keep same ID
+                _id: id,
                 reportType: updateData.reportType,
             };
 
-            // Remove type-specific fields from old type
             delete newReportData.__v;
             delete newReportData.createdAt;
             delete newReportData.updatedAt;
@@ -434,8 +429,14 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // Handle file updates if provided (multer)
-        if (req.files) {
+        // ✅ FIXED: Handle file updates with proper checks
+        if (req.files && Object.keys(req.files).length > 0) {
+            console.log(
+                "Processing files for reportType:",
+                existingReport.reportType
+            );
+
+            // Window Display - shopDisplayImages
             if (
                 existingReport.reportType === "Window Display" &&
                 req.files.shopDisplayImages
@@ -448,9 +449,13 @@ export const updateReport = async (req, res) => {
                     data: file.buffer,
                     contentType: file.mimetype,
                     fileName: file.originalname,
+                    uploadedAt: new Date(),
                 }));
+
+                console.log(`✅ Mapped ${images.length} shopDisplayImages`);
             }
 
+            // Stock - billCopies
             if (existingReport.reportType === "Stock" && req.files.billCopies) {
                 const bills = Array.isArray(req.files.billCopies)
                     ? req.files.billCopies
@@ -460,27 +465,69 @@ export const updateReport = async (req, res) => {
                     data: file.buffer,
                     contentType: file.mimetype,
                     fileName: file.originalname,
+                    uploadedAt: new Date(),
                 }));
+
+                console.log(`✅ Mapped ${bills.length} billCopies`);
             }
 
+            // ✅ CRITICAL FIX: Others - files
             if (existingReport.reportType === "Others" && req.files.files) {
+                console.log("Processing Others report files:", req.files.files);
+
                 const otherFiles = Array.isArray(req.files.files)
                     ? req.files.files
                     : [req.files.files];
 
-                updateData.files = otherFiles.map((file) => ({
-                    data: file.buffer,
-                    contentType: file.mimetype,
-                    fileName: file.originalname,
-                }));
+                // ✅ Map files properly with all required fields
+                updateData.files = otherFiles.map((file) => {
+                    console.log("Processing file:", {
+                        name: file.originalname,
+                        size: file.size,
+                        type: file.mimetype,
+                        hasBuffer: !!file.buffer,
+                    });
+
+                    return {
+                        data: file.buffer,
+                        contentType: file.mimetype,
+                        fileName: file.originalname,
+                        uploadedAt: new Date(),
+                    };
+                });
+
+                console.log(
+                    `✅ Mapped ${otherFiles.length} files for Others report`
+                );
+                console.log(
+                    "Files array to save:",
+                    updateData.files.map((f) => ({
+                        fileName: f.fileName,
+                        contentType: f.contentType,
+                        dataSize: f.data?.length,
+                    }))
+                );
             }
+        } else {
+            console.log("⚠️ No files received in req.files");
         }
 
-        // Regular update for same report type
+        // ✅ Regular update with explicit save to ensure files are persisted
+        console.log("Updating report with data keys:", Object.keys(updateData));
+
         const updatedReport = await Report.findByIdAndUpdate(id, updateData, {
             new: true,
             runValidators: true,
         });
+
+        // ✅ Verify the update worked
+        if (updatedReport && updatedReport.files) {
+            console.log(
+                `✅ Report updated successfully with ${updatedReport.files.length} files`
+            );
+        } else if (updatedReport) {
+            console.log("⚠️ Report updated but no files field found");
+        }
 
         return res.status(200).json({
             success: true,
