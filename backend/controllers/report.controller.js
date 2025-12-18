@@ -398,29 +398,121 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // If changing report type, handle discriminator change
-        if (
-            updateData.reportType &&
-            updateData.reportType !== existingReport.reportType
-        ) {
-            const oldData = existingReport.toObject();
+        const oldReportType = existingReport.reportType;
+        const newReportType = updateData.reportType || oldReportType;
+
+        // ✅ Process new file uploads BEFORE type change
+        const processedFiles = {};
+
+        if (req.files && Object.keys(req.files).length > 0) {
+            if (req.files.shopDisplayImages) {
+                const images = Array.isArray(req.files.shopDisplayImages)
+                    ? req.files.shopDisplayImages
+                    : [req.files.shopDisplayImages];
+
+                processedFiles.shopDisplayImages = images.map((file) => ({
+                    data: file.buffer,
+                    contentType: file.mimetype,
+                    fileName: file.originalname,
+                    uploadedAt: new Date(),
+                }));
+            }
+
+            if (req.files.billCopies) {
+                const bills = Array.isArray(req.files.billCopies)
+                    ? req.files.billCopies
+                    : [req.files.billCopies];
+
+                processedFiles.billCopies = bills.map((file) => ({
+                    data: file.buffer,
+                    contentType: file.mimetype,
+                    fileName: file.originalname,
+                    uploadedAt: new Date(),
+                }));
+            }
+
+            if (req.files.files) {
+                const otherFiles = Array.isArray(req.files.files)
+                    ? req.files.files
+                    : [req.files.files];
+
+                processedFiles.files = otherFiles.map((file) => ({
+                    data: file.buffer,
+                    contentType: file.mimetype,
+                    fileName: file.originalname,
+                    uploadedAt: new Date(),
+                }));
+            }
+        }
+
+        // ✅ HANDLE REPORT TYPE CHANGE
+        if (newReportType !== oldReportType) {
+            console.log(
+                `🔄 Changing report type from ${oldReportType} to ${newReportType}`
+            );
+
+            // Delete old report
             await Report.findByIdAndDelete(id);
 
-            const NewReportModel = getReportModel(updateData.reportType);
+            // Get new discriminator model
+            const NewReportModel = getReportModel(newReportType);
 
+            // Build new report data - ONLY keep base fields
             const newReportData = {
-                ...oldData,
-                ...updateData,
                 _id: id,
-                reportType: updateData.reportType,
+                reportType: newReportType,
+                campaignId: existingReport.campaignId,
+                submittedBy:
+                    updateData.submittedBy || existingReport.submittedBy,
+                retailer: updateData.retailer || existingReport.retailer,
+                employee: updateData.employee || existingReport.employee,
+                frequency: updateData.frequency || existingReport.frequency,
+                dateOfSubmission:
+                    updateData.dateOfSubmission ||
+                    existingReport.dateOfSubmission,
+                remarks: updateData.remarks || existingReport.remarks,
+                visitScheduleId: existingReport.visitScheduleId,
+                typeOfVisit: existingReport.typeOfVisit,
+                attendedVisit: existingReport.attendedVisit,
+                reasonForNonAttendance: existingReport.reasonForNonAttendance,
+                location: existingReport.location,
             };
 
-            delete newReportData.__v;
-            delete newReportData.createdAt;
-            delete newReportData.updatedAt;
+            // ✅ Add type-specific fields based on NEW report type
+            if (newReportType === "Stock") {
+                newReportData.stockType = updateData.stockType;
+                newReportData.brand = updateData.brand;
+                newReportData.product = updateData.product;
+                newReportData.sku = updateData.sku;
+                newReportData.productType = updateData.productType;
+                newReportData.quantity = updateData.quantity;
 
+                // Add new bill copies if uploaded
+                if (processedFiles.billCopies) {
+                    newReportData.billCopies = processedFiles.billCopies;
+                }
+            } else if (newReportType === "Window Display") {
+                // Add new shop display images if uploaded
+                if (processedFiles.shopDisplayImages) {
+                    newReportData.shopDisplayImages =
+                        processedFiles.shopDisplayImages;
+                }
+            } else if (newReportType === "Others") {
+                // Add new files if uploaded
+                if (processedFiles.files) {
+                    newReportData.files = processedFiles.files;
+                }
+            }
+
+            // Create and save new report
             const newReport = new NewReportModel(newReportData);
             await newReport.save();
+
+            console.log(
+                `✅ Report type changed successfully. New files: ${JSON.stringify(
+                    Object.keys(processedFiles)
+                )}`
+            );
 
             return res.status(200).json({
                 success: true,
@@ -429,105 +521,26 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // ✅ FIXED: Handle file updates with proper checks
-        if (req.files && Object.keys(req.files).length > 0) {
-            console.log(
-                "Processing files for reportType:",
-                existingReport.reportType
-            );
-
-            // Window Display - shopDisplayImages
-            if (
-                existingReport.reportType === "Window Display" &&
-                req.files.shopDisplayImages
-            ) {
-                const images = Array.isArray(req.files.shopDisplayImages)
-                    ? req.files.shopDisplayImages
-                    : [req.files.shopDisplayImages];
-
-                updateData.shopDisplayImages = images.map((file) => ({
-                    data: file.buffer,
-                    contentType: file.mimetype,
-                    fileName: file.originalname,
-                    uploadedAt: new Date(),
-                }));
-
-                console.log(`✅ Mapped ${images.length} shopDisplayImages`);
-            }
-
-            // Stock - billCopies
-            if (existingReport.reportType === "Stock" && req.files.billCopies) {
-                const bills = Array.isArray(req.files.billCopies)
-                    ? req.files.billCopies
-                    : [req.files.billCopies];
-
-                updateData.billCopies = bills.map((file) => ({
-                    data: file.buffer,
-                    contentType: file.mimetype,
-                    fileName: file.originalname,
-                    uploadedAt: new Date(),
-                }));
-
-                console.log(`✅ Mapped ${bills.length} billCopies`);
-            }
-
-            // ✅ CRITICAL FIX: Others - files
-            if (existingReport.reportType === "Others" && req.files.files) {
-                console.log("Processing Others report files:", req.files.files);
-
-                const otherFiles = Array.isArray(req.files.files)
-                    ? req.files.files
-                    : [req.files.files];
-
-                // ✅ Map files properly with all required fields
-                updateData.files = otherFiles.map((file) => {
-                    console.log("Processing file:", {
-                        name: file.originalname,
-                        size: file.size,
-                        type: file.mimetype,
-                        hasBuffer: !!file.buffer,
-                    });
-
-                    return {
-                        data: file.buffer,
-                        contentType: file.mimetype,
-                        fileName: file.originalname,
-                        uploadedAt: new Date(),
-                    };
-                });
-
-                console.log(
-                    `✅ Mapped ${otherFiles.length} files for Others report`
-                );
-                console.log(
-                    "Files array to save:",
-                    updateData.files.map((f) => ({
-                        fileName: f.fileName,
-                        contentType: f.contentType,
-                        dataSize: f.data?.length,
-                    }))
-                );
-            }
-        } else {
-            console.log("⚠️ No files received in req.files");
+        // ✅ SAME REPORT TYPE - Regular update
+        // Add processed files to updateData based on current report type
+        if (
+            oldReportType === "Window Display" &&
+            processedFiles.shopDisplayImages
+        ) {
+            updateData.shopDisplayImages = processedFiles.shopDisplayImages;
+        } else if (oldReportType === "Stock" && processedFiles.billCopies) {
+            updateData.billCopies = processedFiles.billCopies;
+        } else if (oldReportType === "Others" && processedFiles.files) {
+            updateData.files = processedFiles.files;
         }
 
-        // ✅ Regular update with explicit save to ensure files are persisted
-        console.log("Updating report with data keys:", Object.keys(updateData));
-
+        // Update the report
         const updatedReport = await Report.findByIdAndUpdate(id, updateData, {
             new: true,
             runValidators: true,
         });
 
-        // ✅ Verify the update worked
-        if (updatedReport && updatedReport.files) {
-            console.log(
-                `✅ Report updated successfully with ${updatedReport.files.length} files`
-            );
-        } else if (updatedReport) {
-            console.log("⚠️ Report updated but no files field found");
-        }
+        console.log("✅ Report updated successfully (same type)");
 
         return res.status(200).json({
             success: true,
