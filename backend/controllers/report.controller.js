@@ -372,6 +372,17 @@ export const updateReport = async (req, res) => {
         console.log("UPDATE BODY:", req.body);
         console.log("UPDATE FILES:", req.files);
 
+        // Parse removed indices
+        const removedImageIndices = req.body.removedImageIndices
+            ? JSON.parse(req.body.removedImageIndices)
+            : [];
+        const removedBillIndices = req.body.removedBillIndices
+            ? JSON.parse(req.body.removedBillIndices)
+            : [];
+        const removedFileIndices = req.body.removedFileIndices
+            ? JSON.parse(req.body.removedFileIndices)
+            : [];
+
         // Reconstruct nested objects if needed
         if (req.body["retailer[retailerId]"]) {
             updateData.retailer = {
@@ -401,8 +412,8 @@ export const updateReport = async (req, res) => {
         const oldReportType = existingReport.reportType;
         const newReportType = updateData.reportType || oldReportType;
 
-        // ✅ Process new file uploads BEFORE type change
-        const processedFiles = {};
+        // ✅ Process new file uploads
+        const newFiles = {};
 
         if (req.files && Object.keys(req.files).length > 0) {
             if (req.files.shopDisplayImages) {
@@ -410,7 +421,7 @@ export const updateReport = async (req, res) => {
                     ? req.files.shopDisplayImages
                     : [req.files.shopDisplayImages];
 
-                processedFiles.shopDisplayImages = images.map((file) => ({
+                newFiles.shopDisplayImages = images.map((file) => ({
                     data: file.buffer,
                     contentType: file.mimetype,
                     fileName: file.originalname,
@@ -423,7 +434,7 @@ export const updateReport = async (req, res) => {
                     ? req.files.billCopies
                     : [req.files.billCopies];
 
-                processedFiles.billCopies = bills.map((file) => ({
+                newFiles.billCopies = bills.map((file) => ({
                     data: file.buffer,
                     contentType: file.mimetype,
                     fileName: file.originalname,
@@ -436,7 +447,7 @@ export const updateReport = async (req, res) => {
                     ? req.files.files
                     : [req.files.files];
 
-                processedFiles.files = otherFiles.map((file) => ({
+                newFiles.files = otherFiles.map((file) => ({
                     data: file.buffer,
                     contentType: file.mimetype,
                     fileName: file.originalname,
@@ -451,13 +462,9 @@ export const updateReport = async (req, res) => {
                 `🔄 Changing report type from ${oldReportType} to ${newReportType}`
             );
 
-            // Delete old report
             await Report.findByIdAndDelete(id);
-
-            // Get new discriminator model
             const NewReportModel = getReportModel(newReportType);
 
-            // Build new report data - ONLY keep base fields
             const newReportData = {
                 _id: id,
                 reportType: newReportType,
@@ -478,7 +485,7 @@ export const updateReport = async (req, res) => {
                 location: existingReport.location,
             };
 
-            // ✅ Add type-specific fields based on NEW report type
+            // Add type-specific fields based on NEW report type
             if (newReportType === "Stock") {
                 newReportData.stockType = updateData.stockType;
                 newReportData.brand = updateData.brand;
@@ -487,32 +494,22 @@ export const updateReport = async (req, res) => {
                 newReportData.productType = updateData.productType;
                 newReportData.quantity = updateData.quantity;
 
-                // Add new bill copies if uploaded
-                if (processedFiles.billCopies) {
-                    newReportData.billCopies = processedFiles.billCopies;
+                if (newFiles.billCopies) {
+                    newReportData.billCopies = newFiles.billCopies;
                 }
             } else if (newReportType === "Window Display") {
-                // Add new shop display images if uploaded
-                if (processedFiles.shopDisplayImages) {
+                if (newFiles.shopDisplayImages) {
                     newReportData.shopDisplayImages =
-                        processedFiles.shopDisplayImages;
+                        newFiles.shopDisplayImages;
                 }
             } else if (newReportType === "Others") {
-                // Add new files if uploaded
-                if (processedFiles.files) {
-                    newReportData.files = processedFiles.files;
+                if (newFiles.files) {
+                    newReportData.files = newFiles.files;
                 }
             }
 
-            // Create and save new report
             const newReport = new NewReportModel(newReportData);
             await newReport.save();
-
-            console.log(
-                `✅ Report type changed successfully. New files: ${JSON.stringify(
-                    Object.keys(processedFiles)
-                )}`
-            );
 
             return res.status(200).json({
                 success: true,
@@ -521,17 +518,61 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // ✅ SAME REPORT TYPE - Regular update
-        // Add processed files to updateData based on current report type
-        if (
-            oldReportType === "Window Display" &&
-            processedFiles.shopDisplayImages
-        ) {
-            updateData.shopDisplayImages = processedFiles.shopDisplayImages;
-        } else if (oldReportType === "Stock" && processedFiles.billCopies) {
-            updateData.billCopies = processedFiles.billCopies;
-        } else if (oldReportType === "Others" && processedFiles.files) {
-            updateData.files = processedFiles.files;
+        // ✅ SAME REPORT TYPE - Handle removals and additions
+        if (oldReportType === "Window Display") {
+            // Get existing images, remove marked ones, add new ones
+            let existingImages = existingReport.shopDisplayImages || [];
+
+            // Remove marked images
+            if (removedImageIndices.length > 0) {
+                existingImages = existingImages.filter(
+                    (_, idx) => !removedImageIndices.includes(idx)
+                );
+            }
+
+            // Add new images
+            if (newFiles.shopDisplayImages) {
+                existingImages = [
+                    ...existingImages,
+                    ...newFiles.shopDisplayImages,
+                ];
+            }
+
+            updateData.shopDisplayImages = existingImages;
+        } else if (oldReportType === "Stock") {
+            // Get existing bill copies, remove marked ones, add new ones
+            let existingBills = existingReport.billCopies || [];
+
+            // Remove marked bills
+            if (removedBillIndices.length > 0) {
+                existingBills = existingBills.filter(
+                    (_, idx) => !removedBillIndices.includes(idx)
+                );
+            }
+
+            // Add new bills
+            if (newFiles.billCopies) {
+                existingBills = [...existingBills, ...newFiles.billCopies];
+            }
+
+            updateData.billCopies = existingBills;
+        } else if (oldReportType === "Others") {
+            // Get existing files, remove marked ones, add new ones
+            let existingFiles = existingReport.files || [];
+
+            // Remove marked files
+            if (removedFileIndices.length > 0) {
+                existingFiles = existingFiles.filter(
+                    (_, idx) => !removedFileIndices.includes(idx)
+                );
+            }
+
+            // Add new files
+            if (newFiles.files) {
+                existingFiles = [...existingFiles, ...newFiles.files];
+            }
+
+            updateData.files = existingFiles;
         }
 
         // Update the report
@@ -540,7 +581,7 @@ export const updateReport = async (req, res) => {
             runValidators: true,
         });
 
-        console.log("✅ Report updated successfully (same type)");
+        console.log("✅ Report updated successfully");
 
         return res.status(200).json({
             success: true,
