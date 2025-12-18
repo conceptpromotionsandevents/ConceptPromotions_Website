@@ -372,7 +372,7 @@ export const updateReport = async (req, res) => {
         console.log("UPDATE BODY:", req.body);
         console.log("UPDATE FILES:", req.files);
 
-        // Parse removed indices
+        // Parse removed indices (they come as JSON strings from FormData)
         const removedImageIndices = req.body.removedImageIndices
             ? JSON.parse(req.body.removedImageIndices)
             : [];
@@ -412,7 +412,7 @@ export const updateReport = async (req, res) => {
         const oldReportType = existingReport.reportType;
         const newReportType = updateData.reportType || oldReportType;
 
-        // ✅ Process new file uploads
+        // Process new file uploads into plain objects
         const newFiles = {};
 
         if (req.files && Object.keys(req.files).length > 0) {
@@ -456,7 +456,7 @@ export const updateReport = async (req, res) => {
             }
         }
 
-        // ✅ HANDLE REPORT TYPE CHANGE
+        // ---------- HANDLE REPORT TYPE CHANGE ----------
         if (newReportType !== oldReportType) {
             console.log(
                 `🔄 Changing report type from ${oldReportType} to ${newReportType}`
@@ -477,7 +477,10 @@ export const updateReport = async (req, res) => {
                 dateOfSubmission:
                     updateData.dateOfSubmission ||
                     existingReport.dateOfSubmission,
-                remarks: updateData.remarks || existingReport.remarks,
+                remarks:
+                    updateData.remarks !== undefined
+                        ? updateData.remarks
+                        : existingReport.remarks,
                 visitScheduleId: existingReport.visitScheduleId,
                 typeOfVisit: existingReport.typeOfVisit,
                 attendedVisit: existingReport.attendedVisit,
@@ -518,75 +521,134 @@ export const updateReport = async (req, res) => {
             });
         }
 
-        // ✅ SAME REPORT TYPE - Handle removals and additions
+        // ---------- SAME REPORT TYPE: HANDLE ARRAYS ON DOC, THEN SAVE ----------
+
+        // Update common scalar fields on the existing doc
+        if (updateData.frequency !== undefined) {
+            existingReport.frequency = updateData.frequency;
+        }
+        if (updateData.remarks !== undefined) {
+            existingReport.remarks = updateData.remarks;
+        }
+        if (updateData.retailer) {
+            existingReport.retailer = updateData.retailer;
+        }
+        if (updateData.employee) {
+            existingReport.employee = updateData.employee;
+        }
+
+        // Stock-specific scalar fields
+        if (oldReportType === "Stock") {
+            if (updateData.stockType)
+                existingReport.stockType = updateData.stockType;
+            if (updateData.brand) existingReport.brand = updateData.brand;
+            if (updateData.product) existingReport.product = updateData.product;
+            if (updateData.sku) existingReport.sku = updateData.sku;
+            if (updateData.productType)
+                existingReport.productType = updateData.productType;
+            if (updateData.quantity)
+                existingReport.quantity = updateData.quantity;
+        }
+
+        // Now handle file arrays directly on existingReport
         if (oldReportType === "Window Display") {
-            // Get existing images, remove marked ones, add new ones
             let existingImages = existingReport.shopDisplayImages || [];
 
-            // Remove marked images
+            console.log("Before removal - Image count:", existingImages.length);
+
             if (removedImageIndices.length > 0) {
                 existingImages = existingImages.filter(
                     (_, idx) => !removedImageIndices.includes(idx)
                 );
+                console.log(
+                    "After removal - Image count:",
+                    existingImages.length
+                );
             }
 
-            // Add new images
             if (newFiles.shopDisplayImages) {
+                console.log(
+                    "Adding new images:",
+                    newFiles.shopDisplayImages.length
+                );
                 existingImages = [
                     ...existingImages,
                     ...newFiles.shopDisplayImages,
                 ];
+                console.log(
+                    "After addition - Image count:",
+                    existingImages.length
+                );
             }
 
-            updateData.shopDisplayImages = existingImages;
+            existingReport.shopDisplayImages = existingImages;
+            existingReport.markModified("shopDisplayImages");
         } else if (oldReportType === "Stock") {
-            // Get existing bill copies, remove marked ones, add new ones
             let existingBills = existingReport.billCopies || [];
 
-            // Remove marked bills
+            console.log("Before removal - Bill count:", existingBills.length);
+
             if (removedBillIndices.length > 0) {
                 existingBills = existingBills.filter(
                     (_, idx) => !removedBillIndices.includes(idx)
                 );
-            }
-
-            // Add new bills
-            if (newFiles.billCopies) {
-                existingBills = [...existingBills, ...newFiles.billCopies];
-            }
-
-            updateData.billCopies = existingBills;
-        } else if (oldReportType === "Others") {
-            // Get existing files, remove marked ones, add new ones
-            let existingFiles = existingReport.files || [];
-
-            // Remove marked files
-            if (removedFileIndices.length > 0) {
-                existingFiles = existingFiles.filter(
-                    (_, idx) => !removedFileIndices.includes(idx)
+                console.log(
+                    "After removal - Bill count:",
+                    existingBills.length
                 );
             }
 
-            // Add new files
-            if (newFiles.files) {
-                existingFiles = [...existingFiles, ...newFiles.files];
+            if (newFiles.billCopies) {
+                console.log("Adding new bills:", newFiles.billCopies.length);
+                existingBills = [...existingBills, ...newFiles.billCopies];
+                console.log(
+                    "After addition - Bill count:",
+                    existingBills.length
+                );
             }
 
-            updateData.files = existingFiles;
+            existingReport.billCopies = existingBills;
+            existingReport.markModified("billCopies");
+        } else if (oldReportType === "Others") {
+            let existingFilesArr = existingReport.files || [];
+
+            console.log(
+                "Before removal - File count:",
+                existingFilesArr.length
+            );
+
+            if (removedFileIndices.length > 0) {
+                existingFilesArr = existingFilesArr.filter(
+                    (_, idx) => !removedFileIndices.includes(idx)
+                );
+                console.log(
+                    "After removal - File count:",
+                    existingFilesArr.length
+                );
+            }
+
+            if (newFiles.files) {
+                console.log("Adding new files:", newFiles.files.length);
+                existingFilesArr = [...existingFilesArr, ...newFiles.files];
+                console.log(
+                    "After addition - File count:",
+                    existingFilesArr.length
+                );
+            }
+
+            existingReport.files = existingFilesArr;
+            existingReport.markModified("files");
         }
 
-        // Update the report
-        const updatedReport = await Report.findByIdAndUpdate(id, updateData, {
-            new: true,
-            runValidators: true,
-        });
+        // Finally save the existing document
+        await existingReport.save();
 
-        console.log("✅ Report updated successfully");
+        console.log("✅ Report updated and saved to MongoDB");
 
         return res.status(200).json({
             success: true,
             message: "Report updated successfully",
-            report: updatedReport,
+            report: existingReport,
         });
     } catch (error) {
         console.error("Update report error:", error);
