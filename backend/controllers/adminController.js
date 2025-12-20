@@ -1,21 +1,23 @@
-import {
-    Admin,
-    VisitSchedule,
-    ClientAdmin,
-    ClientUser,
-    Retailer,
-    Employee,
-    Campaign,
-    Payment,
-    EmployeeReport,
-} from "../models/user.js";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import XLSX from "xlsx";
-import { CareerApplication, Job, JobApplication } from "../models/user.js";
-import mongoose from "mongoose";
+import {
+    Admin,
+    Campaign,
+    CareerApplication,
+    ClientAdmin,
+    ClientUser,
+    Employee,
+    EmployeeReport,
+    Job,
+    JobApplication,
+    Payment,
+    Retailer,
+    VisitSchedule,
+} from "../models/user.js";
 export const getAllCampaigns = async (req, res) => {
     try {
         const campaigns = await Campaign.find()
@@ -334,6 +336,7 @@ export const registerRetailer = async (req, res) => {
         });
     }
 };
+
 // Utility to generate unique IDs (since insertMany doesn't run pre-save hooks)
 function generateUniqueId() {
     const letters = Array.from({ length: 4 }, () =>
@@ -1505,11 +1508,9 @@ export const createJobPosting = async (req, res) => {
             totalRounds,
         } = req.body;
         if (!title || !description || !location)
-            return res
-                .status(400)
-                .json({
-                    message: "title, description, and location are required",
-                });
+            return res.status(400).json({
+                message: "title, description, and location are required",
+            });
 
         const job = new Job({
             title,
@@ -1572,11 +1573,9 @@ export const getJobApplications = async (req, res) => {
         const job = await Job.findById(jobId);
         if (!job) return res.status(404).json({ message: "Job not found" });
         if (job.createdBy.toString() !== req.user.id)
-            return res
-                .status(403)
-                .json({
-                    message: "Not authorized to view applications for this job",
-                });
+            return res.status(403).json({
+                message: "Not authorized to view applications for this job",
+            });
 
         const applications = await JobApplication.find({ job: jobId })
             .populate("candidate", "fullName email phoneNumber")
@@ -1768,11 +1767,9 @@ export const getSingleAdminJob = async (req, res) => {
 
         const admin = await Admin.findById(req.user.id);
         if (!admin)
-            return res
-                .status(403)
-                .json({
-                    message: "Only registered admins can view job details",
-                });
+            return res.status(403).json({
+                message: "Only registered admins can view job details",
+            });
 
         const { id } = req.params;
 

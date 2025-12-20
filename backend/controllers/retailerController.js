@@ -270,61 +270,39 @@ export const loginRetailer = async (req, res) => {
 
 export const updateRetailer = async (req, res) => {
     try {
-        // 1️⃣ Read token
         const token = req.headers.authorization?.split(" ")[1];
-        if (!token)
+        if (!token) {
             return res
                 .status(401)
                 .json({ message: "Unauthorized: No token provided" });
+        }
 
-        // 2️⃣ Decode token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const retailerId = decoded.id;
 
-        // 3️⃣ Load the correct retailer (no param id)
         const retailer = await Retailer.findById(retailerId);
-        if (!retailer)
+        if (!retailer) {
             return res.status(404).json({ message: "Retailer not found" });
+        }
 
         const body = req.body;
         const files = req.files || {};
 
-        /* -------------------------------
-       BASIC FIELDS
-    ------------------------------- */
+        /* BASIC FIELDS */
         if (body.name) retailer.name = body.name;
         if (body.email) retailer.email = body.email;
         if (body.contactNo) retailer.contactNo = body.contactNo;
         if (body.gender) retailer.gender = body.gender;
         if (body.dob) retailer.dob = body.dob;
 
-        /* -------------------------------
-       PERSONAL ADDRESS
-    ------------------------------- */
-        if (body.address || body.city || body.state || body.lat || body.lng) {
-            retailer.personalAddress = {
-                address: body.address || retailer.personalAddress?.address,
-                city: body.city || retailer.personalAddress?.city,
-                state: body.state || retailer.personalAddress?.state,
-                geoTags: {
-                    lat: body.lat
-                        ? parseFloat(body.lat)
-                        : retailer.personalAddress?.geoTags?.lat,
-                    lng: body.lng
-                        ? parseFloat(body.lng)
-                        : retailer.personalAddress?.geoTags?.lng,
-                },
-            };
-        }
-
-        /* -------------------------------
-       SHOP DETAILS
-    ------------------------------- */
+        /* SHOP DETAILS */
         if (
             body.shopName ||
             body.businessType ||
             body.ownershipType ||
-            body.dateOfEstablishment
+            body.dateOfEstablishment ||
+            body.GSTNo ||
+            body.PANCard
         ) {
             retailer.shopDetails.shopName =
                 body.shopName || retailer.shopDetails.shopName;
@@ -335,23 +313,29 @@ export const updateRetailer = async (req, res) => {
             retailer.shopDetails.dateOfEstablishment =
                 body.dateOfEstablishment ||
                 retailer.shopDetails.dateOfEstablishment;
+            retailer.shopDetails.GSTNo =
+                body.GSTNo || retailer.shopDetails.GSTNo;
+            retailer.shopDetails.PANCard =
+                body.PANCard || retailer.shopDetails.PANCard;
         }
 
-        /* -------------------------------
-       SHOP ADDRESS
-    ------------------------------- */
+        /* SHOP ADDRESS */
         if (
             body.shopAddress ||
             body.shopCity ||
             body.shopState ||
             body.shopPincode ||
             body.shopLat ||
-            body.shopLng
+            body.shopLng ||
+            body.shopAddress2
         ) {
             retailer.shopDetails.shopAddress = {
                 address:
                     body.shopAddress ||
                     retailer.shopDetails.shopAddress?.address,
+                address2:
+                    body.shopAddress2 ||
+                    retailer.shopDetails.shopAddress?.address2,
                 city: body.shopCity || retailer.shopDetails.shopAddress?.city,
                 state:
                     body.shopState || retailer.shopDetails.shopAddress?.state,
@@ -369,9 +353,7 @@ export const updateRetailer = async (req, res) => {
             };
         }
 
-        /* -------------------------------
-       BANK DETAILS
-    ------------------------------- */
+        /* BANK DETAILS */
         if (
             body.bankName ||
             body.accountNumber ||
@@ -387,9 +369,7 @@ export const updateRetailer = async (req, res) => {
             };
         }
 
-        /* -------------------------------
-       FILE UPLOADS
-    ------------------------------- */
+        /* FILE UPLOADS (aligned with schema & multer field names) */
         if (files.govtIdPhoto) {
             retailer.govtIdPhoto = {
                 data: files.govtIdPhoto[0].buffer,
@@ -404,6 +384,7 @@ export const updateRetailer = async (req, res) => {
             };
         }
 
+        // schema field is "registrationForm", multer field is "registrationForm"
         if (files.registrationFormFile) {
             retailer.registrationFormFile = {
                 data: files.registrationFormFile[0].buffer,

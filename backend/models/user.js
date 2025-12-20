@@ -1,5 +1,5 @@
-import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 
 const { Schema, model, Types } = mongoose;
 
@@ -192,7 +192,15 @@ const retailerSchema = new Schema(
 );
 
 // 🚀 AUTO GENERATE UNIQUE ID + RETAILER CODE
-retailerSchema.pre("save", function (next) {
+retailerSchema.pre("save", async function (next) {
+    try {
+        if (!this.isModified("password")) return next();
+
+        this.password = await bcrypt.hash(this.password, 10);
+        next();
+    } catch (err) {
+        next(err);
+    }
     try {
         if (!this.uniqueId) {
             const partOfIndia = this.partOfIndia || "N";
