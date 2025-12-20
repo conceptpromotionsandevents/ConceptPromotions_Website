@@ -141,7 +141,7 @@ const retailerSchema = new Schema(
         govtIdNumber: String,
         govtIdPhoto: { data: Buffer, contentType: String },
         personPhoto: { data: Buffer, contentType: String },
-        registrationForm: { data: Buffer, contentType: String },
+        registrationFormFile: { data: Buffer, contentType: String },
 
         shopDetails: {
             shopName: { type: String, required: true },
