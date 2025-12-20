@@ -132,7 +132,9 @@ const retailerSchema = new Schema(
         retailerCode: { type: String, unique: true },
         name: { type: String, required: true },
         contactNo: { type: String, required: true, unique: true },
+        alternateContactNo: { type: Number, unique: true },
         email: String,
+        dob: { type: Date },
 
         password: { type: String, required: true }, // ✔ UNTOUCHED
 
@@ -193,13 +195,8 @@ const retailerSchema = new Schema(
 
 // 🚀 AUTO GENERATE UNIQUE ID + RETAILER CODE
 retailerSchema.pre("save", async function (next) {
-    try {
-        if (!this.isModified("password")) return next();
-
+    if (this.isModified("password")) {
         this.password = await bcrypt.hash(this.password, 10);
-        next();
-    } catch (err) {
-        next(err);
     }
     try {
         if (!this.uniqueId) {

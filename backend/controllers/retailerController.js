@@ -292,84 +292,52 @@ export const updateRetailer = async (req, res) => {
         if (body.name) retailer.name = body.name;
         if (body.email) retailer.email = body.email;
         if (body.contactNo) retailer.contactNo = body.contactNo;
+        if (body.alternateContactNo)
+            retailer.alternateContactNo = body.alternateContactNo;
         if (body.gender) retailer.gender = body.gender;
         if (body.dob) retailer.dob = body.dob;
+        if (body.govtIdType) retailer.govtIdType = body.govtIdType;
+        if (body.govtIdNumber) retailer.govtIdNumber = body.govtIdNumber;
 
-        /* SHOP DETAILS */
-        if (
-            body.shopName ||
-            body.businessType ||
-            body.ownershipType ||
-            body.dateOfEstablishment ||
-            body.GSTNo ||
-            body.PANCard
-        ) {
-            retailer.shopDetails.shopName =
-                body.shopName || retailer.shopDetails.shopName;
-            retailer.shopDetails.businessType =
-                body.businessType || retailer.shopDetails.businessType;
-            retailer.shopDetails.ownershipType =
-                body.ownershipType || retailer.shopDetails.ownershipType;
-            retailer.shopDetails.dateOfEstablishment =
-                body.dateOfEstablishment ||
-                retailer.shopDetails.dateOfEstablishment;
-            retailer.shopDetails.GSTNo =
-                body.GSTNo || retailer.shopDetails.GSTNo;
-            retailer.shopDetails.PANCard =
-                body.PANCard || retailer.shopDetails.PANCard;
+        /* SHOP DETAILS - Initialize if not exists */
+        if (!retailer.shopDetails) {
+            retailer.shopDetails = {};
         }
 
-        /* SHOP ADDRESS */
-        if (
-            body.shopAddress ||
-            body.shopCity ||
-            body.shopState ||
-            body.shopPincode ||
-            body.shopLat ||
-            body.shopLng ||
-            body.shopAddress2
-        ) {
-            retailer.shopDetails.shopAddress = {
-                address:
-                    body.shopAddress ||
-                    retailer.shopDetails.shopAddress?.address,
-                address2:
-                    body.shopAddress2 ||
-                    retailer.shopDetails.shopAddress?.address2,
-                city: body.shopCity || retailer.shopDetails.shopAddress?.city,
-                state:
-                    body.shopState || retailer.shopDetails.shopAddress?.state,
-                pincode:
-                    body.shopPincode ||
-                    retailer.shopDetails.shopAddress?.pincode,
-                geoTags: {
-                    lat: body.shopLat
-                        ? parseFloat(body.shopLat)
-                        : retailer.shopDetails.shopAddress?.geoTags?.lat,
-                    lng: body.shopLng
-                        ? parseFloat(body.shopLng)
-                        : retailer.shopDetails.shopAddress?.geoTags?.lng,
-                },
-            };
+        if (body.shopName) retailer.shopDetails.shopName = body.shopName;
+        if (body.businessType)
+            retailer.shopDetails.businessType = body.businessType;
+        if (body.ownershipType)
+            retailer.shopDetails.ownershipType = body.ownershipType;
+        if (body.GSTNo) retailer.shopDetails.GSTNo = body.GSTNo;
+        if (body.PANCard) retailer.shopDetails.PANCard = body.PANCard;
+
+        /* SHOP ADDRESS - Note: schema uses 'address' not 'shopAddress' */
+        if (!retailer.shopDetails.shopAddress) {
+            retailer.shopDetails.shopAddress = {};
         }
 
-        /* BANK DETAILS */
-        if (
-            body.bankName ||
-            body.accountNumber ||
-            body.IFSC ||
-            body.branchName
-        ) {
-            retailer.bankDetails = {
-                bankName: body.bankName || retailer.bankDetails?.bankName,
-                accountNumber:
-                    body.accountNumber || retailer.bankDetails?.accountNumber,
-                IFSC: body.IFSC || retailer.bankDetails?.IFSC,
-                branchName: body.branchName || retailer.bankDetails?.branchName,
-            };
+        if (body.address)
+            retailer.shopDetails.shopAddress.address = body.address;
+        if (body.address2)
+            retailer.shopDetails.shopAddress.address2 = body.address2;
+        if (body.city) retailer.shopDetails.shopAddress.city = body.city;
+        if (body.state) retailer.shopDetails.shopAddress.state = body.state;
+        if (body.pincode)
+            retailer.shopDetails.shopAddress.pincode = body.pincode;
+
+        /* BANK DETAILS - Initialize if not exists */
+        if (!retailer.bankDetails) {
+            retailer.bankDetails = {};
         }
 
-        /* FILE UPLOADS (aligned with schema & multer field names) */
+        if (body.bankName) retailer.bankDetails.bankName = body.bankName;
+        if (body.accountNumber)
+            retailer.bankDetails.accountNumber = body.accountNumber;
+        if (body.IFSC) retailer.bankDetails.IFSC = body.IFSC;
+        if (body.branchName) retailer.bankDetails.branchName = body.branchName;
+
+        /* FILE UPLOADS - Using Buffer storage as per schema */
         if (files.govtIdPhoto) {
             retailer.govtIdPhoto = {
                 data: files.govtIdPhoto[0].buffer,
@@ -384,7 +352,6 @@ export const updateRetailer = async (req, res) => {
             };
         }
 
-        // schema field is "registrationForm", multer field is "registrationForm"
         if (files.registrationFormFile) {
             retailer.registrationFormFile = {
                 data: files.registrationFormFile[0].buffer,
@@ -401,9 +368,13 @@ export const updateRetailer = async (req, res) => {
 
         await retailer.save();
 
+        // Return sanitized response without password and large buffers
+        const sanitizedRetailer = retailer.toObject();
+        delete sanitizedRetailer.password;
+
         res.status(200).json({
             message: "Retailer updated successfully",
-            retailer,
+            retailer: sanitizedRetailer,
         });
     } catch (error) {
         console.error("Update retailer error:", error);
