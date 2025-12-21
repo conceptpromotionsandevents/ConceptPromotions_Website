@@ -1,14 +1,14 @@
 // controllers/report.controller.js
 import {
-    Report,
-    WindowDisplayReport,
-    StockReport,
     OthersReport,
+    Report,
+    StockReport,
+    WindowDisplayReport,
 } from "../models/report.model.js";
 import { Employee } from "../models/user.js";
-import { Retailer } from "../models/user.js";
-import { VisitSchedule } from "../models/user.js";
-import { Campaign } from "../models/user.js";
+// import { Retailer } from "../models/user.js";
+import { Retailer } from "../models/retailer.model.js";
+import { Campaign, VisitSchedule } from "../models/user.js";
 
 /* ===============================
    HELPER: GET CORRECT MODEL BY REPORT TYPE

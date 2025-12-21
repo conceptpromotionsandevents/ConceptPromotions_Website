@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import twilio from "twilio";
-import { Campaign, Retailer } from "../models/user.js";
+import { Retailer } from "../models/retailer.model.js";
+import { Campaign } from "../models/user.js";
 
 dotenv.config();
 
@@ -264,10 +265,9 @@ export const loginRetailer = async (req, res) => {
     }
 };
 
-/*
-   ## update retailer profile patch method
-*/
-
+/* ===============================
+   UPDATE RETAILER PROFILE
+=============================== */
 export const updateRetailer = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -292,8 +292,7 @@ export const updateRetailer = async (req, res) => {
         if (body.name) retailer.name = body.name;
         if (body.email) retailer.email = body.email;
         if (body.contactNo) retailer.contactNo = body.contactNo;
-        if (body.alternateContactNo)
-            retailer.alternateContactNo = body.alternateContactNo;
+        if (body.altContactNo) retailer.altContactNo = body.altContactNo; // Fixed field name
         if (body.gender) retailer.gender = body.gender;
         if (body.dob) retailer.dob = body.dob;
         if (body.govtIdType) retailer.govtIdType = body.govtIdType;
@@ -312,7 +311,7 @@ export const updateRetailer = async (req, res) => {
         if (body.GSTNo) retailer.shopDetails.GSTNo = body.GSTNo;
         if (body.PANCard) retailer.shopDetails.PANCard = body.PANCard;
 
-        /* SHOP ADDRESS - Note: schema uses 'address' not 'shopAddress' */
+        /* SHOP ADDRESS */
         if (!retailer.shopDetails.shopAddress) {
             retailer.shopDetails.shopAddress = {};
         }
@@ -337,7 +336,7 @@ export const updateRetailer = async (req, res) => {
         if (body.IFSC) retailer.bankDetails.IFSC = body.IFSC;
         if (body.branchName) retailer.bankDetails.branchName = body.branchName;
 
-        /* FILE UPLOADS - Using Buffer storage as per schema */
+        /* FILE UPLOADS - All at root level */
         if (files.govtIdPhoto) {
             retailer.govtIdPhoto = {
                 data: files.govtIdPhoto[0].buffer,
@@ -360,7 +359,8 @@ export const updateRetailer = async (req, res) => {
         }
 
         if (files.outletPhoto) {
-            retailer.shopDetails.outletPhoto = {
+            // Fixed: Save to root level, not shopDetails
+            retailer.outletPhoto = {
                 data: files.outletPhoto[0].buffer,
                 contentType: files.outletPhoto[0].mimetype,
             };
@@ -371,6 +371,12 @@ export const updateRetailer = async (req, res) => {
         // Return sanitized response without password and large buffers
         const sanitizedRetailer = retailer.toObject();
         delete sanitizedRetailer.password;
+
+        // Optionally remove buffer data from response
+        delete sanitizedRetailer.govtIdPhoto;
+        delete sanitizedRetailer.personPhoto;
+        delete sanitizedRetailer.registrationFormFile;
+        delete sanitizedRetailer.outletPhoto;
 
         res.status(200).json({
             message: "Retailer updated successfully",
@@ -387,19 +393,17 @@ export const updateRetailer = async (req, res) => {
 =============================== */
 export const getRetailerProfile = async (req, res) => {
     try {
-        // Extract JWT token
         const token = req.headers.authorization?.split(" ")[1];
         if (!token)
             return res
                 .status(401)
                 .json({ message: "Unauthorized: No token provided" });
 
-        // Decode the token to get retailer ID
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const retailerId = decoded.id;
 
         const retailer = await Retailer.findById(retailerId).select(
-            "-password"
+            "-password -govtIdPhoto -personPhoto -registrationFormFile -outletPhoto"
         );
         if (!retailer)
             return res.status(404).json({ message: "Retailer not found" });

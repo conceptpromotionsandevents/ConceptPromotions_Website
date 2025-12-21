@@ -126,107 +126,105 @@ export const ClientUser = model("ClientUser", clientUserSchema);
 /* ===============================
    RETAILER SCHEMA
 =============================== */
-const retailerSchema = new Schema(
-    {
-        uniqueId: { type: String, unique: true },
-        retailerCode: { type: String, unique: true },
-        name: { type: String, required: true },
-        contactNo: { type: String, required: true, unique: true },
-        alternateContactNo: { type: Number, unique: true },
-        email: String,
-        dob: { type: Date },
+// const retailerSchema = new Schema(
+//     {
+//         uniqueId: { type: String, unique: true },
+//         retailerCode: { type: String, unique: true },
+//         name: { type: String, required: true },
+//         contactNo: { type: String, required: true, unique: true },
+//         alternateContactNo: { type: Number, unique: true },
+//         email: String,
+//         dob: { type: Date },
 
-        password: { type: String, required: true }, // ✔ UNTOUCHED
+//         password: { type: String, required: true }, // ✔ UNTOUCHED
 
-        gender: { type: String },
-        govtIdType: String,
-        govtIdNumber: String,
-        govtIdPhoto: { data: Buffer, contentType: String },
-        personPhoto: { data: Buffer, contentType: String },
-        registrationFormFile: { data: Buffer, contentType: String },
+//         gender: { type: String },
+//         govtIdType: String,
+//         govtIdNumber: String,
+//         govtIdPhoto: { data: Buffer, contentType: String },
+//         personPhoto: { data: Buffer, contentType: String },
+//         registrationFormFile: { data: Buffer, contentType: String },
 
-        shopDetails: {
-            shopName: { type: String, required: true },
-            businessType: { type: String, required: true },
-            ownershipType: String,
-            GSTNo: String,
-            PANCard: { type: String, required: true },
-            outletPhoto: { data: Buffer, contentType: String },
-            shopAddress: {
-                address: { type: String, required: true },
-                address2: String,
-                city: { type: String, required: true },
-                state: { type: String, required: true },
-                pincode: { type: String, required: true },
-            },
-        },
+//         shopDetails: {
+//             shopName: { type: String, required: true },
+//             businessType: { type: String, required: true },
+//             ownershipType: String,
+//             GSTNo: String,
+//             PANCard: { type: String, required: true },
+//             outletPhoto: { data: Buffer, contentType: String },
+//             shopAddress: {
+//                 address: { type: String, required: true },
+//                 address2: String,
+//                 city: { type: String, required: true },
+//                 state: { type: String, required: true },
+//                 pincode: { type: String, required: true },
+//             },
+//         },
 
-        bankDetails: {
-            bankName: { type: String, required: true },
-            accountNumber: { type: String, required: true },
-            IFSC: { type: String, required: true },
-            branchName: { type: String, required: true },
-        },
+//         bankDetails: {
+//             bankName: { type: String, required: true },
+//             accountNumber: { type: String, required: true },
+//             IFSC: { type: String, required: true },
+//             branchName: { type: String, required: true },
+//         },
 
-        createdBy: {
-            type: String,
-            enum: ["RetailerSelf", "Employee", "AdminAdded"],
-            default: "RetailerSelf",
-        },
+//         createdBy: {
+//             type: String,
+//             enum: ["RetailerSelf", "Employee", "AdminAdded"],
+//             default: "RetailerSelf",
+//         },
 
-        phoneVerified: { type: Boolean, default: false },
+//         phoneVerified: { type: Boolean, default: false },
 
-        assignedCampaigns: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: "Campaign",
-            },
-        ],
+//         assignedCampaigns: [
+//             {
+//                 type: Schema.Types.ObjectId,
+//                 ref: "Campaign",
+//             },
+//         ],
 
-        assignedEmployee: {
-            type: Schema.Types.ObjectId,
-            ref: "Employee",
-        },
+//         assignedEmployee: {
+//             type: Schema.Types.ObjectId,
+//             ref: "Employee",
+//         },
 
-        partOfIndia: { type: String, default: "N" },
-    },
-    { timestamps: true }
-);
+//         partOfIndia: { type: String, default: "N" },
+//     },
+//     { timestamps: true }
+// );
 
 // 🚀 AUTO GENERATE UNIQUE ID + RETAILER CODE
-retailerSchema.pre("save", async function (next) {
-    if (this.isModified("password")) {
-        this.password = await bcrypt.hash(this.password, 10);
-    }
-    try {
-        if (!this.uniqueId) {
-            const partOfIndia = this.partOfIndia || "N";
-            const businessType = this.shopDetails?.businessType || "O";
-            const typeLetter = businessType.charAt(0).toUpperCase();
+// retailerSchema.pre("save", async function (next) {
+//     this.password = await bcrypt.hash(this.password, 10);
+//     try {
+//         if (!this.uniqueId) {
+//             const partOfIndia = this.partOfIndia || "N";
+//             const businessType = this.shopDetails?.businessType || "O";
+//             const typeLetter = businessType.charAt(0).toUpperCase();
 
-            const state = this.shopDetails?.shopAddress?.state || "NA";
-            const city = this.shopDetails?.shopAddress?.city || "NA";
+//             const state = this.shopDetails?.shopAddress?.state || "NA";
+//             const city = this.shopDetails?.shopAddress?.city || "NA";
 
-            const stateCode = state.substring(0, 2).toUpperCase();
-            const cityCode = city.substring(0, 3).toUpperCase();
-            const randomNum = Math.floor(1000 + Math.random() * 9000);
+//             const stateCode = state.substring(0, 2).toUpperCase();
+//             const cityCode = city.substring(0, 3).toUpperCase();
+//             const randomNum = Math.floor(1000 + Math.random() * 9000);
 
-            this.uniqueId = `${partOfIndia}${typeLetter}${stateCode}${cityCode}${randomNum}`;
-        }
+//             this.uniqueId = `${partOfIndia}${typeLetter}${stateCode}${cityCode}${randomNum}`;
+//         }
 
-        if (!this.retailerCode) {
-            const timestamp = Date.now().toString().slice(-6);
-            const randomPart = Math.floor(100 + Math.random() * 900);
-            this.retailerCode = `R${timestamp}${randomPart}`;
-        }
+//         if (!this.retailerCode) {
+//             const timestamp = Date.now().toString().slice(-6);
+//             const randomPart = Math.floor(100 + Math.random() * 900);
+//             this.retailerCode = `R${timestamp}${randomPart}`;
+//         }
 
-        next();
-    } catch (err) {
-        next(err);
-    }
-});
+//         next();
+//     } catch (err) {
+//         next(err);
+//     }
+// });
 
-export const Retailer = model("Retailer", retailerSchema);
+// export const Retailer = model("Retailer", retailerSchema);
 
 /* ===============================
    EMPLOYEE SCHEMA

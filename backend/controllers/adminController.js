@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import XLSX from "xlsx";
+import { Retailer } from "../models/retailer.model.js";
 import {
     Admin,
     Campaign,
@@ -15,7 +16,7 @@ import {
     Job,
     JobApplication,
     Payment,
-    Retailer,
+    // Retailer,
     VisitSchedule,
 } from "../models/user.js";
 export const getAllCampaigns = async (req, res) => {
