@@ -268,9 +268,6 @@ export const loginRetailer = async (req, res) => {
 /* ===============================
    UPDATE RETAILER PROFILE
 =============================== */
-/* ===============================
-   UPDATE RETAILER PROFILE
-=============================== */
 export const updateRetailer = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -472,6 +469,89 @@ export const getRetailerCampaigns = async (req, res) => {
         });
     } catch (error) {
         console.error("Get retailer campaigns error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+/* ===============================
+   GET RETAILER IMAGE BY TYPE
+=============================== */
+export const getRetailerImage = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: No token provided" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const retailerId = decoded.id;
+        const { imageType } = req.params;
+
+        // Validate imageType
+        const validImageTypes = [
+            "govtIdPhoto",
+            "personPhoto",
+            "registrationFormFile",
+            "outletPhoto",
+        ];
+        if (!validImageTypes.includes(imageType)) {
+            return res.status(400).json({ message: "Invalid image type" });
+        }
+
+        const retailer = await Retailer.findById(retailerId).select(imageType);
+        if (!retailer) {
+            return res.status(404).json({ message: "Retailer not found" });
+        }
+
+        const imageField = retailer[imageType];
+        if (!imageField || !imageField.data) {
+            return res.status(404).json({ message: "Image not found" });
+        }
+
+        res.set(
+            "Content-Type",
+            imageField.contentType || "application/octet-stream"
+        );
+        res.send(imageField.data);
+    } catch (error) {
+        console.error("Get retailer image error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+/* ===============================
+   CHECK WHICH IMAGES EXIST
+=============================== */
+export const getRetailerImageStatus = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: No token provided" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const retailerId = decoded.id;
+
+        const retailer = await Retailer.findById(retailerId).select(
+            "govtIdPhoto personPhoto registrationFormFile outletPhoto"
+        );
+
+        if (!retailer) {
+            return res.status(404).json({ message: "Retailer not found" });
+        }
+
+        res.status(200).json({
+            hasGovtIdPhoto: !!retailer.govtIdPhoto?.data,
+            hasPersonPhoto: !!retailer.personPhoto?.data,
+            hasRegistrationFormFile: !!retailer.registrationFormFile?.data,
+            hasOutletPhoto: !!retailer.outletPhoto?.data,
+        });
+    } catch (error) {
+        console.error("Get image status error:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };

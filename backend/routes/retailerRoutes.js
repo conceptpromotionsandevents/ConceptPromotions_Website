@@ -12,6 +12,8 @@ import {
     getRetailerReports,
     viewBillCopy,
     viewReportImage,
+    getRetailerImageStatus,
+    getRetailerImage,
 } from "../controllers/retailerController.js";
 import multer from "multer";
 import { protect } from "../middleware/authMiddleware.js"; // JWT middleware
@@ -69,5 +71,8 @@ router.get("/retailer/reports", protect, getRetailerReports);
 router.get("/reports/:reportId/images/:imageIndex", protect, viewReportImage);
 
 router.get("/reports/:reportId/bill", protect, viewBillCopy);
+
+router.get("/retailer/image-status", protect, getRetailerImageStatus);
+router.get("/retailer/image/:imageType", protect, getRetailerImage);
 
 export default router;
