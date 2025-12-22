@@ -268,6 +268,9 @@ export const loginRetailer = async (req, res) => {
 /* ===============================
    UPDATE RETAILER PROFILE
 =============================== */
+/* ===============================
+   UPDATE RETAILER PROFILE
+=============================== */
 export const updateRetailer = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -292,7 +295,7 @@ export const updateRetailer = async (req, res) => {
         if (body.name) retailer.name = body.name;
         if (body.email) retailer.email = body.email;
         if (body.contactNo) retailer.contactNo = body.contactNo;
-        if (body.altContactNo) retailer.altContactNo = body.altContactNo; // Fixed field name
+        if (body.altContactNo) retailer.altContactNo = body.altContactNo;
         if (body.gender) retailer.gender = body.gender;
         if (body.dob) retailer.dob = body.dob;
         if (body.govtIdType) retailer.govtIdType = body.govtIdType;
@@ -330,11 +333,39 @@ export const updateRetailer = async (req, res) => {
             retailer.bankDetails = {};
         }
 
+        // Track if bank details changed
+        const bankDetailsChanged =
+            (body.bankName &&
+                body.bankName !== retailer.bankDetails.bankName) ||
+            (body.accountNumber &&
+                body.accountNumber !== retailer.bankDetails.accountNumber) ||
+            (body.IFSC && body.IFSC !== retailer.bankDetails.IFSC) ||
+            (body.branchName &&
+                body.branchName !== retailer.bankDetails.branchName);
+
         if (body.bankName) retailer.bankDetails.bankName = body.bankName;
         if (body.accountNumber)
             retailer.bankDetails.accountNumber = body.accountNumber;
         if (body.IFSC) retailer.bankDetails.IFSC = body.IFSC;
         if (body.branchName) retailer.bankDetails.branchName = body.branchName;
+
+        // If bank details changed, reset penny check
+        if (bankDetailsChanged) {
+            retailer.pennyCheck = false;
+        }
+
+        /* T&C AND PENNY CHECK */
+        // Only allow setting to true, never back to false (except bank change)
+        if (body.tnc === "true" || body.tnc === true) {
+            retailer.tnc = true;
+        }
+
+        if (
+            !bankDetailsChanged &&
+            (body.pennyCheck === "true" || body.pennyCheck === true)
+        ) {
+            retailer.pennyCheck = true;
+        }
 
         /* FILE UPLOADS - All at root level */
         if (files.govtIdPhoto) {
@@ -359,7 +390,6 @@ export const updateRetailer = async (req, res) => {
         }
 
         if (files.outletPhoto) {
-            // Fixed: Save to root level, not shopDetails
             retailer.outletPhoto = {
                 data: files.outletPhoto[0].buffer,
                 contentType: files.outletPhoto[0].mimetype,
