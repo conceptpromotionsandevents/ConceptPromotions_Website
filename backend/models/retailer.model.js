@@ -90,7 +90,7 @@ retailerSchema.pre("save", async function (next) {
         if (!this.retailerCode) {
             const timestamp = Date.now().toString().slice(-6);
             const random = Math.floor(100 + Math.random() * 900);
-            this.retailerCode = `R${timestamp}${random}`;
+            this.retailerCode = `R${timestamp}${randomPart}`;
         }
 
         next();

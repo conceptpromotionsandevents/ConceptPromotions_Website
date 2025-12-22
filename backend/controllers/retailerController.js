@@ -266,6 +266,116 @@ export const loginRetailer = async (req, res) => {
 };
 
 /* ===============================
+   GET RETAILER PROFILE
+=============================== */
+export const getRetailerProfile = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token)
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: No token provided" });
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const retailerId = decoded.id;
+
+        const retailer = await Retailer.findById(retailerId).select(
+            "-password -govtIdPhoto -personPhoto -registrationFormFile -outletPhoto"
+        );
+        if (!retailer)
+            return res.status(404).json({ message: "Retailer not found" });
+
+        res.status(200).json(retailer);
+    } catch (error) {
+        console.error("Get retailer profile error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+/* ===============================
+   GET RETAILER IMAGE BY TYPE
+=============================== */
+export const getRetailerImage = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: No token provided" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const retailerId = decoded.id;
+        const { imageType } = req.params;
+
+        // Validate imageType
+        const validImageTypes = [
+            "govtIdPhoto",
+            "personPhoto",
+            "registrationFormFile",
+            "outletPhoto",
+        ];
+        if (!validImageTypes.includes(imageType)) {
+            return res.status(400).json({ message: "Invalid image type" });
+        }
+
+        const retailer = await Retailer.findById(retailerId).select(imageType);
+        if (!retailer) {
+            return res.status(404).json({ message: "Retailer not found" });
+        }
+
+        const imageField = retailer[imageType];
+        if (!imageField || !imageField.data) {
+            return res.status(404).json({ message: "Image not found" });
+        }
+
+        res.set(
+            "Content-Type",
+            imageField.contentType || "application/octet-stream"
+        );
+        res.send(imageField.data);
+    } catch (error) {
+        console.error("Get retailer image error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+/* ===============================
+   CHECK WHICH IMAGES EXIST
+=============================== */
+export const getRetailerImageStatus = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: No token provided" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const retailerId = decoded.id;
+
+        const retailer = await Retailer.findById(retailerId).select(
+            "govtIdPhoto personPhoto registrationFormFile outletPhoto"
+        );
+
+        if (!retailer) {
+            return res.status(404).json({ message: "Retailer not found" });
+        }
+
+        res.status(200).json({
+            hasGovtIdPhoto: !!retailer.govtIdPhoto?.data,
+            hasPersonPhoto: !!retailer.personPhoto?.data,
+            hasRegistrationFormFile: !!retailer.registrationFormFile?.data,
+            hasOutletPhoto: !!retailer.outletPhoto?.data,
+        });
+    } catch (error) {
+        console.error("Get image status error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+/* ===============================
    UPDATE RETAILER PROFILE
 =============================== */
 export const updateRetailer = async (req, res) => {
@@ -416,33 +526,6 @@ export const updateRetailer = async (req, res) => {
 };
 
 /* ===============================
-   GET RETAILER PROFILE
-=============================== */
-export const getRetailerProfile = async (req, res) => {
-    try {
-        const token = req.headers.authorization?.split(" ")[1];
-        if (!token)
-            return res
-                .status(401)
-                .json({ message: "Unauthorized: No token provided" });
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const retailerId = decoded.id;
-
-        const retailer = await Retailer.findById(retailerId).select(
-            "-password -govtIdPhoto -personPhoto -registrationFormFile -outletPhoto"
-        );
-        if (!retailer)
-            return res.status(404).json({ message: "Retailer not found" });
-
-        res.status(200).json(retailer);
-    } catch (error) {
-        console.error("Get retailer profile error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-/* ===============================
    GET CAMPAIGNS ASSIGNED TO RETAILER
 =============================== */
 export const getRetailerCampaigns = async (req, res) => {
@@ -452,20 +535,63 @@ export const getRetailerCampaigns = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized: No token" });
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const retailer = await Retailer.findById(decoded.id).populate(
-            "assignedCampaigns"
-        );
-        if (!retailer)
-            return res.status(404).json({ message: "Retailer not found" });
+        const retailerId = decoded.id;
+
+        // Optional query parameters for filtering
+        const { status, isActive } = req.query;
+
+        const query = {
+            "assignedRetailers.retailerId": retailerId,
+        };
+
+        if (isActive !== undefined) {
+            query.isActive = isActive === "true";
+        }
+
+        const campaigns = await Campaign.find(query)
+            .populate("createdBy", "name email")
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Map to include retailer-specific status
+        let campaignsWithStatus = campaigns.map((campaign) => {
+            const retailerEntry = campaign.assignedRetailers.find(
+                (r) => r.retailerId.toString() === retailerId.toString()
+            );
+
+            return {
+                _id: campaign._id,
+                name: campaign.name,
+                client: campaign.client,
+                type: campaign.type,
+                regions: campaign.regions,
+                states: campaign.states,
+                campaignStartDate: campaign.campaignStartDate,
+                campaignEndDate: campaign.campaignEndDate,
+                isActive: campaign.isActive,
+                createdBy: campaign.createdBy,
+                createdAt: campaign.createdAt,
+                retailerStatus: {
+                    status: retailerEntry?.status || "pending",
+                    assignedAt: retailerEntry?.assignedAt,
+                    updatedAt: retailerEntry?.updatedAt,
+                    startDate:
+                        retailerEntry?.startDate || campaign.campaignStartDate,
+                    endDate: retailerEntry?.endDate || campaign.campaignEndDate,
+                },
+            };
+        });
+
+        // Filter by status if provided
+        if (status) {
+            campaignsWithStatus = campaignsWithStatus.filter(
+                (c) => c.retailerStatus.status === status.toLowerCase()
+            );
+        }
 
         res.status(200).json({
-            message: "Campaigns fetched successfully",
-            retailer: {
-                id: retailer._id,
-                name: retailer.name,
-                uniqueId: retailer.uniqueId,
-            },
-            campaigns: retailer.assignedCampaigns, // already populated
+            count: campaignsWithStatus.length,
+            campaigns: campaignsWithStatus,
         });
     } catch (error) {
         console.error("Get retailer campaigns error:", error);
@@ -474,84 +600,59 @@ export const getRetailerCampaigns = async (req, res) => {
 };
 
 /* ===============================
-   GET RETAILER IMAGE BY TYPE
+   GET CAMPAIGNS ASSIGNED STATUS
 =============================== */
-export const getRetailerImage = async (req, res) => {
+
+export const getRetailerCampaignStatus = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
-        if (!token) {
-            return res
-                .status(401)
-                .json({ message: "Unauthorized: No token provided" });
-        }
+        if (!token)
+            return res.status(401).json({ message: "Unauthorized: No token" });
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const retailerId = decoded.id;
-        const { imageType } = req.params;
+        const { campaignId } = req.params;
 
-        // Validate imageType
-        const validImageTypes = [
-            "govtIdPhoto",
-            "personPhoto",
-            "registrationFormFile",
-            "outletPhoto",
-        ];
-        if (!validImageTypes.includes(imageType)) {
-            return res.status(400).json({ message: "Invalid image type" });
-        }
+        const campaign = await Campaign.findById(campaignId)
+            .populate("createdBy", "name email")
+            .lean();
 
-        const retailer = await Retailer.findById(retailerId).select(imageType);
-        if (!retailer) {
-            return res.status(404).json({ message: "Retailer not found" });
-        }
+        if (!campaign)
+            return res.status(404).json({ message: "Campaign not found" });
 
-        const imageField = retailer[imageType];
-        if (!imageField || !imageField.data) {
-            return res.status(404).json({ message: "Image not found" });
-        }
-
-        res.set(
-            "Content-Type",
-            imageField.contentType || "application/octet-stream"
-        );
-        res.send(imageField.data);
-    } catch (error) {
-        console.error("Get retailer image error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-/* ===============================
-   CHECK WHICH IMAGES EXIST
-=============================== */
-export const getRetailerImageStatus = async (req, res) => {
-    try {
-        const token = req.headers.authorization?.split(" ")[1];
-        if (!token) {
-            return res
-                .status(401)
-                .json({ message: "Unauthorized: No token provided" });
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const retailerId = decoded.id;
-
-        const retailer = await Retailer.findById(retailerId).select(
-            "govtIdPhoto personPhoto registrationFormFile outletPhoto"
+        // Find the retailer entry in assignedRetailers
+        const retailerEntry = campaign.assignedRetailers.find(
+            (r) => r.retailerId?.toString() === retailerId.toString()
         );
 
-        if (!retailer) {
-            return res.status(404).json({ message: "Retailer not found" });
-        }
+        if (!retailerEntry)
+            return res.status(403).json({
+                message: "You are not assigned to this campaign",
+            });
 
+        // Return campaign with retailer-specific status
         res.status(200).json({
-            hasGovtIdPhoto: !!retailer.govtIdPhoto?.data,
-            hasPersonPhoto: !!retailer.personPhoto?.data,
-            hasRegistrationFormFile: !!retailer.registrationFormFile?.data,
-            hasOutletPhoto: !!retailer.outletPhoto?.data,
+            campaignId: campaign._id,
+            name: campaign.name,
+            client: campaign.client,
+            type: campaign.type,
+            regions: campaign.regions,
+            states: campaign.states,
+            campaignStartDate: campaign.campaignStartDate,
+            campaignEndDate: campaign.campaignEndDate,
+            isActive: campaign.isActive,
+            createdBy: campaign.createdBy,
+            retailerStatus: {
+                status: retailerEntry.status,
+                assignedAt: retailerEntry.assignedAt,
+                updatedAt: retailerEntry.updatedAt,
+                startDate:
+                    retailerEntry.startDate || campaign.campaignStartDate,
+                endDate: retailerEntry.endDate || campaign.campaignEndDate,
+            },
         });
     } catch (error) {
-        console.error("Get image status error:", error);
+        console.error("Get retailer campaign status error:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -559,7 +660,6 @@ export const getRetailerImageStatus = async (req, res) => {
 /* ===============================
    ACCEPT OR REJECT A CAMPAIGN
 =============================== */
-
 export const updateCampaignStatus = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -616,6 +716,7 @@ export const updateCampaignStatus = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 /* ===============================
    RETAILER: VIEW PAYMENT STATUS
 =============================== */
