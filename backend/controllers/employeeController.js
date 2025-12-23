@@ -10,6 +10,89 @@ import {
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import XLSX from "xlsx";
 import { Retailer } from "../models/retailer.model.js";
+
+/* ======================================================
+   GET LOGGED-IN EMPLOYEE PROFILE
+====================================================== */
+export const getEmployeeProfile = async (req, res) => {
+    try {
+        const employeeId = req.user.id; // Extract employee ID from JWT
+
+        const employee = await Employee.findById(employeeId)
+            .select(
+                `
+        -password
+        -files.aadhaarFront.data
+        -files.aadhaarBack.data
+        -files.panCard.data
+        -files.familyPhoto.data
+        -files.bankProof.data
+        -files.esiForm.data
+        -files.pfForm.data
+        -files.employmentForm.data
+        -files.cv.data
+        `
+            )
+            .lean();
+
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
+        return res.status(200).json({
+            message: "Employee profile fetched successfully",
+            employee,
+        });
+    } catch (error) {
+        console.error("❌ Get employee profile error:", error);
+        return res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+
+/* ======================================================
+   GET EMPLOYEE DOCUMENT/IMAGE
+====================================================== */
+export const getEmployeeDocument = async (req, res) => {
+    try {
+        const employeeId = req.user.id; // From JWT
+        const { documentType } = req.params; // e.g., 'personPhoto', 'aadhaarFront', etc.
+
+        const employee = await Employee.findById(employeeId);
+
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
+        let document;
+
+        // Check if it's personPhoto (stored at root level)
+        if (documentType === "personPhoto") {
+            document = employee.personPhoto;
+        }
+        // Check if it's inside files object
+        else if (employee.files && employee.files[documentType]) {
+            document = employee.files[documentType];
+        }
+
+        if (!document || !document.data) {
+            return res.status(404).json({ message: "Document not found" });
+        }
+
+        // Set content type and send buffer
+        res.set("Content-Type", document.contentType);
+        res.send(document.data);
+    } catch (error) {
+        console.error("❌ Get employee document error:", error);
+        return res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+
 /* ======================================================
    UPDATE EMPLOYEE PROFILE
 ====================================================== */
@@ -311,12 +394,9 @@ export const updateCampaignStatus = async (req, res) => {
         });
 
         if (!campaign) {
-            return res
-                .status(404)
-                .json({
-                    message:
-                        "Campaign not found or not assigned to this employee",
-                });
+            return res.status(404).json({
+                message: "Campaign not found or not assigned to this employee",
+            });
         }
 
         const employeeEntry = campaign.assignedEmployees.find(
@@ -357,21 +437,15 @@ export const clientSetPaymentPlan = async (req, res) => {
             !req.user ||
             !["client-admin", "client-user"].includes(req.user.role)
         ) {
-            return res
-                .status(403)
-                .json({
-                    message:
-                        "Only client admins or users can set payment plans",
-                });
+            return res.status(403).json({
+                message: "Only client admins or users can set payment plans",
+            });
         }
 
         if (!campaignId || !retailerId || !totalAmount) {
-            return res
-                .status(400)
-                .json({
-                    message:
-                        "campaignId, retailerId, and totalAmount are required",
-                });
+            return res.status(400).json({
+                message: "campaignId, retailerId, and totalAmount are required",
+            });
         }
 
         const campaign = await Campaign.findById(campaignId);
@@ -389,12 +463,9 @@ export const clientSetPaymentPlan = async (req, res) => {
         );
 
         if (!assignedRetailer) {
-            return res
-                .status(400)
-                .json({
-                    message:
-                        "Retailer must be assigned and accepted the campaign",
-                });
+            return res.status(400).json({
+                message: "Retailer must be assigned and accepted the campaign",
+            });
         }
 
         const existingPayment = await Payment.findOne({
@@ -402,11 +473,9 @@ export const clientSetPaymentPlan = async (req, res) => {
             retailer: retailerId,
         });
         if (existingPayment) {
-            return res
-                .status(400)
-                .json({
-                    message: "Payment plan already exists for this retailer",
-                });
+            return res.status(400).json({
+                message: "Payment plan already exists for this retailer",
+            });
         }
 
         const payment = new Payment({
@@ -999,46 +1068,7 @@ export const getEmployeeVisitProgress = async (req, res) => {
         });
     }
 };
-/* ======================================================
-   GET LOGGED-IN EMPLOYEE PROFILE
-====================================================== */
-export const getEmployeeProfile = async (req, res) => {
-    try {
-        const employeeId = req.user.id; // Extract employee ID from JWT
 
-        const employee = await Employee.findById(employeeId)
-            .select(
-                `
-        -password
-        -files.aadhaarFront.data
-        -files.aadhaarBack.data
-        -files.panCard.data
-        -files.familyPhoto.data
-        -files.bankProof.data
-        -files.esiForm.data
-        -files.pfForm.data
-        -files.employmentForm.data
-        -files.cv.data
-        `
-            )
-            .lean();
-
-        if (!employee) {
-            return res.status(404).json({ message: "Employee not found" });
-        }
-
-        return res.status(200).json({
-            message: "Employee profile fetched successfully",
-            employee,
-        });
-    } catch (error) {
-        console.error("❌ Get employee profile error:", error);
-        return res.status(500).json({
-            message: "Server error",
-            error: error.message,
-        });
-    }
-};
 export const getAssignedRetailersForEmployee = async (req, res) => {
     try {
         const employeeId = req.user.id;
