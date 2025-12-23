@@ -161,7 +161,11 @@ export const createReport = async (req, res) => {
             attendedVisit: attendedVisit || undefined,
             reasonForNonAttendance:
                 attendedVisit === "no" ? reasonForNonAttendance : undefined,
-            frequency: attendedVisit === "yes" ? frequency : undefined,
+            frequency:
+                submittedBy.role === "Retailer" ||
+                (submittedBy.role === "Employee" && attendedVisit === "yes")
+                    ? frequency
+                    : undefined,
             dateOfSubmission: dateOfSubmission || new Date(),
             remarks,
             location: location || undefined,
