@@ -53,12 +53,66 @@ export const getEmployeeProfile = async (req, res) => {
 };
 
 /* ======================================================
-   GET EMPLOYEE DOCUMENT/IMAGE
+   CHECK WHICH EMPLOYEE DOCUMENTS EXIST
+====================================================== */
+export const getEmployeeDocumentStatus = async (req, res) => {
+    try {
+        const employeeId = req.user.id; // From JWT via protect middleware
+
+        const employee = await Employee.findById(employeeId).select(
+            "personPhoto files"
+        );
+
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
+        res.status(200).json({
+            hasPersonPhoto: !!employee.personPhoto?.data,
+            hasAadhaarFront: !!employee.files?.aadhaarFront?.data,
+            hasAadhaarBack: !!employee.files?.aadhaarBack?.data,
+            hasPanCard: !!employee.files?.panCard?.data,
+            hasFamilyPhoto: !!employee.files?.familyPhoto?.data,
+            hasBankProof: !!employee.files?.bankProof?.data,
+            hasEsiForm: !!employee.files?.esiForm?.data,
+            hasPfForm: !!employee.files?.pfForm?.data,
+            hasEmploymentForm: !!employee.files?.employmentForm?.data,
+            hasCv: !!employee.files?.cv?.data,
+        });
+    } catch (error) {
+        console.error("❌ Get employee document status error:", error);
+        return res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+
+/* ======================================================
+   GET EMPLOYEE DOCUMENT/IMAGE (IMPROVED)
 ====================================================== */
 export const getEmployeeDocument = async (req, res) => {
     try {
-        const employeeId = req.user.id; // From JWT
-        const { documentType } = req.params; // e.g., 'personPhoto', 'aadhaarFront', etc.
+        const employeeId = req.user.id;
+        const { documentType } = req.params;
+
+        // ✅ Validate documentType (like retailer controller does)
+        const validDocumentTypes = [
+            "personPhoto",
+            "aadhaarFront",
+            "aadhaarBack",
+            "panCard",
+            "familyPhoto",
+            "bankProof",
+            "esiForm",
+            "pfForm",
+            "employmentForm",
+            "cv",
+        ];
+
+        if (!validDocumentTypes.includes(documentType)) {
+            return res.status(400).json({ message: "Invalid document type" });
+        }
 
         const employee = await Employee.findById(employeeId);
 
@@ -68,12 +122,9 @@ export const getEmployeeDocument = async (req, res) => {
 
         let document;
 
-        // Check if it's personPhoto (stored at root level)
         if (documentType === "personPhoto") {
             document = employee.personPhoto;
-        }
-        // Check if it's inside files object
-        else if (employee.files && employee.files[documentType]) {
+        } else if (employee.files && employee.files[documentType]) {
             document = employee.files[documentType];
         }
 
@@ -81,8 +132,10 @@ export const getEmployeeDocument = async (req, res) => {
             return res.status(404).json({ message: "Document not found" });
         }
 
-        // Set content type and send buffer
-        res.set("Content-Type", document.contentType);
+        res.set(
+            "Content-Type",
+            document.contentType || "application/octet-stream"
+        );
         res.send(document.data);
     } catch (error) {
         console.error("❌ Get employee document error:", error);

@@ -7,6 +7,7 @@ import {
     getAssignedRetailersForEmployee,
     getEmployeeCampaigns,
     getEmployeeDocument,
+    getEmployeeDocumentStatus,
     getEmployeeProfile,
     getEmployeeReports,
     getEmployeeVisitProgress,
@@ -76,6 +77,8 @@ router.get("/reports/download/excel", protect, downloadEmployeeReportsExcel);
 router.get("/employee/visit-progress", protect, getEmployeeVisitProgress);
 
 router.get("/profile", protect, getEmployeeProfile);
+// 🔹 Check which documents exist
+router.get("/employee/documents/status", protect, getEmployeeDocumentStatus);
 // 🔹 Get employee document/image
 router.get("/employee/document/:documentType", protect, getEmployeeDocument);
 
