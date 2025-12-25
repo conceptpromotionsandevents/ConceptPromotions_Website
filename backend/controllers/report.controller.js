@@ -99,10 +99,18 @@ export const createReport = async (req, res) => {
                 : undefined;
 
         // Validate required fields
-        if (!reportType || !campaignId || !submittedBy || !retailerObj) {
+        if (!campaignId || !submittedBy || !retailerObj) {
             return res.status(400).json({
                 success: false,
                 message: "Missing required fields",
+            });
+        }
+
+        // Additional validation for attended visits
+        if (attendedVisit === "yes" && !reportType) {
+            return res.status(400).json({
+                success: false,
+                message: "reportType is required for attended visits",
             });
         }
 
@@ -151,7 +159,6 @@ export const createReport = async (req, res) => {
 
         // Build base report data
         const baseReportData = {
-            reportType,
             campaignId,
             submittedBy,
             retailer: retailerObj,
