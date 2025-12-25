@@ -345,6 +345,8 @@ const employeeSchema = new Schema(
                 ref: "Campaign",
             },
         ],
+
+        tnc: { type: Boolean },
     },
     { timestamps: true }
 );

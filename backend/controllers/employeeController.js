@@ -287,6 +287,10 @@ export const updateEmployeeProfile = async (req, res) => {
 
         if (!employee.files) employee.files = {};
 
+        if (req.body.tnc === "true" || req.body.tnc === true) {
+            employee.tnc = true;
+        }
+
         const fileFields = [
             "aadhaarFront",
             "aadhaarBack",
