@@ -6,6 +6,7 @@ import {
     getAllVisitSchedulesForEmployee,
     getAssignedRetailersForEmployee,
     getEmployeeCampaigns,
+    getEmployeeCampaignStatus,
     getEmployeeDocument,
     getEmployeeDocumentStatus,
     getEmployeeProfile,
@@ -50,6 +51,7 @@ router.put(
 router.get("/assigned-retailers", protect, getAssignedRetailersForEmployee);
 // 🔹 Get assigned campaigns
 router.get("/employee/campaigns", protect, getEmployeeCampaigns);
+router.get("/campaigns/:campaignId/status", protect, getEmployeeCampaignStatus);
 
 // 🔹 Update campaign status
 router.put(

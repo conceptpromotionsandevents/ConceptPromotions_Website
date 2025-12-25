@@ -11,9 +11,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import XLSX from "xlsx";
 import { Retailer } from "../models/retailer.model.js";
 
-/* ======================================================
-   GET LOGGED-IN EMPLOYEE PROFILE
-====================================================== */
+//   GET LOGGED-IN EMPLOYEE PROFILE
 export const getEmployeeProfile = async (req, res) => {
     try {
         const employeeId = req.user.id; // Extract employee ID from JWT
@@ -52,9 +50,7 @@ export const getEmployeeProfile = async (req, res) => {
     }
 };
 
-/* ======================================================
-   CHECK WHICH EMPLOYEE DOCUMENTS EXIST
-====================================================== */
+// CHECK WHICH EMPLOYEE DOCUMENTS EXIST
 export const getEmployeeDocumentStatus = async (req, res) => {
     try {
         const employeeId = req.user.id; // From JWT via protect middleware
@@ -88,9 +84,7 @@ export const getEmployeeDocumentStatus = async (req, res) => {
     }
 };
 
-/* ======================================================
-   GET EMPLOYEE DOCUMENT/IMAGE (IMPROVED)
-====================================================== */
+// GET EMPLOYEE DOCUMENT/IMAGE (IMPROVED)
 export const getEmployeeDocument = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -146,9 +140,59 @@ export const getEmployeeDocument = async (req, res) => {
     }
 };
 
-/* ======================================================
-   UPDATE EMPLOYEE PROFILE
-====================================================== */
+//  GET EMPLOYEE SINGLE CAMPAIGN STATUS
+export const getEmployeeCampaignStatus = async (req, res) => {
+    try {
+        const employeeId = req.user.id; // Get from JWT middleware
+        const { campaignId } = req.params;
+
+        const campaign = await Campaign.findById(campaignId)
+            .populate("createdBy", "name email")
+            .lean();
+
+        if (!campaign) {
+            return res.status(404).json({ message: "Campaign not found" });
+        }
+
+        // Find the employee entry in assignedEmployees
+        const employeeEntry = campaign.assignedEmployees.find(
+            (e) => e.employeeId?.toString() === employeeId.toString()
+        );
+
+        if (!employeeEntry) {
+            return res.status(403).json({
+                message: "You are not assigned to this campaign",
+            });
+        }
+
+        // Return campaign with employee-specific status
+        res.status(200).json({
+            campaignId: campaign._id,
+            name: campaign.name,
+            client: campaign.client,
+            type: campaign.type,
+            regions: campaign.regions,
+            states: campaign.states,
+            campaignStartDate: campaign.campaignStartDate,
+            campaignEndDate: campaign.campaignEndDate,
+            isActive: campaign.isActive,
+            createdBy: campaign.createdBy,
+            employeeStatus: {
+                status: employeeEntry.status,
+                assignedAt: employeeEntry.assignedAt,
+                updatedAt: employeeEntry.updatedAt,
+                startDate:
+                    employeeEntry.startDate || campaign.campaignStartDate,
+                endDate: employeeEntry.endDate || campaign.campaignEndDate,
+            },
+        });
+    } catch (error) {
+        console.error("Get employee campaign status error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+// UPDATE EMPLOYEE PROFILE
 export const updateEmployeeProfile = async (req, res) => {
     try {
         const { id } = req.user; // From JWT
@@ -345,9 +389,7 @@ export const updateEmployeeProfile = async (req, res) => {
     }
 };
 
-/* ======================================================
-   LOGIN EMPLOYEE
-====================================================== */
+// LOGIN EMPLOYEE
 export const loginEmployee = async (req, res) => {
     try {
         const { email, phone, password } = req.body;
@@ -399,9 +441,7 @@ export const loginEmployee = async (req, res) => {
     }
 };
 
-/* ======================================================
-   GET EMPLOYEE CAMPAIGNS
-====================================================== */
+//GET EMPLOYEE CAMPAIGNS
 export const getEmployeeCampaigns = async (req, res) => {
     try {
         const employeeId = req.user.id; // Get from JWT token
@@ -456,9 +496,7 @@ export const getEmployeeCampaigns = async (req, res) => {
     }
 };
 
-/* ======================================================
-   UPDATE CAMPAIGN STATUS
-====================================================== */
+//UPDATE CAMPAIGN STATUS
 export const updateCampaignStatus = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -506,9 +544,7 @@ export const updateCampaignStatus = async (req, res) => {
     }
 };
 
-/* ======================================================
-   CLIENT PAYMENT PLAN
-====================================================== */
+//CLIENT PAYMENT PLAN
 export const clientSetPaymentPlan = async (req, res) => {
     try {
         const { campaignId, retailerId, totalAmount, notes, dueDate } =
@@ -623,9 +659,7 @@ export const submitEmployeeReport = async (req, res) => {
             });
         }
 
-        /* =======================================================
-       🔥 1. AUTO-FIND VISIT SCHEDULE IF NOT PROVIDED
-    ======================================================= */
+        //  🔥 1. AUTO-FIND VISIT SCHEDULE IF NOT PROVIDED
 
         let schedule = null;
 
@@ -647,9 +681,7 @@ export const submitEmployeeReport = async (req, res) => {
             });
         }
 
-        /* =======================================================
-       🔥 2. UPDATE SCHEDULE STATUS
-    ======================================================= */
+        // 🔥 2. UPDATE SCHEDULE STATUS
 
         let updatedStatus = "No Schedule Found";
 
@@ -672,9 +704,7 @@ export const submitEmployeeReport = async (req, res) => {
             updatedStatus = schedule.status;
         }
 
-        /* =======================================================
-       🔥 3. CREATE REPORT DOCUMENT
-    ======================================================= */
+        //🔥 3. CREATE REPORT DOCUMENT
 
         const report = new EmployeeReport({
             employeeId,
@@ -706,9 +736,7 @@ export const submitEmployeeReport = async (req, res) => {
             submittedByEmployee: employeeId,
         });
 
-        /* =======================================================
-       🔥 4. HANDLE IMAGES + MULTIPLE BILL COPIES
-    ======================================================= */
+        //🔥 4. HANDLE IMAGES + MULTIPLE BILL COPIES
 
         const files = req.files || {};
 
@@ -732,9 +760,7 @@ export const submitEmployeeReport = async (req, res) => {
 
         await report.save();
 
-        /* =======================================================
-       🔥 5. RESPONSE
-    ======================================================= */
+        // 🔥 5. RESPONSE
 
         res.status(201).json({
             message: "Report submitted successfully",
@@ -1213,9 +1239,7 @@ export const getAssignedRetailersForEmployee = async (req, res) => {
         });
     }
 };
-/* ======================================================
-   GET VISIT SCHEDULES FOR EMPLOYEE (Corrected Position)
-====================================================== */
+// GET VISIT SCHEDULES FOR EMPLOYEE (Corrected Position)
 export const getAllVisitSchedulesForEmployee = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -1239,9 +1263,7 @@ export const getAllVisitSchedulesForEmployee = async (req, res) => {
     }
 };
 
-/* ======================================================
-   GET LAST VISIT DETAILS
-====================================================== */
+// GET LAST VISIT DETAILS
 export const getLastVisitDetails = async (req, res) => {
     try {
         const employeeId = req.user.id;
