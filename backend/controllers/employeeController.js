@@ -404,18 +404,42 @@ export const loginEmployee = async (req, res) => {
 ====================================================== */
 export const getEmployeeCampaigns = async (req, res) => {
     try {
-        const employee = await Employee.findById(req.user.id);
+        const employeeId = req.user.id; // Get from JWT token
+        const employee = await Employee.findById(employeeId);
+
         if (!employee) {
             return res.status(404).json({ message: "Employee not found" });
         }
 
         const campaigns = await Campaign.find({
-            "assignedEmployees.employeeId": employee._id,
+            "assignedEmployees.employeeId": employeeId,
         })
             .populate("createdBy", "name email")
             .populate("assignedEmployees.employeeId", "name email")
             .populate("assignedRetailers.retailerId", "name contactNo")
             .sort({ createdAt: -1 });
+
+        // Add employeeStatus to each campaign for easier frontend access
+        const campaignsWithStatus = campaigns.map((campaign) => {
+            const campaignObj = campaign.toObject();
+
+            // Find current employee's status from assignedEmployees array
+            const employeeEntry = campaignObj.assignedEmployees.find(
+                (emp) => emp.employeeId._id.toString() === employeeId.toString()
+            );
+
+            // Add a top-level employeeStatus field for this specific employee
+            campaignObj.employeeStatus = {
+                status: employeeEntry?.status || "pending",
+                startDate:
+                    employeeEntry?.startDate || campaignObj.campaignStartDate,
+                endDate: employeeEntry?.endDate || campaignObj.campaignEndDate,
+                assignedAt: employeeEntry?.assignedAt,
+                updatedAt: employeeEntry?.updatedAt,
+            };
+
+            return campaignObj;
+        });
 
         res.status(200).json({
             message: "Campaigns fetched successfully",
@@ -424,7 +448,7 @@ export const getEmployeeCampaigns = async (req, res) => {
                 name: employee.name,
                 email: employee.email,
             },
-            campaigns,
+            campaigns: campaignsWithStatus,
         });
     } catch (error) {
         console.error("Get employee campaigns error:", error);
