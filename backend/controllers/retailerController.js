@@ -600,6 +600,78 @@ export const getRetailerCampaigns = async (req, res) => {
 };
 
 /* ===============================
+   GET RETAILERS BY CAMPAIGN ID
+   (For Client Portal - Used in filters)
+=============================== */
+export const getRetailersByCampaign = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res
+                .status(401)
+                .json({ message: "Unauthorized: No token provided" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const { campaignId } = req.query;
+
+        // If no campaignId provided, return all retailers (for independent filtering)
+        if (!campaignId) {
+            const allRetailers = await Retailer.find({})
+                .select(
+                    "name uniqueId shopDetails contactNo email personalAddress"
+                )
+                .lean();
+
+            return res.status(200).json({
+                count: allRetailers.length,
+                retailers: allRetailers,
+            });
+        }
+
+        // Find campaign and get assigned retailers
+        const campaign = await Campaign.findById(campaignId)
+            .select("assignedRetailers")
+            .lean();
+
+        if (!campaign) {
+            return res.status(404).json({ message: "Campaign not found" });
+        }
+
+        // Extract retailer IDs from assignedRetailers
+        const assignedRetailerIds = campaign.assignedRetailers.map(
+            (ar) => ar.retailerId
+        );
+
+        if (assignedRetailerIds.length === 0) {
+            return res.status(200).json({
+                message: "No retailers assigned to this campaign",
+                count: 0,
+                retailers: [],
+            });
+        }
+
+        // Fetch full retailer details
+        const retailers = await Retailer.find({
+            _id: { $in: assignedRetailerIds },
+        })
+            .select("name uniqueId shopDetails contactNo email personalAddress")
+            .lean();
+
+        res.status(200).json({
+            count: retailers.length,
+            retailers: retailers,
+        });
+    } catch (error) {
+        console.error("Get retailers by campaign error:", error);
+        res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+
+/* ===============================
    GET CAMPAIGNS ASSIGNED STATUS
 =============================== */
 

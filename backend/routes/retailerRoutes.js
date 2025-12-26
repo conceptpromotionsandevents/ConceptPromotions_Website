@@ -15,6 +15,7 @@ import {
     getRetailerImageStatus,
     getRetailerImage,
     getRetailerCampaignStatus,
+    getRetailersByCampaign,
 } from "../controllers/retailerController.js";
 import multer from "multer";
 import { protect } from "../middleware/authMiddleware.js"; // JWT middleware
@@ -48,6 +49,9 @@ router.get("/campaigns", protect, getRetailerCampaigns);
 //  Retailer accepts or rejects a campaign
 router.put("/campaigns/:campaignId/status", protect, updateCampaignStatus);
 router.get("/campaigns/:campaignId/status", protect, getRetailerCampaignStatus);
+
+router.get("/retailers", protect, getRetailersByCampaign);
+
 router.patch(
     "/me",
     protect,
