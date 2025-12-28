@@ -9,6 +9,7 @@ import {
     getReportsByCampaign,
     getReportsByEmployee,
     getReportsByRetailer,
+    getAllClientReports,
 } from "../controllers/report.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
@@ -33,6 +34,9 @@ router.post(
 
 // Get all reports with filters (Admin view)
 router.get("/all", protect, getAllReports);
+
+// Get client all reports
+router.get("/client-reports", protect, getAllClientReports);
 
 // Get single report by ID
 router.get("/:id", protect, getReportById);

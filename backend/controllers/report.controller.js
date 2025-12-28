@@ -338,6 +338,77 @@ export const getAllReports = async (req, res) => {
 };
 
 /* ===============================
+   GET ALL CLIENT REPORTS (WITH FILTERS)
+=============================== */
+export const getAllClientReports = async (req, res) => {
+    try {
+        const {
+            campaignId,
+            reportType,
+            submittedByRole,
+            retailerId,
+            employeeId,
+            startDate,
+            endDate,
+            page = 1,
+            limit = 50,
+        } = req.query;
+
+        // Build filter object
+        const filter = {};
+
+        if (campaignId) filter.campaignId = campaignId;
+        if (reportType) filter.reportType = reportType;
+        if (submittedByRole) filter["submittedBy.role"] = submittedByRole;
+        if (retailerId) filter["retailer.retailerId"] = retailerId;
+        if (employeeId) filter["employee.employeeId"] = employeeId;
+
+        if (startDate || endDate) {
+            filter.dateOfSubmission = {};
+            if (startDate) filter.dateOfSubmission.$gte = new Date(startDate);
+            if (endDate) filter.dateOfSubmission.$lte = new Date(endDate);
+        }
+
+        // Add filter to only include specific reportTypes
+        filter.reportType = {
+            $in: ["Window Display", "Stock", "Others"],
+        };
+
+        // Pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const reports = await Report.find(filter)
+            .populate("campaignId", "name client type")
+            .populate("retailer.retailerId", "name shopDetails.shopName")
+            .populate("employee.employeeId", "name employeeId")
+            .populate("visitScheduleId")
+            .sort({ dateOfSubmission: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        const total = await Report.countDocuments(filter);
+
+        return res.status(200).json({
+            success: true,
+            reports,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                pages: Math.ceil(total / parseInt(limit)),
+            },
+        });
+    } catch (error) {
+        console.error("Get reports error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching reports",
+            error: error.message,
+        });
+    }
+};
+
+/* ===============================
    GET SINGLE REPORT BY ID
 =============================== */
 export const getReportById = async (req, res) => {
