@@ -23,6 +23,7 @@ export const getEmployeeProfile = async (req, res) => {
         -files.aadhaarFront.data
         -files.aadhaarBack.data
         -files.panCard.data
+        -files.personPhoto.data
         -files.familyPhoto.data
         -files.bankProof.data
         -files.esiForm.data
@@ -55,16 +56,14 @@ export const getEmployeeDocumentStatus = async (req, res) => {
     try {
         const employeeId = req.user.id; // From JWT via protect middleware
 
-        const employee = await Employee.findById(employeeId).select(
-            "personPhoto files"
-        );
+        const employee = await Employee.findById(employeeId).select("files");
 
         if (!employee) {
             return res.status(404).json({ message: "Employee not found" });
         }
 
         res.status(200).json({
-            hasPersonPhoto: !!employee.personPhoto?.data,
+            hasPersonPhoto: !!employee.files?.personPhoto?.data,
             hasAadhaarFront: !!employee.files?.aadhaarFront?.data,
             hasAadhaarBack: !!employee.files?.aadhaarBack?.data,
             hasPanCard: !!employee.files?.panCard?.data,
@@ -84,13 +83,13 @@ export const getEmployeeDocumentStatus = async (req, res) => {
     }
 };
 
-// GET EMPLOYEE DOCUMENT/IMAGE (IMPROVED)
+// GET EMPLOYEE DOCUMENT/IMAGE (ALIGNED WITH SCHEMA)
 export const getEmployeeDocument = async (req, res) => {
     try {
         const employeeId = req.user.id;
         const { documentType } = req.params;
 
-        // ✅ Validate documentType (like retailer controller does)
+        // ✅ Validate documentType
         const validDocumentTypes = [
             "personPhoto",
             "aadhaarFront",
@@ -114,13 +113,8 @@ export const getEmployeeDocument = async (req, res) => {
             return res.status(404).json({ message: "Employee not found" });
         }
 
-        let document;
-
-        if (documentType === "personPhoto") {
-            document = employee.personPhoto;
-        } else if (employee.files && employee.files[documentType]) {
-            document = employee.files[documentType];
-        }
+        // ✅ All documents are now inside employee.files (including personPhoto)
+        const document = employee.files?.[documentType];
 
         if (!document || !document.data) {
             return res.status(404).json({ message: "Document not found" });
@@ -192,7 +186,7 @@ export const getEmployeeCampaignStatus = async (req, res) => {
     }
 };
 
-// UPDATE EMPLOYEE PROFILE
+// UPDATE EMPLOYEE PROFILE (ALIGNED WITH SCHEMA)
 export const updateEmployeeProfile = async (req, res) => {
     try {
         const { id } = req.user; // From JWT
@@ -317,28 +311,29 @@ export const updateEmployeeProfile = async (req, res) => {
         });
 
         /* --------------------------------------------------
-       🔥 Step 5: Handle File Uploads
+       🔥 Step 5: Handle File Uploads (ALL inside employee.files)
     -------------------------------------------------- */
         const files = req.files || {};
 
-        // Person Photo (stored outside employee.files)
-        if (files["personPhoto"]) {
-            employee.personPhoto = {
-                data: files["personPhoto"][0].buffer,
-                contentType: files["personPhoto"][0].mimetype,
-            };
-        }
-
+        // ✅ Initialize files object if it doesn't exist
         if (!employee.files) employee.files = {};
 
+        // ✅ Handle T&C
         if (req.body.tnc === "true" || req.body.tnc === true) {
             employee.tnc = true;
         }
 
+        // ✅ Handle penny check
+        if (req.body.pennyCheck === "true" || req.body.pennyCheck === true) {
+            employee.pennyCheck = true;
+        }
+
+        // ✅ All file fields are now inside employee.files (including personPhoto)
         const fileFields = [
             "aadhaarFront",
             "aadhaarBack",
             "panCard",
+            "personPhoto", // ✅ Now inside files
             "familyPhoto",
             "bankProof",
             "esiForm",
@@ -377,7 +372,10 @@ export const updateEmployeeProfile = async (req, res) => {
                 name: employee.name,
                 email: employee.email,
                 phone: employee.phone,
+                employeeType: employee.employeeType,
                 isFirstLogin: employee.isFirstLogin,
+                tnc: employee.tnc,
+                pennyCheck: employee.pennyCheck,
             },
         });
     } catch (error) {
