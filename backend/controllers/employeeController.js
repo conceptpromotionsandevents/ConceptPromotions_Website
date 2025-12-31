@@ -376,6 +376,14 @@ export const updateEmployeeProfile = async (req, res) => {
                 isFirstLogin: employee.isFirstLogin,
                 tnc: employee.tnc,
                 pennyCheck: employee.pennyCheck,
+                bankDetails: employee.bankDetails
+                    ? {
+                          bankName: employee.bankDetails.bankName,
+                          accountNumber: employee.bankDetails.accountNumber,
+                          ifsc: employee.bankDetails.ifsc, // ✅ Lowercase for consistency
+                          branchName: employee.bankDetails.branchName,
+                      }
+                    : null,
             },
         });
     } catch (error) {
