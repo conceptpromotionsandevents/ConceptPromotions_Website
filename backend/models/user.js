@@ -239,7 +239,6 @@ const employeeSchema = new Schema(
         isFirstLogin: { type: Boolean, default: true },
 
         position: { type: String, required: false },
-        personPhoto: { data: Buffer, contentType: String },
         isActive: {
             type: Boolean,
             default: true, // every new employee is active
