@@ -531,8 +531,9 @@ export const updateRetailer = async (req, res) => {
 export const getRetailerCampaigns = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
-        if (!token)
+        if (!token) {
             return res.status(401).json({ message: "Unauthorized: No token" });
+        }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const retailerId = decoded.id;
@@ -541,11 +542,11 @@ export const getRetailerCampaigns = async (req, res) => {
         const retailer = await Retailer.findById(retailerId)
             .select("name uniqueId retailerCode")
             .lean();
+
         if (!retailer) {
             return res.status(404).json({ message: "Retailer not found" });
         }
 
-        // Optional query parameters for filtering
         const { status, isActive } = req.query;
 
         const query = {
@@ -558,78 +559,91 @@ export const getRetailerCampaigns = async (req, res) => {
 
         const campaigns = await Campaign.find(query)
             .populate("createdBy", "name email")
-            .populate(
-                "assignedRetailers.assignedEmployee",
-                "name contactNo email"
-            ) // ✅ Populate employees
+            .populate({
+                path: "assignedRetailers.assignedEmployee",
+                select: "name contactNo email",
+            })
             .sort({ createdAt: -1 })
             .lean();
 
-        // Map to include retailer-specific status and assigned employees
-        let campaignsWithStatus = campaigns.map((campaign) => {
-            const retailerEntry = campaign.assignedRetailers.find(
-                (r) => r.retailerId.toString() === retailerId.toString()
-            );
+        const campaignsWithStatus = campaigns
+            .map((campaign) => {
+                const retailerEntry = campaign.assignedRetailers?.find(
+                    (r) => r.retailerId?.toString() === retailerId.toString()
+                );
 
-            // ✅ Get assigned employee for this retailer
-            const assignedEmployee = retailerEntry?.assignedEmployee || null;
+                if (!retailerEntry) return null;
 
-            return {
-                _id: campaign._id,
-                name: campaign.name,
-                client: campaign.client,
-                type: campaign.type,
-                regions: campaign.regions,
-                states: campaign.states,
-                campaignStartDate: campaign.campaignStartDate,
-                campaignEndDate: campaign.campaignEndDate,
-                isActive: campaign.isActive,
-                createdBy: campaign.createdBy,
-                createdAt: campaign.createdAt,
-                image: campaign.image || null, // ✅ Add campaign image
-                retailerStatus: {
-                    status: retailerEntry?.status || null, // ✅ Changed to null for consistency
-                    assignedAt: retailerEntry?.assignedAt,
-                    updatedAt: retailerEntry?.updatedAt,
-                    startDate:
-                        retailerEntry?.startDate || campaign.campaignStartDate,
-                    endDate: retailerEntry?.endDate || campaign.campaignEndDate,
-                },
-                // ✅ Add assigned employee info
-                assignedEmployees: assignedEmployee
-                    ? [
-                          {
-                              _id: assignedEmployee._id,
-                              name: assignedEmployee.name,
-                              phone: assignedEmployee.contactNo,
-                              email: assignedEmployee.email,
-                          },
-                      ]
-                    : [],
-            };
-        });
+                const assignedEmployee = retailerEntry.assignedEmployee;
 
-        // Filter by status if provided
-        if (status) {
-            campaignsWithStatus = campaignsWithStatus.filter(
-                (c) => c.retailerStatus.status === status.toLowerCase()
-            );
-        }
+                return {
+                    _id: campaign._id,
+                    name: campaign.name,
+                    client: campaign.client,
+                    type: campaign.type,
+                    regions: campaign.regions,
+                    states: campaign.states,
+                    image: campaign.image || null,
+
+                    campaignStartDate: campaign.campaignStartDate,
+                    campaignEndDate: campaign.campaignEndDate,
+                    isActive: campaign.isActive,
+
+                    createdBy: campaign.createdBy,
+                    createdAt: campaign.createdAt,
+
+                    retailerStatus: {
+                        status: retailerEntry.status || null,
+                        assignedAt: retailerEntry.assignedAt,
+                        updatedAt: retailerEntry.updatedAt,
+                        startDate:
+                            retailerEntry.startDate ||
+                            campaign.campaignStartDate,
+                        endDate:
+                            retailerEntry.endDate || campaign.campaignEndDate,
+                    },
+
+                    // ✅ Assigned employee (single, clean)
+                    assignedEmployees: assignedEmployee
+                        ? [
+                              {
+                                  _id: assignedEmployee._id,
+                                  name: assignedEmployee.name,
+                                  phone: assignedEmployee.contactNo,
+                                  email: assignedEmployee.email,
+                              },
+                          ]
+                        : [],
+                };
+            })
+            .filter(Boolean); // remove nulls safely
+
+        // Optional status filter
+        const filteredCampaigns = status
+            ? campaignsWithStatus.filter(
+                  (c) => c.retailerStatus.status === status.toLowerCase()
+              )
+            : campaignsWithStatus;
 
         res.status(200).json({
-            count: campaignsWithStatus.length,
+            count: filteredCampaigns.length,
+
+            // ✅ Retailer info (includes name as requested)
             retailer: {
-                // ✅ Add retailer info to response
                 id: retailer._id.toString(),
                 name: retailer.name,
                 uniqueId: retailer.uniqueId,
                 retailerCode: retailer.retailerCode,
             },
-            campaigns: campaignsWithStatus,
+
+            campaigns: filteredCampaigns,
         });
     } catch (error) {
         console.error("Get retailer campaigns error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
 
