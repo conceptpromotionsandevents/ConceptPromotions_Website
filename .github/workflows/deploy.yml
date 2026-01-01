@@ -20,6 +20,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             echo "🚀 Starting deployment..."
 
             cd ${{ secrets.SERVER_PATH }}
@@ -27,22 +28,32 @@ jobs:
             echo "📥 Pulling latest code..."
             git pull origin main
 
+            # ======================
+            # 🔧 BACKEND DEPLOY
+            # ======================
             echo "🔧 Deploying backend..."
             cd backend
-            npm install
+            npm install --production
             pm2 restart concept-backend || pm2 start server.js --name concept-backend
 
-            echo "🎨 Deploying frontend (dev mode)..."
+            # ======================
+            # 🎨 FRONTEND BUILD
+            # ======================
+            echo "🎨 Building frontend..."
             cd ../FRONTEND
             npm install
-            pm2 restart concept-frontend || pm2 start npm --name concept-frontend -- run dev
+            npm run build
 
-            echo "💾 Saving PM2 state..."
+            echo "🚚 Deploying frontend to Nginx..."
+            sudo rm -rf /var/www/conceptpromotions/*
+            sudo cp -r dist/* /var/www/conceptpromotions/
+
+            sudo chown -R www-data:www-data /var/www/conceptpromotions
+            sudo chmod -R 755 /var/www/conceptpromotions
+
+            # ======================
+            # 💾 SAVE PM2 STATE
+            # ======================
             pm2 save
 
-            echo "✅ Deployment completed successful"
-
-
-
-
-
+            echo "✅ Deployment compelte"
