@@ -64,6 +64,8 @@ const retailerSchema = new Schema(
     { timestamps: true }
 );
 
+retailerSchema.index({ email: 1, contactNo: 1 });
+
 // 🚀 AUTO GENERATE UNIQUE ID + RETAILER CODE
 retailerSchema.pre("save", async function (next) {
     // Only hash password if it's modified

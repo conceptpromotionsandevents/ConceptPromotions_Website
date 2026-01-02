@@ -211,44 +211,37 @@ export const registerRetailer = async (req, res) => {
 =============================== */
 export const loginRetailer = async (req, res) => {
     try {
-        const { contactNo, email } = req.body;
+        const { email, contactNo, password } = req.body;
 
-        if (!contactNo || !email) {
-            return res.status(400).json({
-                message: "Email and phone number are both required",
-            });
+        if (!email || !contactNo || !password) {
+            return res.status(400).json({ message: "Missing credentials" });
         }
 
-        const retailer = await Retailer.findOne({
-            email,
-            contactNo,
-        });
+        const retailer = await Retailer.findOne(
+            { email, contactNo },
+            "_id name email contactNo password uniqueId phoneVerified"
+        );
 
-        if (!retailer)
+        if (!retailer) {
             return res.status(400).json({ message: "Retailer not found" });
+        }
 
-        if (!retailer.phoneVerified)
+        if (!retailer.phoneVerified) {
             return res.status(400).json({ message: "Phone not verified" });
+        }
 
-        if (!process.env.JWT_SECRET) {
-            console.error("JWT_SECRET missing in environment variables");
-            return res
-                .status(500)
-                .json({ message: "Server configuration error" });
+        const isMatch = await bcrypt.compare(password, retailer.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid credentials" });
         }
 
         const token = jwt.sign(
-            {
-                id: retailer._id,
-                contactNo: retailer.contactNo,
-                email: retailer.email,
-                role: "retailer",
-            },
+            { id: retailer._id, role: "retailer" },
             process.env.JWT_SECRET,
             { expiresIn: "7d" }
         );
 
-        res.status(200).json({
+        return res.status(200).json({
             message: "Login successful",
             token,
             retailer: {
@@ -259,9 +252,9 @@ export const loginRetailer = async (req, res) => {
                 email: retailer.email,
             },
         });
-    } catch (error) {
-        console.error("Retailer login error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+    } catch (err) {
+        console.error("Retailer login error:", err);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
@@ -588,8 +581,7 @@ export const getRetailerCampaigns = async (req, res) => {
 
             const assignedEmployees = employeeMappings
                 .filter(
-                    (m) =>
-                        m.retailerId?.toString() === retailerId.toString()
+                    (m) => m.retailerId?.toString() === retailerId.toString()
                 )
                 .map((m) => ({
                     _id: m.employeeId?._id || null,
@@ -616,11 +608,8 @@ export const getRetailerCampaigns = async (req, res) => {
                     assignedAt: retailerEntry?.assignedAt || null,
                     updatedAt: retailerEntry?.updatedAt || null,
                     startDate:
-                        retailerEntry?.startDate ||
-                        campaign.campaignStartDate,
-                    endDate:
-                        retailerEntry?.endDate ||
-                        campaign.campaignEndDate,
+                        retailerEntry?.startDate || campaign.campaignStartDate,
+                    endDate: retailerEntry?.endDate || campaign.campaignEndDate,
                 },
 
                 assignedEmployees,
@@ -649,7 +638,7 @@ export const getRetailerCampaigns = async (req, res) => {
             message: "Server error",
             error: error.message,
         });
-     }
+    }
 };
 
 /* ===============================
