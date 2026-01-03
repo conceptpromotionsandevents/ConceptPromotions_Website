@@ -265,6 +265,7 @@ export const loginRetailer = async (req, res) => {
     }
 };
 
+
 /* ===============================
    GET RETAILER PROFILE
 =============================== */
