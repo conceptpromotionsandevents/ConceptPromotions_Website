@@ -211,44 +211,45 @@ export const registerRetailer = async (req, res) => {
 =============================== */
 export const loginRetailer = async (req, res) => {
     try {
-        const { contactNo, email } = req.body;
+        const { email, contactNo } = req.body;
 
-        if (!contactNo || !email) {
+        if (!email || !contactNo) {
             return res.status(400).json({
                 message: "Email and phone number are both required",
             });
         }
 
-        const retailer = await Retailer.findOne({
-            email,
-            contactNo,
-        });
+        const retailer = await Retailer.findOne(
+            {
+                email: email.toLowerCase().trim(),
+                contactNo: String(contactNo).trim(),
+            },
+            {
+                password: 0,
+                govtIdPhoto: 0,
+                personPhoto: 0,
+                registrationFormFile: 0,
+                outletPhoto: 0,
+                bankDetails: 0,
+                assignedCampaigns: 0,
+            }
+        ).lean();
 
-        if (!retailer)
+        if (!retailer) {
             return res.status(400).json({ message: "Retailer not found" });
+        }
 
-        if (!retailer.phoneVerified)
+        if (!retailer.phoneVerified) {
             return res.status(400).json({ message: "Phone not verified" });
-
-        if (!process.env.JWT_SECRET) {
-            console.error("JWT_SECRET missing in environment variables");
-            return res
-                .status(500)
-                .json({ message: "Server configuration error" });
         }
 
         const token = jwt.sign(
-            {
-                id: retailer._id,
-                contactNo: retailer.contactNo,
-                email: retailer.email,
-                role: "retailer",
-            },
+            { id: retailer._id, role: "retailer" },
             process.env.JWT_SECRET,
             { expiresIn: "7d" }
         );
 
-        res.status(200).json({
+        return res.status(200).json({
             message: "Login successful",
             token,
             retailer: {
@@ -261,9 +262,13 @@ export const loginRetailer = async (req, res) => {
         });
     } catch (error) {
         console.error("Retailer login error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        return res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
+
 
 /* ===============================
    GET RETAILER PROFILE
