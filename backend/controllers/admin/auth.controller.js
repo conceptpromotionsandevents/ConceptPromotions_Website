@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import { Admin, ClientAdmin } from "../models/user.js";
+import { Admin, ClientAdmin } from "../../models/user.js";
 
 // ====== ADMIN LOGIN ======
 export const loginAdmin = async (req, res) => {

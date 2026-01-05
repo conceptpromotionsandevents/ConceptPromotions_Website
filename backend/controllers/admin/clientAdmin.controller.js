@@ -1,6 +1,6 @@
 // admin/clientAdmin.controller.js
 import bcrypt from "bcryptjs";
-import { ClientAdmin } from "../models/user.js";
+import { ClientAdmin } from "../../models/user.js";
 
 // ====== ADD CLIENT ADMIN ======
 export const addClientAdmin = async (req, res) => {

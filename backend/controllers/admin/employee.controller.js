@@ -6,7 +6,7 @@ import {
     Campaign,
     VisitSchedule,
     EmployeeReport,
-} from "../models/user.js";
+} from "../../models/user.js";
 
 // ====== ADD EMPLOYEE ======
 export const addEmployee = async (req, res) => {

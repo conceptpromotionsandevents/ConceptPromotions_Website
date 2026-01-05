@@ -1,6 +1,6 @@
 // admin/clientUser.controller.js
 import bcrypt from "bcryptjs";
-import { ClientUser } from "../models/user.js";
+import { ClientUser } from "../../models/user.js";
 
 // ====== ADD CLIENT USER ======
 export const addClientUser = async (req, res) => {

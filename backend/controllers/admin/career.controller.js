@@ -1,6 +1,6 @@
 // admin/career.controller.js
 import mongoose from "mongoose";
-import { Job, JobApplication, CareerApplication } from "../models/user.js";
+import { Job, JobApplication, CareerApplication } from "../../models/user.js";
 
 // ====== CREATE JOB POSTING ======
 export const createJobPosting = async (req, res) => {

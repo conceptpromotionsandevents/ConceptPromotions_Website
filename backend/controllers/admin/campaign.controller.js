@@ -1,12 +1,12 @@
 // admin/campaign.controller.js
+import { Retailer } from "../../models/retailer.model.js";
 import {
     Campaign,
     ClientAdmin,
     Employee,
     EmployeeReport,
     Payment,
-} from "../models/user.js";
-import { Retailer } from "../models/retailer.model.js";
+} from "../../models/user.js";
 
 // ====== GET ALL CAMPAIGNS ======
 export const getAllCampaigns = async (req, res) => {

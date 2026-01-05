@@ -1,5 +1,5 @@
 // admin/visitSchedule.controller.js
-import { VisitSchedule, Campaign, Employee, Retailer } from "../models/user.js";
+import { Campaign, VisitSchedule } from "../../models/user.js";
 
 // ====== ASSIGN VISIT SCHEDULE ======
 export const assignVisitSchedule = async (req, res) => {

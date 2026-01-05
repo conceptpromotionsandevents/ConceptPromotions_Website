@@ -1,8 +1,8 @@
 // admin/retailer.controller.js
 import bcrypt from "bcryptjs";
 import XLSX from "xlsx";
-import { Retailer } from "../models/retailer.model.js";
-import { Employee, Campaign, Payment } from "../models/user.js";
+import { Retailer } from "../../models/retailer.model.js";
+import { Employee, Campaign, Payment } from "../../models/user.js";
 
 // Utility to generate unique IDs (same implementation as original)
 function generateUniqueId() {

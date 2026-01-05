@@ -1,6 +1,74 @@
 import express from "express";
 import multer from "multer";
 
+import { addAdmin } from "../controllers/admin/admin.controller.js";
+import {
+    forgotPassword,
+    loginAdmin,
+    resetPassword,
+} from "../controllers/admin/auth.controller.js";
+import {
+    addCampaign,
+    adminGetRetailerReportsInCampaign,
+    assignCampaign,
+    getAllCampaigns,
+    getCampaignById,
+    getCampaignRetailersWithEmployees,
+    getCampaignVisitSchedules,
+    updateCampaign,
+    updateCampaignPayment,
+} from "../controllers/admin/campaign.controller.js";
+import {
+    createJobPosting,
+    getAdminJobs,
+    getCandidateResume,
+    getJobApplications,
+    getSingleAdminJob,
+    updateApplicationStatus,
+    updateJobPosting,
+} from "../controllers/admin/career.controller.js";
+import { addClientAdmin } from "../controllers/admin/clientAdmin.controller.js";
+import { addClientUser } from "../controllers/admin/clientUser.controller.js";
+import {
+    addEmployee,
+    bulkAddEmployees,
+    changeEmployeeStatus,
+    getAllEmployees,
+    updateEmployeeDates,
+} from "../controllers/admin/employee.controller.js";
+import {
+    createAdminReport,
+    downloadEmployeeRetailerMappingReport,
+} from "../controllers/admin/report.controller.js";
+import {
+    assignEmployeeToRetailer,
+    bulkRegisterRetailers,
+    getAllRetailers,
+    getAssignedEmployeeForRetailer,
+    getEmployeeRetailerMapping,
+    updateRetailerDates,
+} from "../controllers/admin/retailer.controller.js";
+import {
+    assignVisitSchedule,
+    deleteVisitSchedule,
+    updateVisitScheduleDetails,
+    updateVisitScheduleStatus,
+} from "../controllers/admin/visitSchedule.controller.js";
+import {
+    adminGetReportsByRetailer,
+    adminSetPaymentPlan,
+    adminUpdatePaymentPlan,
+    deleteEmployeeReport,
+    getAllEmployeeReports,
+    updateEmployeeReport,
+} from "../controllers/adminController.js";
+import { loginClientAdmin } from "../controllers/clientController.js";
+import { getEmployeeVisitProgress } from "../controllers/employeeController.js";
+import { deleteCampaign } from "../controllers/payment.controller.js";
+import {
+    registerRetailer,
+    updateCampaignStatus,
+} from "../controllers/retailerController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
