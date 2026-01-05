@@ -61,7 +61,7 @@ const baseReportSchema = new Schema(
                 ref: "Employee",
             },
             employeeName: String,
-            employeeCode: String, // This will store Employee.employeeId (string format)
+            employeeCode: String,
         },
 
         // Visit-related fields (only for employee submissions)
@@ -84,7 +84,7 @@ const baseReportSchema = new Schema(
                 type: String,
                 enum: ["outlet closed", "retailer not available", "others"],
             },
-            otherReason: String, // Only if reason === 'others'
+            otherReason: String,
         },
 
         // Common fields for all attended visits or admin/retailer submissions
@@ -117,13 +117,19 @@ baseReportSchema.index({ visitScheduleId: 1 });
 const Report = model("Report", baseReportSchema);
 
 // ==============================
-// WINDOW DISPLAY REPORT SCHEMA
+// WINDOW DISPLAY REPORT SCHEMA - UPDATED FOR CLOUDINARY
 // ==============================
 const windowDisplaySchema = new Schema({
     shopDisplayImages: [
         {
-            data: Buffer,
-            contentType: String,
+            url: {
+                type: String,
+                required: true,
+            },
+            publicId: {
+                type: String,
+                required: true,
+            },
             fileName: String,
             uploadedAt: {
                 type: Date,
@@ -134,7 +140,7 @@ const windowDisplaySchema = new Schema({
 });
 
 // ==============================
-// STOCK REPORT SCHEMA
+// STOCK REPORT SCHEMA - UPDATED FOR CLOUDINARY
 // ==============================
 const stockSchema = new Schema({
     stockType: {
@@ -171,8 +177,14 @@ const stockSchema = new Schema({
     },
     billCopies: [
         {
-            data: Buffer,
-            contentType: String,
+            url: {
+                type: String,
+                required: true,
+            },
+            publicId: {
+                type: String,
+                required: true,
+            },
             fileName: String,
             uploadedAt: {
                 type: Date,
@@ -183,13 +195,19 @@ const stockSchema = new Schema({
 });
 
 // ==============================
-// OTHERS REPORT SCHEMA
+// OTHERS REPORT SCHEMA - UPDATED FOR CLOUDINARY
 // ==============================
 const othersSchema = new Schema({
     files: [
         {
-            data: Buffer,
-            contentType: String,
+            url: {
+                type: String,
+                required: true,
+            },
+            publicId: {
+                type: String,
+                required: true,
+            },
             fileName: String,
             uploadedAt: {
                 type: Date,

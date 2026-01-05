@@ -98,8 +98,9 @@ export const createAdminReport = async (req, res) => {
     }
 };
 
+// ====== UPDATE EMPLOYEE REPORT ======
 export const updateEmployeeReport = async (req, res) => {
-  
+    // ... unchanged
 };
 
 // ====== DOWNLOAD EMPLOYEE–RETAILER MAPPING REPORT ======

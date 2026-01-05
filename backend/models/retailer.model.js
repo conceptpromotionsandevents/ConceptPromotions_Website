@@ -1,3 +1,4 @@
+// models/retailer.model.js
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
@@ -37,10 +38,23 @@ const retailerSchema = new Schema(
             branchName: { type: String, required: true },
         },
 
-        govtIdPhoto: { data: Buffer, contentType: String },
-        personPhoto: { data: Buffer, contentType: String },
-        registrationFormFile: { data: Buffer, contentType: String },
-        outletPhoto: { data: Buffer, contentType: String },
+        // -------- UPDATED FOR CLOUDINARY --------
+        govtIdPhoto: {
+            url: String,
+            publicId: String,
+        },
+        personPhoto: {
+            url: String,
+            publicId: String,
+        },
+        registrationFormFile: {
+            url: String,
+            publicId: String,
+        },
+        outletPhoto: {
+            url: String,
+            publicId: String,
+        },
 
         tnc: { type: Boolean },
         pennyCheck: { type: Boolean },
