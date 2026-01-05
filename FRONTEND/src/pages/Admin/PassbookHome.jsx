@@ -343,62 +343,109 @@ const PassbookHome = () => {
 
         const rows = [];
 
-        // Add retailer header info
+        // Row 1: Title
         rows.push({
-            "Outlet Code": passbookData.outletCode,
-            "Shop Name": passbookData.shopName,
-            "State": passbookData.state,
-            "Total Budget (TAR)": passbookData.tar,
-            "Total Paid": passbookData.taPaid,
-            "Total Pending": passbookData.taPending,
+            A: "ADMIN PASSBOOK REPORT",
+            B: "", C: "", D: "", E: "", F: "", G: "", H: "", I: "", J: "", K: "", L: "", M: ""
         });
 
-        // Add empty row
+        // Row 2: Empty
         rows.push({});
 
-        // Add campaign-wise data
+        // Row 3: Retailer Details
+        rows.push({
+            A: "Outlet Code:",
+            B: passbookData.outletCode,
+            C: "",
+            D: "Shop Name:",
+            E: passbookData.shopName,
+            F: "",
+            G: "State:",
+            H: passbookData.state,
+            I: "",
+            J: "Retailer Name:",
+            K: passbookData.retailerName
+        });
+
+        // Row 4 & 5: Empty rows
+        rows.push({});
+        rows.push({});
+
+        // Row 6: Header
+        rows.push({
+            A: "S.No",
+            B: "State",
+            C: "Outlet Name",
+            D: "Outlet Code",
+            E: "Campaign Name",
+            F: "Organization Name",
+            G: "Type",
+            H: "Budget (TCA)",
+            I: "Paid",
+            J: "Pending",
+            K: "Amount",
+            L: "Date",
+            M: "UTR Number",
+            N: "Remarks"
+        });
+
+        // Data rows with continuous S.No
+        let serialNumber = 1;
+
         displayedCampaigns.forEach((campaign) => {
-            // Campaign header
-            rows.push({
-                "Campaign": campaign.campaignName,
-                "Client": campaign.campaignId?.client || "N/A",
-                "Type": campaign.campaignId?.type || "N/A",
-                "Budget (TCA)": campaign.tca,
-                "Paid": campaign.cPaid,
-                "Pending": campaign.cPending,
-            });
+            const installments = campaign.installments || [];
 
-            // Installments
-            if (campaign.installments && campaign.installments.length > 0) {
+            if (installments.length === 0) {
+                // No installments - single row
                 rows.push({
-                    "Installment #": "Installment #",
-                    "Amount": "Amount",
-                    "Date": "Date",
-                    "UTR Number": "UTR Number",
-                    "Remarks": "Remarks",
-                });
-
-                campaign.installments.forEach((inst) => {
-                    rows.push({
-                        "Installment #": inst.installmentNo,
-                        "Amount": inst.installmentAmount,
-                        "Date": new Date(inst.dateOfInstallment).toLocaleDateString(),
-                        "UTR Number": inst.utrNumber,
-                        "Remarks": inst.remarks || "-",
-                    });
+                    A: serialNumber++,
+                    B: passbookData.state,
+                    C: passbookData.shopName,
+                    D: passbookData.outletCode,
+                    E: campaign.campaignName,
+                    F: campaign.campaignId?.client || "N/A",
+                    G: campaign.campaignId?.type || "N/A",
+                    H: campaign.tca,
+                    I: campaign.cPaid,
+                    J: campaign.cPending,
+                    K: "",
+                    L: "",
+                    M: "",
+                    N: ""
                 });
             } else {
-                rows.push({ "Info": "No installments recorded" });
+                // Has installments - each installment gets its own row
+                installments.forEach((inst) => {
+                    rows.push({
+                        A: serialNumber++,
+                        B: passbookData.state,
+                        C: passbookData.shopName,
+                        D: passbookData.outletCode,
+                        E: campaign.campaignName,
+                        F: campaign.campaignId?.client || "N/A",
+                        G: campaign.campaignId?.type || "N/A",
+                        H: campaign.tca,
+                        I: campaign.cPaid,
+                        J: campaign.cPending,
+                        K: inst.installmentAmount,
+                        L: new Date(inst.dateOfInstallment).toLocaleDateString(),
+                        M: inst.utrNumber,
+                        N: inst.remarks || "-"
+                    });
+                });
             }
-
-            // Empty row between campaigns
-            rows.push({});
         });
 
         // Create worksheet
-        const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: false });
+        const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
 
         // Styling
+        const titleStyle = {
+            font: { color: { rgb: "FFFFFF" }, bold: true, sz: 16 },
+            alignment: { horizontal: "center", vertical: "center" },
+            fill: { fgColor: { rgb: "E4002B" } }
+        };
+
         const headerStyle = {
             font: { bold: true },
             alignment: { horizontal: "center", vertical: "center" },
@@ -409,25 +456,46 @@ const PassbookHome = () => {
             alignment: { horizontal: "center", vertical: "center" }
         };
 
-        // Apply styles to all cells
+        // Apply styles
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let R = range.s.r; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
                 const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
                 if (ws[cellAddress]) {
-                    ws[cellAddress].s = R === 0 || R === 2 ? headerStyle : dataStyle;
+                    if (R === 0) {
+                        ws[cellAddress].s = titleStyle;
+                    } else if (R === 5) { // Header is now at row 6 (index 5)
+                        ws[cellAddress].s = headerStyle;
+                    } else {
+                        ws[cellAddress].s = dataStyle;
+                    }
                 }
             }
         }
 
+        // Merge cells for title (Row 1, A1:N1)
+        if (!ws['!merges']) ws['!merges'] = [];
+        ws['!merges'].push({
+            s: { r: 0, c: 0 },
+            e: { r: 0, c: 13 }
+        });
+
         // Column widths
         ws["!cols"] = [
-            { wpx: 120 },
-            { wpx: 180 },
-            { wpx: 100 },
-            { wpx: 120 },
-            { wpx: 100 },
-            { wpx: 100 },
+            { wpx: 60 },   // A: S.No
+            { wpx: 100 },  // B: State
+            { wpx: 180 },  // C: Outlet Name
+            { wpx: 120 },  // D: Outlet Code
+            { wpx: 180 },  // E: Campaign Name
+            { wpx: 150 },  // F: Organization Name
+            { wpx: 100 },  // G: Type
+            { wpx: 120 },  // H: Budget (TCA)
+            { wpx: 100 },  // I: Paid
+            { wpx: 100 },  // J: Pending
+            { wpx: 100 },  // K: Amount
+            { wpx: 110 },  // L: Date
+            { wpx: 120 },  // M: UTR Number
+            { wpx: 120 }   // N: Remarks
         ];
 
         const wb = XLSX.utils.book_new();

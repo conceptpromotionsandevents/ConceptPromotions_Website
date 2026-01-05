@@ -146,9 +146,7 @@ const ClientHome = () => {
   const outletsData = useMemo(() => {
     const outletsArray = [];
 
-    // Loop through filtered campaigns
     filteredCampaigns.forEach((campaign) => {
-      // Loop through assignedRetailers
       (campaign.assignedRetailers || []).forEach((retailerAssignment) => {
         const retailer = retailerAssignment.retailerId;
 
@@ -160,28 +158,31 @@ const ClientHome = () => {
         const city = retailer.shopDetails?.shopAddress?.city || "N/A";
         const state = retailer.shopDetails?.shopAddress?.state || "N/A";
 
-        // Find payment info from budgets
-        const budget = budgets.find((b) =>
-          (b.retailerId._id || b.retailerId) === retailerId
-        );
+        // ✅ Find payment info with null safety
+        const budget = budgets.find((b) => {
+          if (!b.retailerId) return false;
+          const budgetRetailerId = b.retailerId._id || b.retailerId;
+          return budgetRetailerId === retailerId;
+        });
 
-        // ✅ Find campaign-specific payment data
         let campaignPaymentStatus = "Pending";
         let tca = 0;
         let cPaid = 0;
         let cPending = 0;
 
         if (budget) {
-          const campaignBudget = budget.campaigns.find(
-            (c) => (c.campaignId._id || c.campaignId) === campaign._id
-          );
+          // ✅ Fixed: Add null check for c.campaignId
+          const campaignBudget = budget.campaigns.find((c) => {
+            if (!c.campaignId) return false;
+            const budgetCampaignId = c.campaignId._id || c.campaignId;
+            return budgetCampaignId === campaign._id;
+          });
 
           if (campaignBudget) {
             tca = campaignBudget.tca || 0;
             cPaid = campaignBudget.cPaid || 0;
             cPending = campaignBudget.cPending || 0;
 
-            // Calculate payment status for THIS CAMPAIGN
             if (cPaid === 0) {
               campaignPaymentStatus = "Pending";
             } else if (cPaid < tca) {
@@ -192,15 +193,14 @@ const ClientHome = () => {
           }
         }
 
-        // Check if retailer has reported
-        const hasReported = reports.some(
-          (report) =>
-            (report.retailer?.retailerId?._id === retailerId ||
-              report.retailer?.retailerId === retailerId) &&
-            (report.campaignId?._id === campaign._id || report.campaignId === campaign._id)
-        );
+        // ✅ Check if retailer has reported with null safety
+        const hasReported = reports.some((report) => {
+          if (!report.retailer?.retailerId || !report.campaignId) return false;
+          const reportRetailerId = report.retailer.retailerId._id || report.retailer.retailerId;
+          const reportCampaignId = report.campaignId._id || report.campaignId;
+          return reportRetailerId === retailerId && reportCampaignId === campaign._id;
+        });
 
-        // ✅ Create one row per retailer per campaign
         outletsArray.push({
           retailerId,
           campaignId: campaign._id,
@@ -221,25 +221,21 @@ const ClientHome = () => {
     // Apply Filters
     let data = outletsArray;
 
-    // Filter by Campaign
     if (selectedCampaigns.length > 0) {
       const selectedCampaignIds = selectedCampaigns.map((c) => c.value);
       data = data.filter((outlet) => selectedCampaignIds.includes(outlet.campaignId));
     }
 
-    // Filter by State
     if (selectedStates.length > 0) {
       const selectedStateValues = selectedStates.map((s) => s.value);
       data = data.filter((outlet) => selectedStateValues.includes(outlet.state));
     }
 
-    // Filter by Retailer
     if (selectedRetailers.length > 0) {
       const selectedRetailerIds = selectedRetailers.map((r) => r.value);
       data = data.filter((outlet) => selectedRetailerIds.includes(outlet.retailerId));
     }
 
-    // Filter by Payment Status
     if (selectedPayments.length > 0) {
       const selectedPaymentValues = selectedPayments.map((p) => p.value);
       data = data.filter((outlet) => selectedPaymentValues.includes(outlet.paymentStatus));
@@ -613,10 +609,10 @@ const ClientHome = () => {
                         <td className="px-4 py-3 text-sm">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${outlet.paymentStatus === "Completed"
-                                ? "bg-green-100 text-green-800"
-                                : outlet.paymentStatus === "Partially Paid"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
+                              ? "bg-green-100 text-green-800"
+                              : outlet.paymentStatus === "Partially Paid"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
                               }`}
                           >
                             {outlet.paymentStatus}

@@ -272,15 +272,20 @@ const ClientPassbook = () => {
           if (!retailerIds.includes(retailerId)) return;
         }
 
-        // Find budget data for this retailer
-        const budget = budgets.find((b) =>
-          (b.retailerId._id || b.retailerId) === retailerId
-        );
+        // ✅ Find budget data with null safety
+        const budget = budgets.find((b) => {
+          if (!b.retailerId) return false;
+          const budgetRetailerId = b.retailerId._id || b.retailerId;
+          return budgetRetailerId === retailerId;
+        });
 
         if (budget) {
-          const campaignBudget = budget.campaigns.find(
-            (c) => (c.campaignId._id || c.campaignId) === campaign._id
-          );
+          // ✅ Find campaign budget with null safety
+          const campaignBudget = budget.campaigns.find((c) => {
+            if (!c.campaignId) return false;
+            const budgetCampaignId = c.campaignId._id || c.campaignId;
+            return budgetCampaignId === campaign._id;
+          });
 
           if (campaignBudget) {
             const filteredInstallments = (campaignBudget.installments || []).filter(
@@ -317,7 +322,7 @@ const ClientPassbook = () => {
               cPaid,
               cPending,
               lastPaymentDate,
-              installments: filteredInstallments, // ✅ Store installments for export
+              installments: filteredInstallments,
             });
           }
         }
@@ -334,6 +339,7 @@ const ClientPassbook = () => {
     startDate,
     endDate,
   ]);
+
 
   // ===============================
   // PAGINATION LOGIC
@@ -377,29 +383,19 @@ const ClientPassbook = () => {
 
     const rows = [];
 
-    // Add title row
+    // Row 1: Title
     rows.push({
       A: "CLIENT PASSBOOK REPORT",
-      B: "",
-      C: "",
-      D: "",
-      E: "",
-      F: "",
-      G: "",
-      H: ""
+      B: "", C: "", D: "", E: "", F: "", G: "", H: "", I: "", J: "", K: "", L: ""
     });
 
-    // Add date range if applied
-    if (startDate || endDate) {
-      const dateRange = `Period: ${startDate ? formatDateToDDMMYYYY(startDate) : 'Start'} to ${endDate ? formatDateToDDMMYYYY(endDate) : 'End'}`;
-      rows.push({ A: dateRange });
-    }
-
-    // Empty row
+    // Row 2: Empty
     rows.push({});
 
-    // Add summary cards
+    // Row 3: SUMMARY label
     rows.push({ A: "SUMMARY" });
+
+    // Row 4: Summary values
     rows.push({
       A: "Total Budget",
       B: `₹${cardTotals.totalBudget.toLocaleString()}`,
@@ -408,14 +404,15 @@ const ClientPassbook = () => {
       E: `₹${cardTotals.totalSpending.toLocaleString()}`,
       F: "",
       G: "Total Pending Amount",
-      H: `₹${cardTotals.totalPending.toLocaleString()}`
+      H: `₹${cardTotals.totalPending.toLocaleString()}`,
+      I: "", J: "", K: "", L: ""
     });
 
-    // Empty rows
+    // Row 5 & 6: Empty rows
     rows.push({});
     rows.push({});
 
-    // Add passbook entries header
+    // Row 7: Header (includes installment columns)
     rows.push({
       A: "S.No",
       B: "State",
@@ -425,58 +422,61 @@ const ClientPassbook = () => {
       F: "Total Campaign Amount",
       G: "Paid",
       H: "Pending",
-      I: "Last Payment Date"
+      I: "Amount",
+      J: "Date",
+      K: "UTR Number",
+      L: "Remarks"
     });
 
-    // Add passbook entries
-    allDisplayData.forEach((record, index) => {
-      rows.push({
-        A: index + 1,
-        B: record.state,
-        C: record.shopName,
-        D: record.outletCode,
-        E: record.campaignName,
-        F: record.tca,
-        G: record.cPaid,
-        H: record.cPending,
-        I: formatDateToDDMMYYYY(record.lastPaymentDate)
-      });
+    // ✅ Data rows with continuous S.No
+    let serialNumber = 1; // Start continuous numbering
 
-      // Add installment details if available
-      if (record.installments && record.installments.length > 0) {
+    allDisplayData.forEach((record) => {
+      const installments = record.installments || [];
+
+      if (installments.length === 0) {
+        // No installments - single row
         rows.push({
-          A: "",
-          B: "Installment Details:",
-          C: "Installment #",
-          D: "Amount",
-          E: "Date",
-          F: "UTR Number",
-          G: "Remarks"
+          A: serialNumber++,  // ✅ Continuous S.No: 1, 2, 3, 4...
+          B: record.state,
+          C: record.shopName,
+          D: record.outletCode,
+          E: record.campaignName,
+          F: record.tca,
+          G: record.cPaid,
+          H: record.cPending,
+          I: "",
+          J: "",
+          K: "",
+          L: ""
         });
-
-        record.installments.forEach((inst) => {
+      } else {
+        // Has installments - each installment gets its own S.No
+        installments.forEach((inst) => {
           rows.push({
-            A: "",
-            B: "",
-            C: inst.installmentNo,
-            D: inst.installmentAmount,
-            E: formatDateToDDMMYYYY(inst.dateOfInstallment),
-            F: inst.utrNumber,
-            G: inst.remarks || "-"
+            A: serialNumber++,  // ✅ Continuous S.No: 1, 2, 3, 4, 5...
+            B: record.state,
+            C: record.shopName,
+            D: record.outletCode,
+            E: record.campaignName,
+            F: record.tca,
+            G: record.cPaid,
+            H: record.cPending,
+            I: inst.installmentAmount,
+            J: formatDateToDDMMYYYY(inst.dateOfInstallment),
+            K: inst.utrNumber,
+            L: inst.remarks || "-"
           });
         });
-
-        // Empty row after installments
-        rows.push({});
       }
     });
 
     // Create worksheet
     const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
 
-    // ✅ FIXED: Styling with corrected titleStyle
+    // Styling
     const titleStyle = {
-      font: { color: { rgb: "FFFFFF" }, bold: true, sz: 16 }, // ✅ Combined into one font property
+      font: { color: { rgb: "FFFFFF" }, bold: true, sz: 16 },
       alignment: { horizontal: "center", vertical: "center" },
       fill: { fgColor: { rgb: "E4002B" } }
     };
@@ -485,12 +485,6 @@ const ClientPassbook = () => {
       font: { bold: true },
       alignment: { horizontal: "center", vertical: "center" },
       fill: { fgColor: { rgb: "E2E8F0" } }
-    };
-
-    const summaryStyle = {
-      font: { bold: true },
-      alignment: { horizontal: "left", vertical: "center" },
-      fill: { fgColor: { rgb: "DBEAFE" } }
     };
 
     const dataStyle = {
@@ -503,18 +497,9 @@ const ClientPassbook = () => {
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
         if (ws[cellAddress]) {
-          if (R === 0 && C === 0) {
+          if (R === 0) {
             ws[cellAddress].s = titleStyle;
-          } else if (R === 4) {
-            ws[cellAddress].s = summaryStyle;
-          } else if (R === 6) { 
-            ws[cellAddress].s = headerStyle;
-          } else if (ws[cellAddress].v === "Installment Details:" ||
-            ws[cellAddress].v === "Installment #" ||
-            ws[cellAddress].v === "Amount" ||
-            ws[cellAddress].v === "Date" ||
-            ws[cellAddress].v === "UTR Number" ||
-            ws[cellAddress].v === "Remarks") {
+          } else if (R === 6) {
             ws[cellAddress].s = headerStyle;
           } else {
             ws[cellAddress].s = dataStyle;
@@ -523,20 +508,27 @@ const ClientPassbook = () => {
       }
     }
 
-
-
+    // Merge cells for title (Row 1, A1:L1)
+    if (!ws['!merges']) ws['!merges'] = [];
+    ws['!merges'].push({
+      s: { r: 0, c: 0 },
+      e: { r: 0, c: 11 }
+    });
 
     // Column widths
     ws["!cols"] = [
-      { wpx: 200 },   // S.No
-      { wpx: 120 },  // State
-      { wpx: 180 },  // Outlet Name
-      { wpx: 120 },  // Outlet Code
-      { wpx: 180 },  // Campaign Name
-      { wpx: 140 },  // Total Campaign Amount
-      { wpx: 150 },  // Paid
-      { wpx: 100 },  // Pending
-      { wpx: 120 },  // Last Payment Date
+      { wpx: 200 },  // A: S.No
+      { wpx: 120 },  // B: State
+      { wpx: 180 },  // C: Outlet Name
+      { wpx: 120 },  // D: Outlet Code
+      { wpx: 180 },  // E: Campaign Name
+      { wpx: 140 },  // F: Total Campaign Amount
+      { wpx: 150 },  // G: Paid
+      { wpx: 100 },  // H: Pending
+      { wpx: 120 },  // I: Amount
+      { wpx: 100 },   // J: Date
+      { wpx: 120 },   // K: UTR Number
+      { wpx: 120 }    // L: Remarks
     ];
 
     const wb = XLSX.utils.book_new();

@@ -802,21 +802,33 @@ const MapEmployee = () => {
                                 </button>
                             </div>
                             <div className="bg-[#EDEDED] shadow-md rounded-lg p-6 mt-6">
-                                <h3 className="text-lg font-semibold text-gray-700 mb-4">
-                                    Assigned Employee-Retailer Pairs (
-                                    {filteredPairs.length} of{" "}
-                                    {assignedPairs.length})
-                                </h3>
+                                {/* Header with Download Button */}
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-700">
+                                        Assigned Employee-Retailer Pairs ({filteredPairs.length} of {assignedPairs.length})
+                                    </h3>
+
+                                    {/* Download Button at Top */}
+                                    {filteredPairs.length > 0 && (
+                                        <button
+                                            onClick={handleDownloadFilteredReport}
+                                            className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
+                                        >
+                                            Download Report
+                                        </button>
+                                    )}
+                                </div>
+
                                 {/* State Filter for Assigned Pairs */}
                                 <div className="mb-4 max-w-xs">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Filter by State</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Filter by State
+                                    </label>
                                     <Select
                                         value={pairStateFilter}
                                         onChange={setPairStateFilter}
                                         options={[
-                                            ...new Set(
-                                                assignedPairs.map(p => p.retailer?.state)
-                                            ),
+                                            ...new Set(assignedPairs.map(p => p.retailer?.state))
                                         ]
                                             .filter(Boolean)
                                             .map(s => ({ label: s, value: s }))}
@@ -826,6 +838,7 @@ const MapEmployee = () => {
                                     />
                                 </div>
 
+                                {/* Search Bar */}
                                 <div className="mb-4">
                                     <input
                                         type="text"
@@ -836,10 +849,9 @@ const MapEmployee = () => {
                                     />
                                 </div>
 
+                                {/* Table or Empty State */}
                                 {loadingAssignedData ? (
-                                    <p className="text-gray-500 py-3">
-                                        Loading...
-                                    </p>
+                                    <p className="text-gray-500 py-3">Loading...</p>
                                 ) : assignedPairs.length === 0 ? (
                                     <p className="text-gray-500 py-3">
                                         No assignments found for this campaign.
@@ -863,6 +875,9 @@ const MapEmployee = () => {
                                                         Outlet Name
                                                     </th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        State
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
                                                         Employee Code
                                                     </th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
@@ -871,44 +886,35 @@ const MapEmployee = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {filteredPairs.map(
-                                                    (pair, index) => (
-                                                        <tr
-                                                            key={`${pair.retailer?._id}-${pair.employee?._id}-${index}`}
-                                                            className="hover:bg-gray-50"
-                                                        >
-                                                            <td className="px-4 py-2 text-sm">
-                                                                {index + 1}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
-                                                                {pair.retailer.uniqueId}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-sm text-gray-700">
-                                                                {pair.retailer.shopName}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
-                                                                {pair.employee.employeeId}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-sm text-gray-700">
-                                                                {pair.employee.name}
-                                                            </td>
-                                                        </tr>
-                                                    )
-                                                )}
+                                                {filteredPairs.map((pair, index) => (
+                                                    <tr
+                                                        key={`${pair.retailer?._id}-${pair.employee?._id}-${index}`}
+                                                        className="hover:bg-gray-50"
+                                                    >
+                                                        <td className="px-4 py-2 text-sm">{index + 1}</td>
+                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                            {pair.retailer.uniqueId}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-sm text-gray-700">
+                                                            {pair.retailer.shopName}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-sm text-gray-600">
+                                                            {pair.retailer.state || "-"}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                            {pair.employee.employeeId}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-sm text-gray-700">
+                                                            {pair.employee.name}
+                                                        </td>
+                                                    </tr>
+                                                ))}
                                             </tbody>
                                         </table>
-                                        <div className="mt-6 text-right flex gap-3 justify-end">
-                                            {/* Download filtered data */}
-                                            <button
-                                                onClick={handleDownloadFilteredReport}
-                                                className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
-                                            >
-                                                Download Report
-                                            </button>
-                                        </div>
                                     </div>
                                 )}
                             </div>
+
                             {openOutletList && (
                                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center px-4 animate-fadeIn z-50">
 

@@ -29,24 +29,24 @@ const customSelectStyles = {
 const EmployeePassbook = () => {
     // Employee Info
     const [employeeInfo, setEmployeeInfo] = useState(null);
-    
+
     // All Employee-Retailer Mappings
     const [employeeRetailerMappings, setEmployeeRetailerMappings] = useState([]);
-    
+
     // Filters
     const [selectedRetailer, setSelectedRetailer] = useState(null);
     const [selectedCampaign, setSelectedCampaign] = useState(null);
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
-    
+
     // Options for dropdowns
     const [retailerOptions, setRetailerOptions] = useState([]);
     const [campaignOptions, setCampaignOptions] = useState([]);
-    
+
     // Passbook Data
     const [passbookData, setPassbookData] = useState(null);
     const [displayedCampaigns, setDisplayedCampaigns] = useState([]);
-    
+
     const [loading, setLoading] = useState(true);
 
     // ===============================
@@ -74,7 +74,7 @@ const EmployeePassbook = () => {
 
             const data = await response.json();
             setEmployeeInfo(data.employee);
-            
+
             // Fetch employee-retailer mappings with campaigns
             fetchEmployeeRetailerMappings(data.employee._id, token);
         } catch (err) {
@@ -132,15 +132,14 @@ const EmployeePassbook = () => {
             }
 
             setEmployeeRetailerMappings(allMappings);
-            
+
             // Extract unique retailers
             const uniqueRetailers = allMappings.reduce((acc, mapping) => {
                 if (!acc.find((r) => r.value === mapping.retailerId)) {
                     acc.push({
                         value: mapping.retailerId,
-                        label: `${mapping.retailerData.uniqueId || ""} - ${
-                            mapping.retailerData.shopDetails?.shopName || "N/A"
-                        }`,
+                        label: `${mapping.retailerData.uniqueId || ""} - ${mapping.retailerData.shopDetails?.shopName || "N/A"
+                            }`,
                         data: mapping.retailerData,
                     });
                 }
@@ -186,7 +185,7 @@ const EmployeePassbook = () => {
                 const data = await response.json();
                 if (data.success && data.data && data.data.length > 0) {
                     const budgetRecord = data.data[0];
-                    
+
                     // Filter campaigns: Only show campaigns where employee is assigned to this retailer
                     const assignedCampaignIds = employeeRetailerMappings
                         .filter((m) => m.retailerId === selectedRetailer.value)
@@ -206,7 +205,7 @@ const EmployeePassbook = () => {
                         ...budgetRecord,
                         campaigns: filteredCampaigns,
                     });
-                    
+
                     setDisplayedCampaigns(filteredCampaigns);
 
                     // Update campaign options based on assigned campaigns
@@ -362,54 +361,108 @@ const EmployeePassbook = () => {
 
         const rows = [];
 
-        // Add header info
+        // Row 1: Title
         rows.push({
-            "Employee": employeeInfo?.name || "N/A",
-            "Employee Code": employeeInfo?.employeeId || "N/A",
-            "Outlet Code": passbookData.outletCode,
-            "Shop Name": passbookData.shopName,
-            "State": passbookData.state,
+            A: "EMPLOYEE PASSBOOK REPORT",
+            B: "", C: "", D: "", E: "", F: "", G: "", H: "", I: "", J: "", K: ""
         });
 
+        // Row 2: Empty
         rows.push({});
 
-        // Add campaign-wise data
-        displayedCampaigns.forEach((campaign) => {
-            rows.push({
-                "Campaign": campaign.campaignName,
-                "Client": campaign.campaignId?.client || "N/A",
-                "Type": campaign.campaignId?.type || "N/A",
-                "Budget (TCA)": campaign.tca,
-                "Paid": campaign.cPaid,
-                "Pending": campaign.cPending,
-            });
-
-            if (campaign.installments && campaign.installments.length > 0) {
-                rows.push({
-                    "Installment #": "Installment #",
-                    "Amount": "Amount",
-                    "Date": "Date",
-                    "UTR Number": "UTR Number",
-                    "Remarks": "Remarks",
-                });
-
-                campaign.installments.forEach((inst) => {
-                    rows.push({
-                        "Installment #": inst.installmentNo,
-                        "Amount": inst.installmentAmount,
-                        "Date": inst.dateOfInstallment,
-                        "UTR Number": inst.utrNumber,
-                        "Remarks": inst.remarks || "-",
-                    });
-                });
-            } else {
-                rows.push({ "Info": "No installments recorded" });
-            }
-
-            rows.push({});
+        // Row 3: Employee Details
+        rows.push({
+            A: "Employee Name:",
+            B: employeeInfo?.name || "N/A",
+            C: "",
+            D: "Employee Code:",
+            E: employeeInfo?.employeeId || "N/A",
+            F: "",
+            G: "Outlet Code:",
+            H: passbookData.outletCode,
+            I: "",
+            J: "Shop Name:",
+            K: passbookData.shopName
         });
 
-        const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: false });
+        // Row 4 & 5: Empty rows
+        rows.push({});
+        rows.push({});
+
+        // Row 6: Header
+        rows.push({
+            A: "S.No",
+            B: "State",
+            C: "Outlet Name",
+            D: "Outlet Code",
+            E: "Campaign Name",
+            F: "Organization Name",
+            G: "Type",
+            H: "Budget (TCA)",
+            I: "Paid",
+            J: "Pending",
+            K: "Amount",
+            L: "Date",
+            M: "UTR Number",
+            N: "Remarks"
+        });
+
+        // Data rows with continuous S.No
+        let serialNumber = 1;
+
+        displayedCampaigns.forEach((campaign) => {
+            const installments = campaign.installments || [];
+
+            if (installments.length === 0) {
+                // No installments - single row
+                rows.push({
+                    A: serialNumber++,
+                    B: passbookData.state,
+                    C: passbookData.shopName,
+                    D: passbookData.outletCode,
+                    E: campaign.campaignName,
+                    F: campaign.campaignId?.client || "N/A",
+                    G: campaign.campaignId?.type || "N/A",
+                    H: campaign.tca,
+                    I: campaign.cPaid,
+                    J: campaign.cPending,
+                    K: "",
+                    L: "",
+                    M: "",
+                    N: ""
+                });
+            } else {
+                // Has installments - each installment gets its own row
+                installments.forEach((inst) => {
+                    rows.push({
+                        A: serialNumber++,
+                        B: passbookData.state,
+                        C: passbookData.shopName,
+                        D: passbookData.outletCode,
+                        E: campaign.campaignName,
+                        F: campaign.campaignId?.client || "N/A",
+                        G: campaign.campaignId?.type || "N/A",
+                        H: campaign.tca,
+                        I: campaign.cPaid,
+                        J: campaign.cPending,
+                        K: inst.installmentAmount,
+                        L: inst.dateOfInstallment,
+                        M: inst.utrNumber,
+                        N: inst.remarks || "-"
+                    });
+                });
+            }
+        });
+
+        // Create worksheet
+        const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
+
+        // Styling
+        const titleStyle = {
+            font: { color: { rgb: "FFFFFF" }, bold: true, sz: 16 },
+            alignment: { horizontal: "center", vertical: "center" },
+            fill: { fgColor: { rgb: "E4002B" } }
+        };
 
         const headerStyle = {
             font: { bold: true },
@@ -421,23 +474,46 @@ const EmployeePassbook = () => {
             alignment: { horizontal: "center", vertical: "center" }
         };
 
+        // Apply styles
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let R = range.s.r; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
                 const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
                 if (ws[cellAddress]) {
-                    ws[cellAddress].s = R === 0 || R === 2 ? headerStyle : dataStyle;
+                    if (R === 0) {
+                        ws[cellAddress].s = titleStyle;
+                    } else if (R === 5) { // Header is now at row 6 (index 5)
+                        ws[cellAddress].s = headerStyle;
+                    } else {
+                        ws[cellAddress].s = dataStyle;
+                    }
                 }
             }
         }
 
+        // Merge cells for title (Row 1, A1:N1)
+        if (!ws['!merges']) ws['!merges'] = [];
+        ws['!merges'].push({
+            s: { r: 0, c: 0 },
+            e: { r: 0, c: 13 }
+        });
+
+        // Column widths
         ws["!cols"] = [
-            { wpx: 120 },
-            { wpx: 180 },
-            { wpx: 100 },
-            { wpx: 120 },
-            { wpx: 100 },
-            { wpx: 100 },
+            { wpx: 60 },   // A: S.No
+            { wpx: 100 },  // B: State
+            { wpx: 180 },  // C: Outlet Name
+            { wpx: 120 },  // D: Outlet Code
+            { wpx: 180 },  // E: Campaign Name
+            { wpx: 150 },  // F: Organization Name
+            { wpx: 100 },  // G: Type
+            { wpx: 120 },  // H: Budget (TCA)
+            { wpx: 100 },  // I: Paid
+            { wpx: 100 },  // J: Pending
+            { wpx: 100 },  // K: Amount
+            { wpx: 110 },  // L: Date
+            { wpx: 120 },  // M: UTR Number
+            { wpx: 120 }   // N: Remarks
         ];
 
         const wb = XLSX.utils.book_new();
