@@ -1,62 +1,10 @@
 import express from "express";
 import multer from "multer";
-import {
-    addAdmin,
-    addCampaign,
-    addClientAdmin,
-    addClientUser,
-    addEmployee,
-    adminGetReportsByRetailer,
-    adminGetRetailerReportsInCampaign,
-    adminSetPaymentPlan,
-    adminUpdatePaymentPlan,
-    assignCampaign,
-    assignEmployeeToRetailer,
-    assignVisitSchedule,
-    bulkAddEmployees,
-    bulkRegisterRetailers,
-    changeEmployeeStatus,
-    createAdminReport,
-    createJobPosting,
-    deleteCampaign,
-    deleteEmployeeReport,
-    deleteVisitSchedule,
-    downloadEmployeeRetailerMappingReport,
-    forgotPassword,
-    getAdminJobs,
-    getAllCampaigns,
-    getAllEmployeeReports,
-    getAllEmployees,
-    getAllRetailers,
-    getAssignedEmployeeForRetailer,
-    getCampaignById,
-    getCampaignPayments,
-    getCampaignRetailersWithEmployees,
-    getCampaignVisitSchedules,
-    getCandidateResume,
-    getEmployeeRetailerMapping,
-    getEmployeeVisitProgress,
-    getJobApplications,
-    getSingleAdminJob,
-    loginAdmin,
-    loginClientAdmin,
-    protect,
-    registerRetailer,
-    resetPassword,
-    updateApplicationStatus,
-    updateCampaign,
-    updateCampaignPayment,
-    updateCampaignStatus,
-    updateEmployeeDates,
-    updateEmployeeReport,
-    updateJobPosting,
-    updateRetailerDates,
-    updateVisitScheduleDetails,
-    updateVisitScheduleStatus,
-} from "../controllers/adminController.js";
+
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-router.get("/campaign/:campaignId/payments", protect, getCampaignPayments);
+// router.get("/campaign/:campaignId/payments", protect, getCampaignPayments);
 
 const upload = multer({ storage: multer.memoryStorage() });
 router.get(

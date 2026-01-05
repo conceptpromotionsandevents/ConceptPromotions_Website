@@ -20,7 +20,7 @@ import {
     updateEmployeeProfile,
 } from "../controllers/employeeController.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { upload } from "../middleware/upload.js";
+import { upload } from "../utils/upload.js";
 const router = express.Router();
 
 /* ================================

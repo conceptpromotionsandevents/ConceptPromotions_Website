@@ -2,17 +2,17 @@
 import express from "express";
 import {
     createReport,
+    deleteReport,
+    getAllClientReports,
     getAllReports,
     getReportById,
-    updateReport,
-    deleteReport,
     getReportsByCampaign,
     getReportsByEmployee,
     getReportsByRetailer,
-    getAllClientReports,
+    updateReport,
 } from "../controllers/report.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { upload } from "../middleware/upload.js";
+import { upload } from "../utils/upload.js";
 
 const router = express.Router();
 
