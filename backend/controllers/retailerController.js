@@ -697,6 +697,9 @@ export const getRetailerCampaigns = async (req, res) => {
                 isActive: campaign.isActive,
                 createdBy: campaign.createdBy,
                 createdAt: campaign.createdAt,
+                
+                // Add banner images here
+                bannerImages: campaign.bannerImages || [],
 
                 retailerStatus: {
                     status: retailerEntry?.status || "pending",
@@ -735,6 +738,10 @@ export const getRetailerCampaigns = async (req, res) => {
         });
     }
 };
+
+// ====== BULK REGISTER RETAILERS ======
+
+
 // ====== BULK REGISTER RETAILERS ======
 export const bulkRegisterRetailers = async (req, res) => {
     try {
@@ -755,10 +762,9 @@ export const bulkRegisterRetailers = async (req, res) => {
         const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         
-        // ✅ Fix: Parse with raw formatting to preserve numbers
         const rows = XLSX.utils.sheet_to_json(sheet, { 
-            raw: false,  // Convert everything to strings first
-            defval: ""   // Default value for empty cells
+            raw: false,  // Convert to strings to prevent scientific notation
+            defval: ""   // Default empty value
         });
 
         const retailersToInsert = [];
@@ -771,10 +777,9 @@ export const bulkRegisterRetailers = async (req, res) => {
             const contactNo = String(row.contactNo || "").replace(/[^0-9]/g, "").slice(0, 10);
             const shopPincode = String(row.shopPincode || "").replace(/[^0-9]/g, "").slice(0, 6);
             const accountNumber = String(row.accountNumber || "").replace(/[^0-9]/g, "");
-            const govtIdNumber = String(row.govtIdNumber || "").replace(/[^0-9]/g, "");
 
+            // ✅ EXTRACT 18 FIELDS FROM EXCEL (NO GENDER)
             const {
-                // SHOP DETAILS
                 shopName,
                 shopAddress,
                 shopCity,
@@ -782,15 +787,11 @@ export const bulkRegisterRetailers = async (req, res) => {
                 GSTNo,
                 businessType,
                 ownershipType,
-
-                // RETAILER DETAILS
                 name,
                 PANCard,
                 email,
-                gender,
                 govtIdType,
-
-                // BANK DETAILS
+                govtIdNumber,
                 bankName,
                 IFSC,
                 branchName,
@@ -799,15 +800,21 @@ export const bulkRegisterRetailers = async (req, res) => {
             /* ---------------- VALIDATION ---------------- */
 
             const missingFields = [];
+            
+            // Required shop fields
             if (!shopName) missingFields.push("shopName");
             if (!shopAddress) missingFields.push("shopAddress");
             if (!shopCity) missingFields.push("shopCity");
             if (!shopState) missingFields.push("shopState");
             if (!shopPincode) missingFields.push("shopPincode");
             if (!businessType) missingFields.push("businessType");
-            if (!name) missingFields.push("name");
             if (!PANCard) missingFields.push("PANCard");
+            
+            // Required retailer fields
+            if (!name) missingFields.push("name");
             if (!contactNo) missingFields.push("contactNo");
+            
+            // Required bank fields
             if (!bankName) missingFields.push("bankName");
             if (!accountNumber) missingFields.push("accountNumber");
             if (!IFSC) missingFields.push("IFSC");
@@ -822,26 +829,28 @@ export const bulkRegisterRetailers = async (req, res) => {
                 continue;
             }
 
-            // Duplicate check
-            const exists = await Retailer.findOne({
-                $or: [{ contactNo }],
-            });
-
-            if (exists) {
+            // ✅ Contact validation
+            const contactRegex = /^[6-9]\d{9}$/;
+            if (!contactRegex.test(contactNo)) {
                 failedRows.push({
                     rowNumber: i + 2,
-                    reason: `Duplicate entry: Contact number already exists`,
+                    reason: `Invalid contact number: ${contactNo}. Must be 10 digits starting with 6-9`,
                     data: row,
-                    existingRetailer: {
-                        id: exists._id,
-                        name: exists.name,
-                        contactNo: exists.contactNo,
-                    },
                 });
                 continue;
             }
 
-            // Email validation (if provided)
+            // ✅ Pincode validation
+            if (shopPincode.length !== 6) {
+                failedRows.push({
+                    rowNumber: i + 2,
+                    reason: `Invalid pincode: ${shopPincode}. Must be 6 digits`,
+                    data: row,
+                });
+                continue;
+            }
+
+            // ✅ Email validation (optional field)
             if (email) {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(email)) {
@@ -854,39 +863,39 @@ export const bulkRegisterRetailers = async (req, res) => {
                 }
             }
 
-            // ✅ Contact validation with sanitized value
-            const contactRegex = /^[6-9]\d{9}$/;
-            if (!contactRegex.test(contactNo)) {
+            // ✅ Duplicate check
+            const exists = await Retailer.findOne({
+                $or: [{ contactNo }],
+            });
+
+            if (exists) {
                 failedRows.push({
                     rowNumber: i + 2,
-                    reason: `Invalid contact number: ${contactNo}. Must be 10 digits starting with 6-9`,
+                    reason: `Duplicate: Contact number '${contactNo}' already exists`,
                     data: row,
+                    existingRetailer: {
+                        id: exists._id,
+                        name: exists.name,
+                        contactNo: exists.contactNo,
+                        uniqueId: exists.uniqueId,
+                        retailerCode: exists.retailerCode,
+                    },
                 });
                 continue;
             }
 
-            // ✅ Pincode validation with sanitized value
-            if (shopPincode.length !== 6) {
-                failedRows.push({
-                    rowNumber: i + 2,
-                    reason: `Invalid pincode: ${shopPincode}. Must be 6 digits`,
-                    data: row,
-                });
-                continue;
-            }
-
-            /* ---------------- BUILD RETAILER ---------------- */
+            /* ---------------- BUILD RETAILER OBJECT ---------------- */
             try {
                 retailersToInsert.push({
+                    // Personal Details (NO GENDER)
                     name,
                     contactNo,
                     email: email || undefined,
                     password: contactNo, // ✅ Will be hashed by schema pre-save hook
-
-                    gender: gender || undefined,
                     govtIdType: govtIdType || undefined,
                     govtIdNumber: govtIdNumber || undefined,
 
+                    // Shop Details
                     shopDetails: {
                         shopName,
                         businessType,
@@ -895,13 +904,13 @@ export const bulkRegisterRetailers = async (req, res) => {
                         GSTNo: GSTNo || undefined,
                         shopAddress: {
                             address: shopAddress,
-                            address2: undefined,
                             city: shopCity,
                             state: shopState,
                             pincode: shopPincode,
                         },
                     },
 
+                    // Bank Details
                     bankDetails: {
                         bankName,
                         accountNumber,
@@ -909,6 +918,7 @@ export const bulkRegisterRetailers = async (req, res) => {
                         branchName,
                     },
 
+                    // System Fields
                     phoneVerified: true,
                     tnc: false,
                     pennyCheck: false,
@@ -916,38 +926,98 @@ export const bulkRegisterRetailers = async (req, res) => {
             } catch (err) {
                 failedRows.push({
                     rowNumber: i + 2,
-                    reason: `Error processing row: ${err.message}`,
+                    reason: `Error building retailer object: ${err.message}`,
                     data: row,
                 });
             }
         }
 
-        /* ---------------- INSERT ---------------- */
+        /* ---------------- INSERT INTO DATABASE ---------------- */
 
         let insertedRetailers = [];
         if (retailersToInsert.length > 0) {
             try {
+                console.log(`📝 Attempting to insert ${retailersToInsert.length} retailers...`);
+                
                 insertedRetailers = await Retailer.insertMany(
                     retailersToInsert,
                     { ordered: false }
                 );
+                
+                console.log(`✅ Successfully inserted ${insertedRetailers.length} retailers`);
             } catch (insertError) {
+                console.error("❌ Insert error:", insertError);
+                
+                // Capture successfully inserted documents
                 if (insertError.insertedDocs) {
                     insertedRetailers = insertError.insertedDocs;
+                    console.log(`✅ Partially successful: ${insertedRetailers.length} inserted`);
                 }
                 
+                // Capture failed inserts from MongoDB
                 if (insertError.writeErrors) {
-                    insertError.writeErrors.forEach((err) => {
-                        const failedDoc = retailersToInsert[err.index];
+                    console.log(`❌ Write errors found: ${insertError.writeErrors.length}`);
+                    insertError.writeErrors.forEach((err, idx) => {
+                        const failedIndex = err.index;
+                        const failedDoc = retailersToInsert[failedIndex];
+                        
+                        let errorMsg = "Unknown database error";
+                        if (err.errmsg) {
+                            errorMsg = err.errmsg;
+                        } else if (err.err && err.err.errmsg) {
+                            errorMsg = err.err.errmsg;
+                        } else if (err.message) {
+                            errorMsg = err.message;
+                        }
+                        
+                        console.log(`  ${idx + 1}. Row ${failedIndex + 2}: ${errorMsg}`);
+                        
                         failedRows.push({
-                            rowNumber: err.index + 2,
-                            reason: `Database error: ${err.errmsg || err.message}`,
-                            data: failedDoc,
+                            rowNumber: failedIndex + 2,
+                            reason: `Database error: ${errorMsg}`,
+                            data: {
+                                name: failedDoc.name,
+                                contactNo: failedDoc.contactNo,
+                                email: failedDoc.email,
+                                shopName: failedDoc.shopDetails?.shopName,
+                            },
                         });
+                    });
+                } else {
+                    console.error("General MongoDB error:", {
+                        name: insertError.name,
+                        message: insertError.message,
+                        code: insertError.code
+                    });
+                    
+                    if (insertError.name === 'ValidationError') {
+                        const validationErrors = Object.keys(insertError.errors || {}).map(key => {
+                            return `${key}: ${insertError.errors[key].message}`;
+                        }).join(', ');
+                        
+                        return res.status(400).json({
+                            success: false,
+                            message: "Validation error during bulk insert",
+                            error: validationErrors || insertError.message,
+                            failedRows: failedRows,
+                        });
+                    }
+                    
+                    return res.status(500).json({
+                        success: false,
+                        message: "Database insertion failed",
+                        error: insertError.message,
+                        errorDetails: {
+                            name: insertError.name,
+                            code: insertError.code,
+                        },
+                        failedRows: failedRows,
                     });
                 }
             }
         }
+
+        /* ---------------- PREPARE RESPONSE ---------------- */
 
         const response = {
             success: true,
@@ -966,9 +1036,12 @@ export const bulkRegisterRetailers = async (req, res) => {
                 contactNo: r.contactNo,
                 uniqueId: r.uniqueId,
                 retailerCode: r.retailerCode,
+                shopName: r.shopDetails?.shopName,
             })),
             failedRows,
         };
+
+        /* ---------------- RETURN APPROPRIATE STATUS ---------------- */
 
         if (insertedRetailers.length === 0) {
             return res.status(400).json({
@@ -980,21 +1053,24 @@ export const bulkRegisterRetailers = async (req, res) => {
 
         if (failedRows.length > 0) {
             return res.status(207).json({
+                success: true,
                 message: `${insertedRetailers.length} retailers added, ${failedRows.length} rows failed`,
                 ...response,
             });
         }
 
         return res.status(201).json({
+            success: true,
             message: `All ${insertedRetailers.length} retailers added successfully`,
             ...response,
         });
     } catch (error) {
-        console.error("Bulk retailer upload error:", error);
+        console.error("❌ Bulk retailer upload error:", error);
         res.status(500).json({
             success: false,
             message: "Server error",
             error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         });
     }
 };
