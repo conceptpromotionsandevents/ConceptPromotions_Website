@@ -5,7 +5,7 @@ import {
     Employee,
     Campaign,
     VisitSchedule,
-    EmployeeReport,
+  
 } from "../../models/user.js";
 
 // ====== ADD EMPLOYEE ======

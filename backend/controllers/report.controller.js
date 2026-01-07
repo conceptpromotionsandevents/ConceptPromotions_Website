@@ -11,6 +11,7 @@ import {
     deleteFromCloudinary,
     uploadToCloudinary,
 } from "../utils/cloudinary.config.js";
+import PDFDocument from "pdfkit";
 import { getResourceType } from "../utils/cloudinary.helper.js";
 
 /* ===============================
@@ -1185,6 +1186,231 @@ export const getReportsByRetailer = async (req, res) => {
             success: false,
             message: "Server error while fetching retailer reports",
             error: error.message,
+        });
+    }
+};
+
+/* ===============================
+   STREAM REPORT PDF (NO STORAGE)
+=============================== */
+export const streamReportPdf = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const report = await Report.findById(id)
+            .populate("campaignId")
+            .populate("retailer.retailerId")
+            .populate("employee.employeeId");
+
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: "Report not found",
+            });
+        }
+
+        /* =========================
+           RESPONSE HEADERS
+        ========================== */
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+            "Content-Disposition",
+            `inline; filename=Report_${report.reportType || "Unknown"}.pdf`
+        );
+
+        const doc = new PDFDocument({ size: "A4", margin: 40 });
+        doc.pipe(res);
+
+        /* =========================
+           HELPERS
+        ========================== */
+        const sectionTitle = (title) => {
+            doc
+                .moveDown()
+                .fontSize(14)
+                .fillColor("#E4002B")
+                .text(title)
+                .moveDown(0.5)
+                .fillColor("black");
+        };
+
+        const row = (label, value) => {
+            doc
+                .fontSize(11)
+                .text(`${label}: `, { continued: true, width: 150 })
+                .font("Helvetica-Bold")
+                .text(value || "N/A")
+                .font("Helvetica");
+        };
+
+        const formatDate = (date) =>
+            date
+                ? new Date(date).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                  })
+                : "N/A";
+
+        /* =========================
+           TITLE
+        ========================== */
+        doc
+            .fontSize(18)
+            .fillColor("#E4002B")
+            .text("REPORT DETAILS", { align: "center" })
+            .moveDown();
+
+        /* =========================
+           BASIC INFORMATION
+        ========================== */
+        sectionTitle("Basic Information");
+        row("Report Type", report.reportType);
+        row("Frequency", report.frequency);
+        row(
+            "Date of Submission",
+            formatDate(report.dateOfSubmission || report.createdAt)
+        );
+        row("Submitted By", report.submittedBy?.role);
+
+        /* =========================
+           CAMPAIGN INFORMATION
+        ========================== */
+        sectionTitle("Campaign Information");
+        row("Campaign Name", report.campaignId?.name);
+        row("Campaign Type", report.campaignId?.type);
+        row("Client", report.campaignId?.client);
+
+        /* =========================
+           EMPLOYEE INFORMATION
+        ========================== */
+        if (report.employee?.employeeId) {
+            sectionTitle("Employee Information");
+            row("Employee Name", report.employee.employeeId.name);
+            row(
+                "Employee Code",
+                report.employee.employeeId.employeeId
+            );
+            if (report.employee.employeeId.phone) {
+                row("Contact", report.employee.employeeId.phone);
+            }
+        }
+
+        /* =========================
+           VISIT DETAILS
+        ========================== */
+        if (report.submittedBy?.role === "Employee") {
+            sectionTitle("Visit Details");
+            row("Type of Visit", report.typeOfVisit);
+            row(
+                "Attendance Status",
+                report.attendedVisit === "yes"
+                    ? "Attended"
+                    : "Not Attended"
+            );
+
+            if (
+                report.attendedVisit === "no" &&
+                report.reasonForNonAttendance
+            ) {
+                row(
+                    "Reason",
+                    report.reasonForNonAttendance.reason
+                );
+                if (
+                    report.reasonForNonAttendance.reason === "others"
+                ) {
+                    row(
+                        "Additional Details",
+                        report.reasonForNonAttendance.otherReason
+                    );
+                }
+            }
+        }
+
+        /* =========================
+           STOCK INFORMATION
+        ========================== */
+        if (report.reportType === "Stock") {
+            sectionTitle("Product / Stock Information");
+            row("Stock Type", report.stockType);
+            row("Brand", report.brand);
+            row("Product", report.product);
+            row("SKU", report.sku);
+            row("Product Type", report.productType);
+            row("Quantity", report.quantity);
+        }
+
+        /* =========================
+           REMARKS
+        ========================== */
+        if (report.remarks) {
+            sectionTitle("Remarks");
+            doc
+                .fontSize(11)
+                .text(report.remarks, {
+                    align: "left",
+                });
+        }
+
+        /* =========================
+           IMAGES (Window Display / Bills / Others)
+           Uses EXISTING URLs (no storage)
+        ========================== */
+        const renderImages = async (title, files) => {
+            if (!files || files.length === 0) return;
+
+            doc.addPage();
+            sectionTitle(title);
+
+            for (let i = 0; i < files.length; i++) {
+                const url =
+                    files[i].url ||
+                    files[i].secure_url ||
+                    files[i];
+
+                if (!url) continue;
+
+                const response = await fetch(url);
+                const buffer = await response.arrayBuffer();
+
+                if (i > 0 && i % 2 === 0) doc.addPage();
+
+                doc.image(Buffer.from(buffer), {
+                    fit: [500, 350],
+                    align: "center",
+                });
+
+                doc
+                    .moveDown(0.5)
+                    .fontSize(10)
+                    .text(`Image ${i + 1}`, {
+                        align: "center",
+                    });
+            }
+        };
+
+        if (report.reportType === "Window Display") {
+            await renderImages(
+                "Shop Display Images",
+                report.shopDisplayImages
+            );
+        }
+
+        if (report.reportType === "Stock") {
+            await renderImages("Bill Copies", report.billCopies);
+        }
+
+        if (report.reportType === "Others") {
+            await renderImages("Other Files", report.files);
+        }
+
+        doc.end();
+    } catch (error) {
+        console.error("PDF error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to generate report PDF",
         });
     }
 };

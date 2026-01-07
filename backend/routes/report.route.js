@@ -11,6 +11,7 @@ import {
     getReportsByEmployee,
     getReportsByRetailer,
     updateReport,
+    streamReportPdf
 } from "../controllers/report.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -64,7 +65,7 @@ router.post(
     ]),
     createReport
 );
-
+router.get("/:id/pdf", streamReportPdf);
 // Get all reports with filters (Admin view)
 router.get("/all", protect, getAllReports);
 

@@ -620,6 +620,9 @@ export const updateRetailer = async (req, res) => {
 /* ===============================
    GET CAMPAIGNS ASSIGNED TO RETAILER
 =============================== */
+/* ===============================
+   GET CAMPAIGNS ASSIGNED TO RETAILER
+=============================== */
 export const getRetailerCampaigns = async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
@@ -697,9 +700,22 @@ export const getRetailerCampaigns = async (req, res) => {
                 isActive: campaign.isActive,
                 createdBy: campaign.createdBy,
                 createdAt: campaign.createdAt,
-                
-                // Add banner images here
-                bannerImages: campaign.bannerImages || [],
+
+                /* ✅ FIXED (same key, correct source) */
+                bannerImages: campaign.info?.banners || [],
+
+                /* ✅ ADDED (new schema fields, no renames) */
+                info: campaign.info || {
+                    description: "",
+                    tnc: "",
+                    banners: [],
+                },
+
+                gratification: campaign.gratification || {
+                    type: "",
+                    description: "",
+                    images: [],
+                },
 
                 retailerStatus: {
                     status: retailerEntry?.status || "pending",
@@ -738,6 +754,7 @@ export const getRetailerCampaigns = async (req, res) => {
         });
     }
 };
+
 
 // ====== BULK REGISTER RETAILERS ======
 

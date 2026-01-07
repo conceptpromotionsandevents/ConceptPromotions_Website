@@ -1,7 +1,7 @@
 // admin/report.controller.js
 import XLSX from "xlsx";
 import { Retailer } from "../../models/retailer.model.js";
-import { Campaign, Employee, EmployeeReport } from "../../models/user.js";
+import { Campaign, Employee } from "../../models/user.js";
 
 // ====== CREATE ADMIN REPORT ======
 import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary.config.js";
@@ -140,10 +140,8 @@ export const createAdminReport = async (req, res) => {
         });
     }
 };
-// ====== UPDATE EMPLOYEE REPORT ======
-export const updateEmployeeReport = async (req, res) => {
-    // ... unchanged
-};
+
+
 
 // ====== DOWNLOAD EMPLOYEE–RETAILER MAPPING REPORT ======
 export const downloadEmployeeRetailerMappingReport = async (req, res) => {
