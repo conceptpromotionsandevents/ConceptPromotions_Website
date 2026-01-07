@@ -529,20 +529,37 @@ export const createReportWithGeotags = async (req, res) => {
 
                     // Get geotag metadata
                     const metadataKey = `shopDisplayImageMetadata[${i}]`;
-                    let geotag = {};
+                    let geotag = {
+                        latitude: 0,
+                        longitude: 0,
+                        accuracy: 0,
+                        altitude: 0,
+                    };
 
                     if (req.body[metadataKey]) {
                         try {
-                            geotag = JSON.parse(req.body[metadataKey]);
-                            console.log(`📍 Geotag for image ${i + 1}:`, {
-                                lat: geotag.latitude,
-                                lng: geotag.longitude,
-                                accuracy: geotag.accuracy,
-                            });
+                            const parsedGeotag = JSON.parse(
+                                req.body[metadataKey]
+                            );
+                            console.log(
+                                `📍 Parsed geotag for image ${i}:`,
+                                parsedGeotag
+                            );
+
+                            // ✅ Safe assignment
+                            geotag.latitude = parsedGeotag.latitude || 0;
+                            geotag.longitude = parsedGeotag.longitude || 0;
+                            geotag.accuracy = parsedGeotag.accuracy || 0;
+                            geotag.altitude = parsedGeotag.altitude || 0;
+                            geotag.timestamp =
+                                parsedGeotag.timestamp ||
+                                new Date().toISOString();
                         } catch (e) {
                             console.log(
-                                `⚠️ Invalid metadata for image ${i + 1}`
+                                `⚠️ Invalid metadata for image ${i}:`,
+                                e.message
                             );
+                            geotag = { latitude: 0, longitude: 0 }; // Default fallback
                         }
                     }
 

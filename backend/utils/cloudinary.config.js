@@ -78,14 +78,20 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
         throw new Error("Empty buffer provided");
     }
 
+    // ✅ Safe property access
+    const lat = geotag.latitude || 0;
+    const lng = geotag.longitude || 0;
+    const accuracy = geotag.accuracy || 0;
+    const altitude = geotag.altitude || 0;
+    const timestamp = geotag.timestamp || new Date().toISOString();
+
+    console.log("🔍 Geotag data:", { lat, lng, accuracy, altitude, timestamp });
+
     // ✅ Get place name
     let placeName = "Location Unavailable";
-    if (geotag.latitude && geotag.longitude) {
+    if (lat !== 0 && lng !== 0) {
         try {
-            placeName = await getPlaceNameFromCoords(
-                geotag.latitude,
-                geotag.longitude
-            );
+            placeName = await getPlaceNameFromCoords(lat, lng);
             console.log(`📍 Place name: ${placeName}`);
         } catch (error) {
             console.error("Place lookup failed:", error);
@@ -93,34 +99,36 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
     }
 
     // ✅ Format date/time
-    const captureDate = geotag.timestamp
-        ? new Date(geotag.timestamp).toLocaleString("en-IN", {
-              timeZone: "Asia/Kolkata",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-          })
-        : "Unknown Time";
+    const captureDate = new Date(timestamp).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 
     // ✅ Build overlay text
-    const overlayText = `📍 ${geotag.latitude?.toFixed(6) || "N/A"}, ${
-        geotag.longitude?.toFixed(6) || "N/A"
-    }\n🏪 ${placeName}\n📅 ${captureDate}`;
+    const overlayText = `📍 ${lat.toFixed(6)}, ${lng.toFixed(
+        6
+    )}\n🏪 ${placeName}\n📅 ${captureDate}`;
+
+    // ✅ Safe context - only add defined values
+    const context = {};
+    if (lat !== 0) context.geotag_latitude = lat.toString();
+    if (lng !== 0) context.geotag_longitude = lng.toString();
+    if (accuracy !== 0) context.geotag_accuracy = accuracy.toString();
+    context.geotag_place = placeName;
+    context.geotag_timestamp = timestamp;
+
+    console.log("📤 Context for Cloudinary:", context);
 
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
             {
                 folder,
                 resource_type: "image",
-                context: {
-                    geotag_latitude: geotag.latitude?.toString(),
-                    geotag_longitude: geotag.longitude?.toString(),
-                    geotag_accuracy: geotag.accuracy?.toString(),
-                    geotag_place: placeName,
-                    geotag_timestamp: geotag.timestamp,
-                },
+                context, // ✅ Safe context object
             },
             (error, result) => {
                 if (error) {
