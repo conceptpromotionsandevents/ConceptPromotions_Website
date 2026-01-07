@@ -12,20 +12,32 @@ cloudinary.config({
 });
 
 // Helper function to upload buffer to Cloudinary
-export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
-    return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-            {
-                folder: folder,
-                resource_type: resourceType,
-            },
-            (error, result) => {
-                if (error) reject(error);
-                else resolve(result);
-            }
-        );
-        uploadStream.end(buffer);
-    });
+export const uploadToCloudinary = async (
+    buffer,
+    folder,
+    resourceType = "image",
+    context = {}
+) => {
+    try {
+        const result = await cloudinary.uploader
+            .upload_stream(
+                {
+                    folder: folder,
+                    resource_type: resourceType,
+                    context: context, // ✅ Pass geotag context here
+                },
+                (error, result) => {
+                    if (error) throw error;
+                    return result;
+                }
+            )
+            .end(buffer);
+
+        return result;
+    } catch (error) {
+        console.error("Cloudinary upload error:", error);
+        throw error;
+    }
 };
 
 // Helper function to delete from Cloudinary
