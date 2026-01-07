@@ -1414,3 +1414,35 @@ export const streamReportPdf = async (req, res) => {
         });
     }
 };
+
+/* ===============================
+   GET REPORTS BY RETAILER (EXCLUDING N/A REPORTS)
+=============================== */
+export const getSpecificReportsByRetailer = async (req, res) => {
+    try {
+        const { retailerId } = req.params;
+
+        const reports = await Report.find({
+            "retailer.retailerId": retailerId,
+            reportType: {
+                $in: ["Window Display", "Stock", "Others"],
+            },
+        })
+            .populate("campaignId", "name client")
+            .populate("employee.employeeId", "name employeeId")
+            .sort({ dateOfSubmission: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: reports.length,
+            reports,
+        });
+    } catch (error) {
+        console.error("Get retailer reports error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching retailer reports",
+            error: error.message,
+        });
+    }
+};

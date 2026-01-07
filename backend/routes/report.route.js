@@ -10,6 +10,7 @@ import {
     getReportsByCampaign,
     getReportsByEmployee,
     getReportsByRetailer,
+    getSpecificReportsByRetailer,
     updateReport,
     streamReportPdf
 } from "../controllers/report.controller.js";
@@ -31,23 +32,27 @@ const upload = multer({
     fileFilter: (req, file, cb) => {
         // Accept images and documents
         const allowedTypes = [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/gif",
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         ];
 
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Invalid file type. Only images and documents are allowed.'));
+            cb(
+                new Error(
+                    "Invalid file type. Only images and documents are allowed."
+                )
+            );
         }
-    }
+    },
 });
 
 /* ===============================
@@ -106,5 +111,12 @@ router.get("/employee/:employeeId", protect, getReportsByEmployee);
 
 // Get all reports for a specific retailer
 router.get("/retailer/:retailerId", protect, getReportsByRetailer);
+
+// Get non N/A reports by retailer
+router.get(
+    "/retailer-reports/:retailerId",
+    protect,
+    getSpecificReportsByRetailer
+);
 
 export default router;

@@ -2,17 +2,17 @@
 import XLSX from "xlsx";
 import { Retailer } from "../../models/retailer.model.js";
 import { Campaign, Employee } from "../../models/user.js";
+import { Campaign, Employee, EmployeeReport } from "../../models/user.js";
+
+import { Retailer } from "../../models/retailer.model.js";
 
 // ====== CREATE ADMIN REPORT ======
-import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary.config.js";
-
 export const createAdminReport = async (req, res) => {
     try {
         if (!req.user || req.user.role !== "admin") {
-            return res.status(403).json({ 
-                success: false,
-                message: "Only admins can submit admin reports" 
-            });
+            return res
+                .status(403)
+                .json({ message: "Only admins can submit admin reports" });
         }
 
         const {
@@ -29,77 +29,42 @@ export const createAdminReport = async (req, res) => {
             productType,
             quantity,
             location,
-            frequency,
+            frequency, // ⭐ ADDED HERE
         } = req.body;
 
         if (!employeeId || !campaignId || !retailerId) {
             return res.status(400).json({
-                success: false,
                 message: "employeeId, campaignId, and retailerId are required",
             });
         }
 
         const files = req.files || {};
 
-        /* =========================
-           UPLOAD IMAGES TO CLOUDINARY
-        ========================== */
         const images = [];
         if (files.images?.length > 0) {
-            for (const file of files.images) {
-                try {
-                    const result = await uploadToCloudinary(
-                        file.buffer,
-                        "reports/images",
-                        "image"
-                    );
-
-                    images.push({
-                        url: result.secure_url,
-                        publicId: result.public_id,
-                        fileName: file.originalname,
-                    });
-                } catch (err) {
-                    return res.status(500).json({
-                        success: false,
-                        message: "Image upload failed",
-                        error: err.message,
-                    });
-                }
-            }
+            files.images.forEach((file) => {
+                images.push({
+                    data: file.buffer,
+                    contentType: file.mimetype,
+                    fileName: file.originalname,
+                });
+            });
         }
 
-        /* =========================
-           UPLOAD BILL COPIES TO CLOUDINARY
-        ========================== */
         const billCopies = [];
         if (files.billCopy?.length > 0) {
-            for (const file of files.billCopy) {
-                try {
-                    const result = await uploadToCloudinary(
-                        file.buffer,
-                        "reports/bills",
-                        "raw" // For PDF/documents
-                    );
-
-                    billCopies.push({
-                        url: result.secure_url,
-                        publicId: result.public_id,
-                        fileName: file.originalname,
-                    });
-                } catch (err) {
-                    return res.status(500).json({
-                        success: false,
-                        message: "Bill copy upload failed",
-                        error: err.message,
-                    });
-                }
-            }
+            files.billCopy.forEach((file) => {
+                billCopies.push({
+                    data: file.buffer,
+                    contentType: file.mimetype,
+                    fileName: file.originalname,
+                });
+            });
         }
 
-        /* =========================
-           CREATE REPORT
-        ========================== */
+        // ----------------------------------------------------
+        //  CREATE REPORT
+        // ----------------------------------------------------
         const report = await EmployeeReport.create({
             employeeId,
             campaignId,
@@ -108,7 +73,7 @@ export const createAdminReport = async (req, res) => {
 
             reportType,
             otherReasonText: notes,
-            frequency,
+            frequency, // ⭐ ADDED HERE
 
             stockType,
             brand,
@@ -127,17 +92,12 @@ export const createAdminReport = async (req, res) => {
         });
 
         res.status(201).json({
-            success: true,
             message: "Admin report submitted successfully",
             report,
         });
     } catch (err) {
         console.error("Create admin report error:", err);
-        res.status(500).json({ 
-            success: false,
-            message: "Server error", 
-            error: err.message 
-        });
+        res.status(500).json({ message: "Server error", error: err.message });
     }
 };
 

@@ -14,6 +14,7 @@ import {
     deleteFromCloudinary,
     uploadToCloudinary,
 } from "../utils/cloudinary.config.js";
+import { getResourceType } from "../utils/cloudinary.helper.js";
 //   GET LOGGED-IN EMPLOYEE PROFILE
 export const getEmployeeProfile = async (req, res) => {
     try {

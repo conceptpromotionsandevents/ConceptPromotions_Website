@@ -68,8 +68,7 @@ const retailerSchema = new Schema(
 
         phoneVerified: { type: Boolean, default: true },
         email: String,
-        password: { type: String }, // ✅ NOT required in schema (set in pre-save hook)
-
+        password: { type: String },
 
         assignedCampaigns: [
             {
@@ -90,7 +89,6 @@ const retailerSchema = new Schema(
 
 retailerSchema.index({ email: 1, contactNo: 1 });
 
-
 // 🚀 AUTO GENERATE UNIQUE ID + RETAILER CODE + PASSWORD FROM CONTACT
 retailerSchema.pre("validate", function (next) {
     // ✅ Set password to contactNo BEFORE validation if it's a new document
@@ -99,7 +97,6 @@ retailerSchema.pre("validate", function (next) {
     }
     next();
 });
-
 
 retailerSchema.pre("save", async function (next) {
     try {
@@ -137,11 +134,9 @@ retailerSchema.pre("save", async function (next) {
     }
 });
 
-
 // ✅ Method to compare password (useful for login)
 retailerSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
-
 
 export const Retailer = model("Retailer", retailerSchema);
