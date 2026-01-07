@@ -149,7 +149,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 28,
+                            font_size: 280,
                             font_weight: "bold",
                             text: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
                         },
@@ -160,7 +160,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 28,
+                            font_size: 280,
                             font_weight: "bold",
                             text: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
                         },
@@ -172,7 +172,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 20,
+                            font_size: 250,
                             text: placeText,
                         },
                         gravity: "south",
@@ -182,7 +182,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 20,
+                            font_size: 250,
                             text: placeText,
                         },
                         gravity: "south",
@@ -193,7 +193,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 18,
+                            font_size: 250,
                             text: dateText,
                         },
                         gravity: "south",
@@ -203,7 +203,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 18,
+                            font_size: 250,
                             text: dateText,
                         },
                         gravity: "south",
