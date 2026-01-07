@@ -149,65 +149,65 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 280,
+                            font_size: 150,
                             font_weight: "bold",
                             text: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
                         },
                         gravity: "south",
-                        y: 70,
+                        y: 350,
                         color: "black",
                     },
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 280,
+                            font_size: 150,
                             font_weight: "bold",
                             text: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
                         },
                         gravity: "south",
-                        y: 72,
+                        y: 355,
                         color: "white",
                     },
                     // Line 2: Place name with black stroke
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 250,
+                            font_size: 120,
                             text: placeText,
                         },
                         gravity: "south",
-                        y: 42,
+                        y: 200,
                         color: "black",
                     },
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 250,
+                            font_size: 120,
                             text: placeText,
                         },
                         gravity: "south",
-                        y: 44,
+                        y: 205,
                         color: "white",
                     },
                     // Line 3: Date/time with black stroke
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 250,
+                            font_size: 100,
                             text: dateText,
                         },
                         gravity: "south",
-                        y: 14,
+                        y: 60,
                         color: "black",
                     },
                     {
                         overlay: {
                             font_family: "Arial",
-                            font_size: 250,
+                            font_size: 100,
                             text: dateText,
                         },
                         gravity: "south",
-                        y: 16,
+                        y: 65,
                         color: "white",
                     },
                 ],
