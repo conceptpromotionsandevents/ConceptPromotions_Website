@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
+import { getPlaceNameFromCoords } from "./tagToPlace.js";
 
 // Load environment variables
 dotenv.config();
@@ -65,6 +66,79 @@ export const uploadToCloudinary = async (
         });
 
         uploadStream.end(buffer);
+    });
+};
+
+export const uploadToCloudinaryWithDetailsOverlay = async (
+    buffer,
+    folder,
+    geotag = {}
+) => {
+    if (!buffer || buffer.length === 0) {
+        throw new Error("Empty buffer provided");
+    }
+
+    // ✅ Get place name
+    let placeName = "Location Unavailable";
+    if (geotag.latitude && geotag.longitude) {
+        try {
+            placeName = await getPlaceNameFromCoords(
+                geotag.latitude,
+                geotag.longitude
+            );
+            console.log(`📍 Place name: ${placeName}`);
+        } catch (error) {
+            console.error("Place lookup failed:", error);
+        }
+    }
+
+    // ✅ Format date/time
+    const captureDate = geotag.timestamp
+        ? new Date(geotag.timestamp).toLocaleString("en-IN", {
+              timeZone: "Asia/Kolkata",
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+          })
+        : "Unknown Time";
+
+    // ✅ Build overlay text
+    const overlayText = `📍 ${geotag.latitude?.toFixed(6) || "N/A"}, ${
+        geotag.longitude?.toFixed(6) || "N/A"
+    }\n🏪 ${placeName}\n📅 ${captureDate}`;
+
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder,
+                resource_type: "image",
+                context: {
+                    geotag_latitude: geotag.latitude?.toString(),
+                    geotag_longitude: geotag.longitude?.toString(),
+                    geotag_accuracy: geotag.accuracy?.toString(),
+                    geotag_place: placeName,
+                    geotag_timestamp: geotag.timestamp,
+                },
+            },
+            (error, result) => {
+                if (error) {
+                    console.error("❌ Cloudinary error:", error);
+                    reject(error);
+                } else if (!result?.secure_url) {
+                    reject(new Error("Invalid Cloudinary result"));
+                } else {
+                    console.log(
+                        "✅ Geotagged image uploaded:",
+                        result.secure_url
+                    );
+                    resolve(result);
+                }
+            }
+        );
+
+        stream.end(buffer);
     });
 };
 

@@ -504,6 +504,7 @@ export const createReportWithGeotags = async (req, res) => {
         ========================== */
         if (req.files) {
             // ✅ Window Display Images WITH GEOTAGS - FIXED
+            // ✅ Window Display Images WITH FULL DETAILS OVERLAY
             if (
                 reportType === "Window Display" &&
                 req.files.shopDisplayImages
@@ -517,101 +518,75 @@ export const createReportWithGeotags = async (req, res) => {
                 for (let i = 0; i < images.length; i++) {
                     const file = images[i];
 
-                    // ✅ Get geotag metadata if available
+                    // Check buffer
+                    if (!file.buffer || file.buffer.length === 0) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Image ${i + 1} has no data`,
+                        });
+                    }
+
+                    // Get geotag metadata
                     const metadataKey = `shopDisplayImageMetadata[${i}]`;
-                    let context = {};
+                    let geotag = {};
 
                     if (req.body[metadataKey]) {
                         try {
-                            const geotag = JSON.parse(req.body[metadataKey]);
-                            context = {
-                                geotag_latitude: geotag.latitude.toString(),
-                                geotag_longitude: geotag.longitude.toString(),
-                                geotag_accuracy: geotag.accuracy.toString(),
-                                geotag_altitude: (
-                                    geotag.altitude || 0
-                                ).toString(),
-                                geotag_timestamp: geotag.timestamp,
-                                geotag_source: geotag.source || "app",
-                            };
-                            console.log(
-                                `✅ Geotag context for shop image ${i}:`,
-                                context
-                            );
+                            geotag = JSON.parse(req.body[metadataKey]);
+                            console.log(`📍 Geotag for image ${i + 1}:`, {
+                                lat: geotag.latitude,
+                                lng: geotag.longitude,
+                                accuracy: geotag.accuracy,
+                            });
                         } catch (e) {
                             console.log(
-                                `⚠️ Invalid geotag metadata for shop image ${i}:`,
-                                e.message
+                                `⚠️ Invalid metadata for image ${i + 1}`
                             );
                         }
                     }
 
                     try {
-                        // ✅ Upload to Cloudinary
-                        const result = await uploadToCloudinary(
-                            file.buffer,
-                            "reports/window-display",
-                            "image",
-                            context
-                        );
-                        // Check file buffer before upload
-                        if (!file.buffer || file.buffer.length === 0) {
-                            console.error(`❌ Empty buffer for image ${i}`);
-                            return res.status(400).json({
-                                success: false,
-                                message: `Image ${i + 1} has no data`,
-                            });
-                        }
+                        // ✅ Upload with full details overlay
+                        const result =
+                            await uploadToCloudinaryWithDetailsOverlay(
+                                file.buffer,
+                                "reports/window-display-geotagged",
+                                geotag
+                            );
 
-                        console.log(`📁 Processing image ${i + 1}:`, {
-                            originalname: file.originalname,
-                            mimetype: file.mimetype,
-                            size: file.size,
-                            bufferLength: file.buffer.length,
+                        uploadedImages.push({
+                            url: result.secure_url, // ✅ Has all details overlaid
+                            publicId: result.public_id,
+                            fileName: file.originalname,
+                            geotag: {
+                                latitude: geotag.latitude,
+                                longitude: geotag.longitude,
+                                accuracy: geotag.accuracy,
+                                placeName:
+                                    result.context?.geotag_place || "Unknown",
+                                timestamp: geotag.timestamp,
+                            },
+                            hasOverlay: true,
+                            width: result.width,
+                            height: result.height,
                         });
 
-                        // ✅ Verify upload success before pushing
-                        if (result && result.secure_url && result.public_id) {
-                            console.log(
-                                `✅ Shop image ${i + 1} uploaded:`,
-                                result.secure_url
-                            );
-
-                            uploadedImages.push({
-                                url: result.secure_url,
-                                publicId: result.public_id,
-                                fileName: file.originalname,
-                                geotag: context,
-                                width: result.width,
-                                height: result.height,
-                            });
-                        } else {
-                            console.error(
-                                `❌ Invalid Cloudinary result for image ${i}:`,
-                                result
-                            );
-                            throw new Error(
-                                `Cloudinary upload failed for image ${i + 1}`
-                            );
-                        }
-                    } catch (uploadErr) {
-                        console.error(
-                            `❌ Shop image ${i + 1} upload error:`,
-                            uploadErr
+                        console.log(
+                            `✅ Image ${i + 1} with full geotag overlay:`,
+                            result.secure_url
                         );
+                    } catch (err) {
+                        console.error(`❌ Image ${i + 1} failed:`, err.message);
                         return res.status(500).json({
                             success: false,
-                            message: `Shop display image ${
-                                i + 1
-                            } upload failed: ${uploadErr.message}`,
+                            message: `Image ${i + 1} processing failed: ${
+                                err.message
+                            }`,
                         });
                     }
                 }
 
                 reportData.shopDisplayImages = uploadedImages;
-                console.log(
-                    `✅ Processed ${uploadedImages.length} shop display images`
-                );
             }
 
             // ✅ Stock Bill Copies
