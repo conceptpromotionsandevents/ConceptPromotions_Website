@@ -3,8 +3,6 @@ import XLSX from "xlsx";
 import { Retailer } from "../../models/retailer.model.js";
 import { Campaign, Employee } from "../../models/user.js";
 
-
-
 // ====== CREATE ADMIN REPORT ======
 export const createAdminReport = async (req, res) => {
     try {
@@ -100,8 +98,6 @@ export const createAdminReport = async (req, res) => {
     }
 };
 
-
-
 // ====== DOWNLOAD EMPLOYEE–RETAILER MAPPING REPORT ======
 export const downloadEmployeeRetailerMappingReport = async (req, res) => {
     try {
@@ -189,24 +185,4 @@ export const downloadEmployeeRetailerMappingReport = async (req, res) => {
         console.error("Download mapping report error:", err);
         res.status(500).json({ message: "Server error" });
     }
-};
-
-// ====== GET ALL EMPLOYEE REPORTS ======
-export const getAllEmployeeReports = async (req, res) => {
-    // ... unchanged
-};
-
-// ====== GET REPORTS BY EMPLOYEE ID ======
-export const getReportsByEmployeeId = async (req, res) => {
-    // ... unchanged
-};
-
-// ====== DELETE EMPLOYEE REPORT ======
-export const deleteEmployeeReport = async (req, res) => {
-    // ... unchanged
-};
-
-// ====== ADMIN GET REPORTS BY RETAILER ======
-export const adminGetReportsByRetailer = async (req, res) => {
-    // ... unchanged
 };

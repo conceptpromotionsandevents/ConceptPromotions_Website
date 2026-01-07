@@ -712,6 +712,8 @@ export const getAllVisitSchedulesForEmployee = async (req, res) => {
     }
 };
 
+
+
 export const getLastVisitDetails = async (req, res) => {
     try {
         const employeeId = req.user.id;
