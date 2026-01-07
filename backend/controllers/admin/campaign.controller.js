@@ -223,17 +223,13 @@ export const addCampaign = async (req, res) => {
       createdBy: req.user.id,
       campaignStartDate: startDate,
       campaignEndDate: endDate,
-
-      info: {
-        description: description || "",
-        tnc: termsAndConditions,
-        banners,
-      },
-
+      banners,
+      termsAndConditions,
       gratification: {
         type: gratificationType || "",
+        amount: gratificationAmount || null,
         description: gratificationDescription || "",
-        images: gratificationImages,
+        conditions: gratificationConditions || "",
       },
     });
 
@@ -596,9 +592,7 @@ export const updateCampaign = async (req, res) => {
         ========================== */
         if (!req.user || req.user.role !== "admin") {
             return res.status(403).json({
-            return res.status(403).json({
                 success: false,
-                message: "Only admins can edit campaigns",
                 message: "Only admins can edit campaigns",
             });
         }
@@ -609,9 +603,7 @@ export const updateCampaign = async (req, res) => {
         const campaign = await Campaign.findById(id);
         if (!campaign) {
             return res.status(404).json({
-            return res.status(404).json({
                 success: false,
-                message: "Campaign not found",
                 message: "Campaign not found",
             });
         }
@@ -653,12 +645,9 @@ export const updateCampaign = async (req, res) => {
             if (typeof regions === "string") regions = JSON.parse(regions);
             if (typeof states === "string") states = JSON.parse(states);
             if (typeof assignedRetailers === "string")
-            if (typeof assignedRetailers === "string")
                 assignedRetailers = JSON.parse(assignedRetailers);
             if (typeof assignedEmployees === "string")
-            if (typeof assignedEmployees === "string")
                 assignedEmployees = JSON.parse(assignedEmployees);
-            if (typeof removeBanners === "string")
             if (typeof removeBanners === "string")
                 removeBanners = JSON.parse(removeBanners);
             if (typeof removeGratificationImages === "string")
@@ -781,23 +770,21 @@ export const updateCampaign = async (req, res) => {
         ========================== */
         await campaign.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Campaign updated successfully",
             campaign,
         });
     } catch (error) {
         console.error("Update campaign error:", error);
-        res.status(500).json({
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: "Server error",
-            error: error.message,
             message: "Server error",
             error: error.message,
         });
     }
 };
+
 
 // ====== CAMPAIGN RETAILERS WITH EMPLOYEES ======
 export const getCampaignRetailersWithEmployees = async (req, res) => {
