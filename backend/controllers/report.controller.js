@@ -516,14 +516,10 @@ export const createReportWithGeotags = async (req, res) => {
 
                 const uploadedImages = [];
 
-                // ✅ DEBUG: Log all body keys to find geotag metadata
+                // ✅ DEBUG: Log metadata structure
                 console.log("🔍 All req.body keys:", Object.keys(req.body));
-                console.log("🔍 Looking for shopDisplayImageMetadata keys...");
-                Object.keys(req.body).forEach((key) => {
-                    if (key.includes("shopDisplayImageMetadata")) {
-                        console.log(`   Found: ${key} = ${req.body[key]}`);
-                    }
-                });
+                console.log("🔍 shopDisplayImageMetadata type:", typeof req.body.shopDisplayImageMetadata);
+                console.log("🔍 shopDisplayImageMetadata value:", req.body.shopDisplayImageMetadata);
 
                 for (let i = 0; i < images.length; i++) {
                     const file = images[i];
@@ -536,11 +532,7 @@ export const createReportWithGeotags = async (req, res) => {
                         });
                     }
 
-                    // Get geotag metadata
-                    const metadataKey = `shopDisplayImageMetadata[${i}]`;
-                    console.log(`🔍 Looking for metadata key: "${metadataKey}"`);
-                    console.log(`🔍 Value found: ${req.body[metadataKey]}`);
-
+                    // ✅ FIX: Access array element instead of string key
                     let geotag = {
                         latitude: 0,
                         longitude: 0,
@@ -548,15 +540,15 @@ export const createReportWithGeotags = async (req, res) => {
                         altitude: 0,
                     };
 
-                    if (req.body[metadataKey]) {
+                    // Check if shopDisplayImageMetadata exists as an array
+                    if (Array.isArray(req.body.shopDisplayImageMetadata) &&
+                        req.body.shopDisplayImageMetadata[i]) {
                         try {
-                            const parsedGeotag = JSON.parse(
-                                req.body[metadataKey]
-                            );
-                            console.log(
-                                `📍 Parsed geotag for image ${i}:`,
-                                parsedGeotag
-                            );
+                            const metadataString = req.body.shopDisplayImageMetadata[i];
+                            console.log(`🔍 Metadata string for image ${i}:`, metadataString);
+
+                            const parsedGeotag = JSON.parse(metadataString);
+                            console.log(`📍 Parsed geotag for image ${i}:`, parsedGeotag);
 
                             // ✅ Safe assignment
                             geotag.latitude = parsedGeotag.latitude || 0;
@@ -576,8 +568,9 @@ export const createReportWithGeotags = async (req, res) => {
                             geotag = { latitude: 0, longitude: 0 }; // Default fallback
                         }
                     } else {
-                        console.log(`⚠️ No metadata found for key: "${metadataKey}"`);
+                        console.log(`⚠️ No metadata found in array for image ${i}`);
                     }
+
 
                     console.log(`🚀 Uploading image ${i + 1} with geotag:`, {
                         lat: geotag.latitude,
@@ -603,7 +596,7 @@ export const createReportWithGeotags = async (req, res) => {
                                 longitude: geotag.longitude,
                                 accuracy: geotag.accuracy,
                                 placeName:
-                                    result.context?.geotag_place || "Unknown",
+                                    result.context?.custom?.geotag_place || "Unknown",
                                 timestamp: geotag.timestamp,
                             },
                             hasOverlay: true,
