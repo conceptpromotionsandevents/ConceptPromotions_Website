@@ -78,7 +78,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
         throw new Error("Empty buffer provided");
     }
 
-    // ✅ Safe property access
+    // Safe property access
     const lat = geotag.latitude || 0;
     const lng = geotag.longitude || 0;
     const accuracy = geotag.accuracy || 0;
@@ -86,7 +86,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
 
     console.log("🔍 Geotag data:", { lat, lng, accuracy, timestamp });
 
-    // ✅ Get place name
+    // Get place name
     let placeName = "Location Unavailable";
     if (lat !== 0 && lng !== 0) {
         try {
@@ -97,7 +97,7 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
         }
     }
 
-    // ✅ Format date/time
+    // Format date/time
     const captureDate = new Date(timestamp).toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         year: "numeric",
@@ -107,11 +107,11 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
         minute: "2-digit",
     });
 
-    // ✅ Shorten place name if too long
+    // Shorten place name
     const shortPlace =
-        placeName.length > 50 ? placeName.substring(0, 47) + "..." : placeName;
+        placeName.length > 40 ? placeName.substring(0, 37) + "..." : placeName;
 
-    // ✅ Build context
+    // Build context (metadata)
     const context = {};
     if (lat !== 0) context.geotag_latitude = lat.toString();
     if (lng !== 0) context.geotag_longitude = lng.toString();
@@ -124,95 +124,63 @@ export const uploadToCloudinaryWithDetailsOverlay = async (
             {
                 folder,
                 resource_type: "image",
-                context, // Metadata (invisible)
-                // ✅ TRANSFORMATION: Print text ON image
+                context,
+                // ✅ FIXED TRANSFORMATIONS - No "black" overlay
                 transformation: [
-                    { width: 1200, height: 1600, crop: "limit" }, // Resize if needed
+                    // 1. Resize (optional)
+                    { width: 1200, height: 1600, crop: "limit" },
+
+                    // 2. Semi-transparent background rectangle
                     {
-                        // Line 1: GPS Coordinates
-                        overlay: {
-                            font_family: "Arial",
-                            font_size: 28,
-                            font_weight: "bold",
-                            text: `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-                        },
+                        underlay: "white", // ✅ Use underlay instead of overlay
+                        opacity: 20,
+                        width: 350,
+                        height: 120,
                         gravity: "south_west",
                         x: 20,
-                        y: 120,
-                        color: "white",
+                        y: 20,
                     },
+
+                    // 3. GPS Coordinates (bold white text)
                     {
-                        // Background for line 1
-                        overlay: {
-                            font_family: "Arial",
-                            font_size: 28,
-                            font_weight: "bold",
-                            text: `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-                        },
-                        gravity: "south_west",
-                        x: 22,
-                        y: 122,
-                        color: "black",
-                        opacity: 0,
-                    },
-                    {
-                        // Line 2: Place Name
                         overlay: {
                             font_family: "Arial",
                             font_size: 24,
-                            text: shortPlace,
+                            font_weight: "bold",
+                            text: encodeURIComponent(
+                                `📍 GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+                            ),
                         },
                         gravity: "south_west",
-                        x: 20,
-                        y: 80,
-                        color: "white",
-                    },
-                    {
-                        // Background for line 2
-                        overlay: {
-                            font_family: "Arial",
-                            font_size: 24,
-                            text: shortPlace,
-                        },
-                        gravity: "south_west",
-                        x: 22,
-                        y: 82,
+                        x: 25,
+                        y: 35,
                         color: "black",
-                        opacity: 0,
                     },
+
+                    // 4. Place Name
                     {
-                        // Line 3: Date & Time
                         overlay: {
                             font_family: "Arial",
-                            font_size: 22,
-                            text: captureDate,
+                            font_size: 18,
+                            text: encodeURIComponent(shortPlace),
                         },
                         gravity: "south_west",
-                        x: 20,
-                        y: 40,
-                        color: "white",
-                    },
-                    {
-                        // Background for line 3
-                        overlay: {
-                            font_family: "Arial",
-                            font_size: 22,
-                            text: captureDate,
-                        },
-                        gravity: "south_west",
-                        x: 22,
-                        y: 42,
+                        x: 25,
+                        y: 65,
                         color: "black",
-                        opacity: 0,
                     },
+
+                    // 5. Date/Time
                     {
-                        // Semi-transparent black background box
-                        overlay: "black",
-                        opacity: 60,
-                        width: 1200,
-                        height: 150,
-                        gravity: "south",
-                        crop: "fill",
+                        overlay: {
+                            font_family: "Arial",
+                            font_size: 16,
+                            text: encodeURIComponent(captureDate),
+                        },
+                        gravity: "south_west",
+                        x: 25,
+                        y: 90,
+                        color: "black",
                     },
                 ],
             },
