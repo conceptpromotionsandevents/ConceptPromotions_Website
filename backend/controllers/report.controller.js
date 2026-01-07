@@ -11,6 +11,7 @@ import { Campaign, Employee, VisitSchedule } from "../models/user.js";
 import {
     deleteFromCloudinary,
     uploadToCloudinary,
+    uploadToCloudinaryWithDetailsOverlay,
 } from "../utils/cloudinary.config.js";
 import { getResourceType } from "../utils/cloudinary.helper.js";
 
