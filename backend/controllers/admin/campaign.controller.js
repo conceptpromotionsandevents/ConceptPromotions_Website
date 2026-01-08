@@ -4,6 +4,7 @@ import {
     Campaign,
     ClientAdmin,
     Employee,
+    VisitSchedule
   
    
 } from "../../models/user.js";
