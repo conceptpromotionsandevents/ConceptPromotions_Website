@@ -326,9 +326,37 @@ export const getCampaignById = async (req, res) => {
             });
         }
 
+        const campaignObj = campaign.toObject();
+
+        /* =========================
+           ENSURE SUB-DOCUMENTS
+        ========================== */
+        campaignObj.info ??= { description: "", tnc: "", banners: [] };
+        campaignObj.info.banners ??= [];
+
+        campaignObj.gratification ??= {
+            type: "",
+            description: "",
+            images: [],
+        };
+        campaignObj.gratification.images ??= [];
+
+        /* =========================
+           REMOVE ORPHAN REFERENCES
+        ========================== */
+        campaignObj.assignedEmployees =
+            campaignObj.assignedEmployees?.filter(
+                (emp) => emp.employeeId !== null
+            ) || [];
+
+        campaignObj.assignedRetailers =
+            campaignObj.assignedRetailers?.filter(
+                (ret) => ret.retailerId !== null
+            ) || [];
+
         res.status(200).json({
             success: true,
-            campaign,
+            campaign: campaignObj,
         });
     } catch (error) {
         console.error("Get campaign by ID error:", error);
@@ -339,6 +367,7 @@ export const getCampaignById = async (req, res) => {
         });
     }
 };
+
 
 // ====== GET EMPLOYEE CAMPAIGNS ======
 export const getEmployeeCampaigns = async (req, res) => {
@@ -371,6 +400,7 @@ export const getEmployeeCampaigns = async (req, res) => {
     }
 };
 
+
 // ====== DELETE CAMPAIGN ======
 export const deleteCampaign = async (req, res) => {
     try {
@@ -390,15 +420,32 @@ export const deleteCampaign = async (req, res) => {
             });
 
         /* =========================
-           DELETE BANNERS FROM CLOUDINARY
+           ✅ DELETE INFO BANNERS FROM CLOUDINARY
         ========================== */
-        if (campaign.banners && campaign.banners.length > 0) {
-            for (const banner of campaign.banners) {
+        if (campaign.info?.banners && campaign.info.banners.length > 0) {
+            for (const banner of campaign.info.banners) {
                 try {
                     await deleteFromCloudinary(banner.publicId, "image");
                 } catch (err) {
                     console.error(
                         `Failed to delete banner ${banner.publicId}:`,
+                        err
+                    );
+                    // Continue with deletion even if Cloudinary cleanup fails
+                }
+            }
+        }
+
+        /* =========================
+           ✅ DELETE GRATIFICATION IMAGES FROM CLOUDINARY
+        ========================== */
+        if (campaign.gratification?.images && campaign.gratification.images.length > 0) {
+            for (const image of campaign.gratification.images) {
+                try {
+                    await deleteFromCloudinary(image.publicId, "image");
+                } catch (err) {
+                    console.error(
+                        `Failed to delete gratification image ${image.publicId}:`,
                         err
                     );
                     // Continue with deletion even if Cloudinary cleanup fails
@@ -413,7 +460,7 @@ export const deleteCampaign = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Campaign and associated banners deleted successfully",
+            message: "Campaign and associated images deleted successfully",
         });
     } catch (error) {
         console.error("Delete campaign error:", error);
@@ -424,6 +471,7 @@ export const deleteCampaign = async (req, res) => {
         });
     }
 };
+
 
 // ====== ASSIGN CAMPAIGN (employees + retailers) ======
 export const assignCampaign = async (req, res) => {
