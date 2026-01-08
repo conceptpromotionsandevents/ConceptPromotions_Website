@@ -60,8 +60,8 @@ export const getAllCampaigns = async (req, res) => {
 export const addCampaign = async (req, res) => {
     try {
         /* =========================
-       AUTH CHECK
-    ========================== */
+           AUTH CHECK
+        ========================== */
         if (!req.user || req.user.role !== "admin") {
             return res.status(403).json({
                 success: false,
@@ -70,31 +70,31 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       SAFE BODY EXTRACT
-    ========================== */
+           SAFE BODY EXTRACT
+        ========================== */
         const body = req.body || {};
 
-    let {
-      name,
-      client,
-      type,
-      regions,
-      states,
-      campaignStartDate,
-      campaignEndDate,
+        let {
+            name,
+            client,
+            type,
+            regions,
+            states,
+            campaignStartDate,
+            campaignEndDate,
 
-      // INFO
-      description,
-      termsAndConditions,
+            // INFO
+            description,
+            termsAndConditions,
 
-      // GRATIFICATION
-      gratificationType,
-      gratificationDescription,
-    } = body;
+            // GRATIFICATION
+            gratificationType,
+            gratificationDescription,
+        } = body;
 
         /* =========================
-       REQUIRED FIELDS
-    ========================== */
+           REQUIRED FIELDS
+        ========================== */
         if (
             !name ||
             !client ||
@@ -112,8 +112,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       PARSE ARRAYS (multipart-safe)
-    ========================== */
+           PARSE ARRAYS (multipart-safe)
+        ========================== */
         try {
             if (typeof regions === "string") regions = JSON.parse(regions);
             if (typeof states === "string") states = JSON.parse(states);
@@ -124,14 +124,14 @@ export const addCampaign = async (req, res) => {
             });
         }
 
-        if (!Array.isArray(regions) || regions.length === 0) {
+        if (!Array.isArray(regions) || !regions.length) {
             return res.status(400).json({
                 success: false,
                 message: "At least one region is required",
             });
         }
 
-        if (!Array.isArray(states) || states.length === 0) {
+        if (!Array.isArray(states) || !states.length) {
             return res.status(400).json({
                 success: false,
                 message: "At least one state is required",
@@ -139,8 +139,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       CLIENT VALIDATION
-    ========================== */
+           CLIENT VALIDATION
+        ========================== */
         const clientOrg = await ClientAdmin.findOne({
             organizationName: client,
         }).select("_id");
@@ -153,8 +153,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       DATE VALIDATION
-    ========================== */
+           DATE VALIDATION
+        ========================== */
         const startDate = new Date(campaignStartDate);
         const endDate = new Date(campaignEndDate);
 
@@ -172,67 +172,71 @@ export const addCampaign = async (req, res) => {
             });
         }
 
-    /* =========================
-       UPLOAD INFO BANNERS
-    ========================== */
-        const banners = [];
+        /* =========================
+           UPLOAD INFO BANNERS
+        ========================== */
+        const infoBanners = [];
 
-    if (req.files?.banners?.length) {
-      for (const file of req.files.banners) {
-        const result = await uploadToCloudinary(
-          file.buffer,
-          "campaigns/banners",
-          "image"
-        );
+        if (req.files?.banners?.length) {
+            for (const file of req.files.banners) {
+                const result = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/banners",
+                    "image"
+                );
 
-        banners.push({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
-      }
-    }
-
-    /* =========================
-       UPLOAD GRATIFICATION IMAGES
-    ========================== */
-    const gratificationImages = [];
-
-    if (req.files?.gratificationImages?.length) {
-      for (const file of req.files.gratificationImages) {
-        const result = await uploadToCloudinary(
-          file.buffer,
-          "campaigns/gratification",
-          "image"
-        );
-
-        gratificationImages.push({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
-      }
-    }
+                infoBanners.push({
+                    url: result.secure_url,
+                    publicId: result.public_id,
+                });
+            }
+        }
 
         /* =========================
-       CREATE CAMPAIGN
-    ========================== */
-    const campaign = new Campaign({
-      name,
-      client,
-      type,
-      regions,
-      states,
-      createdBy: req.user.id,
-      campaignStartDate: startDate,
-      campaignEndDate: endDate,
-      banners,
-      termsAndConditions,
-      gratification: {
-        type: gratificationType || "",
-        amount: gratificationAmount || null,
-        description: gratificationDescription || "",
-        conditions: gratificationConditions || "",
-      },
-    });
+           UPLOAD GRATIFICATION IMAGES
+        ========================== */
+        const gratificationImages = [];
+
+        if (req.files?.gratificationImages?.length) {
+            for (const file of req.files.gratificationImages) {
+                const result = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/gratification",
+                    "image"
+                );
+
+                gratificationImages.push({
+                    url: result.secure_url,
+                    publicId: result.public_id,
+                });
+            }
+        }
+
+        /* =========================
+           CREATE CAMPAIGN (SCHEMA SAFE)
+        ========================== */
+        const campaign = new Campaign({
+            name,
+            client,
+            type,
+            regions,
+            states,
+            createdBy: req.user.id,
+            campaignStartDate: startDate,
+            campaignEndDate: endDate,
+
+            info: {
+                description: description || "",
+                tnc: termsAndConditions,
+                banners: infoBanners,
+            },
+
+            gratification: {
+                type: gratificationType || "",
+                description: gratificationDescription || "",
+                images: gratificationImages,
+            },
+        });
 
         await campaign.save();
 
@@ -250,6 +254,7 @@ export const addCampaign = async (req, res) => {
         });
     }
 };
+
 
 // ====== UPDATE CAMPAIGN STATUS ======
 export const updateCampaignStatus = async (req, res) => {
