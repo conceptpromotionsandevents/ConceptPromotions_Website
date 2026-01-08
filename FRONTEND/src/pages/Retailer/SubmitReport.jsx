@@ -612,7 +612,6 @@ const SubmitReport = ({ campaign }) => {
           </div>
         )}
 
-
         {/* OTHERS - WITH IMAGE PREVIEW */}
         {reportType?.value === "Others" && (
           <div>

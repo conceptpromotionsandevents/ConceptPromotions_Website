@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Select from "react-select";
-import { FaUser, FaBuilding } from "react-icons/fa";
+import { FaUser, FaTrash, FaPlus } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API_URL } from "../../url/base";
@@ -104,14 +104,72 @@ const customSelectStyles = {
 };
 
 const CreateCampaign = () => {
+  // Basic fields
   const [campaignName, setCampaignName] = useState("");
-  const [client, setClient] = useState("");
+  const [selectedClient, setSelectedClient] = useState(null); // ✅ Changed to object
   const [campaignStartDate, setCampaignStartDate] = useState("");
   const [campaignEndDate, setCampaignEndDate] = useState("");
   const [selectedCampaignType, setSelectedCampaignType] = useState(null);
   const [selectedRegions, setSelectedRegions] = useState([]);
   const [selectedStates, setSelectedStates] = useState([]);
+
+  // Info fields
+  const [description, setDescription] = useState("");
+  const [termsAndConditions, setTermsAndConditions] = useState("");
+  const [banners, setBanners] = useState([]);
+  const [bannerPreviews, setBannerPreviews] = useState([]);
+
+  // Gratification fields
+  const [gratificationType, setGratificationType] = useState("");
+  const [gratificationDescription, setGratificationDescription] = useState("");
+  const [gratificationImages, setGratificationImages] = useState([]);
+  const [gratificationImagePreviews, setGratificationImagePreviews] = useState([]);
+
+  // ✅ NEW: Client state
+  const [clientOptions, setClientOptions] = useState([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  // Refs for hidden file inputs
+  const bannerInputRef = useRef(null);
+  const gratificationInputRef = useRef(null);
+
   const [loading, setLoading] = useState(false);
+
+  // ✅ FETCH ALL CLIENTS ON MOUNT
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    setLoadingClients(true);
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`${API_URL}/admin/client-admins`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // ✅ Transform clients into select options
+        const options = data.clientAdmins.map((client) => ({
+          value: client._id,
+          label: `${client.name} • ${client.organizationName}`,
+          clientData: client, // Store full client data for reference
+        }));
+        setClientOptions(options);
+      } else {
+        toast.error(data.message || "Failed to fetch clients", { theme: "dark" });
+      }
+    } catch (error) {
+      console.error("Fetch clients error:", error);
+      toast.error("Error fetching clients", { theme: "dark" });
+    }
+    setLoadingClients(false);
+  };
 
   const getAllStates = () => {
     const allStates = Object.values(regionStates).flat();
@@ -126,12 +184,10 @@ const CreateCampaign = () => {
       return [];
     }
 
-    // If "All" is selected
-    if (selectedRegions.some(region => region.value === "All")) {
+    if (selectedRegions.some((region) => region.value === "All")) {
       return getAllStates();
     }
 
-    // Get states for selected regions
     const filteredStates = selectedRegions.flatMap((region) => {
       return regionStates[region.value] || [];
     });
@@ -146,12 +202,10 @@ const CreateCampaign = () => {
 
   const handleRegionChange = (selected) => {
     setSelectedRegions(selected || []);
-    
-    // If "All" is selected, auto-select all states
-    if (selected?.some(region => region.value === "All")) {
+
+    if (selected?.some((region) => region.value === "All")) {
       setSelectedStates(getAllStates());
     } else if (selected && selected.length > 0) {
-      // Filter out states that don't belong to selected regions
       const validStateValues = selected.flatMap(
         (region) => regionStates[region.value] || []
       );
@@ -164,21 +218,84 @@ const CreateCampaign = () => {
     }
   };
 
+  // Handle Banner Upload
+  const handleBannerUpload = (e) => {
+    const files = Array.from(e.target.files);
+
+    if (files.length + banners.length > 5) {
+      toast.error("Maximum 5 banners allowed", { theme: "dark" });
+      return;
+    }
+
+    setBanners([...banners, ...files]);
+
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+    setBannerPreviews([...bannerPreviews, ...newPreviews]);
+  };
+
+  // Remove Banner
+  const removeBanner = (index) => {
+    const newBanners = banners.filter((_, i) => i !== index);
+    const newPreviews = bannerPreviews.filter((_, i) => i !== index);
+    setBanners(newBanners);
+    setBannerPreviews(newPreviews);
+  };
+
+  // Handle Gratification Image Upload
+  const handleGratificationImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+
+    if (files.length + gratificationImages.length > 5) {
+      toast.error("Maximum 5 gratification images allowed", { theme: "dark" });
+      return;
+    }
+
+    setGratificationImages([...gratificationImages, ...files]);
+
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+    setGratificationImagePreviews([...gratificationImagePreviews, ...newPreviews]);
+  };
+
+  // Remove Gratification Image
+  const removeGratificationImage = (index) => {
+    const newImages = gratificationImages.filter((_, i) => i !== index);
+    const newPreviews = gratificationImagePreviews.filter((_, i) => i !== index);
+    setGratificationImages(newImages);
+    setGratificationImagePreviews(newPreviews);
+  };
+
   const resetForm = () => {
     setCampaignName("");
-    setClient("");
+    setSelectedClient(null);
     setSelectedCampaignType(null);
     setSelectedRegions([]);
     setSelectedStates([]);
     setCampaignStartDate("");
     setCampaignEndDate("");
+    setDescription("");
+    setTermsAndConditions("");
+    setBanners([]);
+    setBannerPreviews([]);
+    setGratificationType("");
+    setGratificationDescription("");
+    setGratificationImages([]);
+    setGratificationImagePreviews([]);
   };
 
   const handleSubmit = async () => {
     setLoading(true);
 
-    if (!campaignName || !client || !selectedCampaignType || selectedRegions.length === 0 || selectedStates.length === 0 || !campaignStartDate || !campaignEndDate) {
-      toast.error("All fields are required!", { theme: "dark" });
+    if (
+      !campaignName ||
+      !selectedClient ||
+      !selectedCampaignType ||
+      selectedRegions.length === 0 ||
+      selectedStates.length === 0 ||
+      !campaignStartDate ||
+      !campaignEndDate ||
+      !termsAndConditions
+    ) {
+      toast.error("Please fill all required fields!", { theme: "dark" });
       setLoading(false);
       return;
     }
@@ -186,21 +303,44 @@ const CreateCampaign = () => {
     try {
       const token = localStorage.getItem("token");
 
+      const formData = new FormData();
+
+      // ✅ Basic fields
+      formData.append("name", campaignName);
+
+      // ✅ Send organization name (not ID)
+      formData.append("client", selectedClient.clientData.organizationName);
+
+      formData.append("type", selectedCampaignType.value);
+      formData.append("regions", JSON.stringify(selectedRegions.map((r) => r.value)));
+      formData.append("states", JSON.stringify(selectedStates.map((s) => s.value)));
+      formData.append("campaignStartDate", campaignStartDate);
+      formData.append("campaignEndDate", campaignEndDate);
+
+      // ✅ Info fields
+      if (description) formData.append("description", description);
+      formData.append("termsAndConditions", termsAndConditions);
+
+      // ✅ Banners
+      banners.forEach((banner) => {
+        formData.append("banners", banner);
+      });
+
+      // ✅ Gratification fields
+      if (gratificationType) formData.append("gratificationType", gratificationType);
+      if (gratificationDescription) formData.append("gratificationDescription", gratificationDescription);
+
+      // ✅ Gratification images
+      gratificationImages.forEach((image) => {
+        formData.append("gratificationImages", image);
+      });
+
       const response = await fetch(`${API_URL}/admin/campaigns`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: campaignName,
-          client,
-          type: selectedCampaignType.value,
-          regions: selectedRegions.map(r => r.value),
-          states: selectedStates.map(s => s.value),
-          campaignStartDate,
-          campaignEndDate,
-        }),
+        body: formData,
       });
 
       const data = await response.json();
@@ -222,7 +362,7 @@ const CreateCampaign = () => {
     <>
       <ToastContainer />
 
-      <div className="w-full max-w-lg bg-[#EDEDED] shadow-md rounded-xl p-8 mx-auto">
+      <div className="w-full max-w-3xl bg-[#EDEDED] shadow-md rounded-xl p-8 mx-auto my-8">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-[#E4002B]">Create a Campaign</h1>
         </div>
@@ -245,21 +385,26 @@ const CreateCampaign = () => {
             </div>
           </div>
 
-          {/* Client */}
+          {/* ✅ CLIENT DROPDOWN */}
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-1.5 text-gray-700">
               Client <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <FaBuilding className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Client Name"
-                value={client}
-                onChange={(e) => setClient(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
-              />
-            </div>
+            <Select
+              styles={customSelectStyles}
+              options={clientOptions}
+              value={selectedClient}
+              onChange={setSelectedClient}
+              isSearchable
+              isLoading={loadingClients}
+              placeholder={loadingClients ? "Loading clients..." : "Select a client"}
+              noOptionsMessage={() => "No clients found"}
+            />
+            {selectedClient && (
+              <p className="text-xs text-gray-500 mt-1">
+                Organization: {selectedClient.clientData.organizationName}
+              </p>
+            )}
           </div>
 
           {/* Type of Campaign */}
@@ -305,7 +450,9 @@ const CreateCampaign = () => {
               onChange={setSelectedStates}
               isSearchable
               isMulti
-              placeholder={selectedRegions.length > 0 ? "Select states" : "Select region first"}
+              placeholder={
+                selectedRegions.length > 0 ? "Select states" : "Select region first"
+              }
               isDisabled={selectedRegions.length === 0}
             />
           </div>
@@ -336,11 +483,183 @@ const CreateCampaign = () => {
             />
           </div>
 
+          {/* ✅ SECTION: INFO */}
+          <div className="border-t pt-6 mt-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">
+              Campaign Information
+            </h2>
+
+            {/* Description */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                Description (Optional)
+              </label>
+              <textarea
+                placeholder="Campaign description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
+              />
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                Terms & Conditions <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                placeholder="Enter terms and conditions"
+                value={termsAndConditions}
+                onChange={(e) => setTermsAndConditions(e.target.value)}
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
+              />
+            </div>
+
+            {/* ✅ Banners Upload - STYLED */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Campaign Banners (Optional, Max 5)
+              </label>
+
+              <input
+                type="file"
+                ref={bannerInputRef}
+                accept="image/*"
+                multiple
+                onChange={handleBannerUpload}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => bannerInputRef.current?.click()}
+                disabled={banners.length >= 5}
+                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#E4002B] hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-gray-600"
+              >
+                <FaPlus className="text-[#E4002B]" />
+                <span className="font-medium">
+                  {banners.length === 0
+                    ? "Click to upload banners"
+                    : `Add more banners (${banners.length}/5)`}
+                </span>
+              </button>
+
+              {bannerPreviews.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+                  {bannerPreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`Banner ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeBanner(index)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ✅ SECTION: GRATIFICATION */}
+          <div className="border-t pt-6 mt-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">
+              Gratification Details (Optional)
+            </h2>
+
+            {/* Gratification Type */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                Gratification Type
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Cash, Gift, Points, Discount"
+                value={gratificationType}
+                onChange={(e) => setGratificationType(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
+              />
+            </div>
+
+            {/* Gratification Description */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                Gratification Description
+              </label>
+              <textarea
+                placeholder="Describe the gratification details"
+                value={gratificationDescription}
+                onChange={(e) => setGratificationDescription(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
+              />
+            </div>
+
+            {/* ✅ Gratification Images Upload */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Gratification Images (Optional, Max 5)
+              </label>
+
+              <input
+                type="file"
+                ref={gratificationInputRef}
+                accept="image/*"
+                multiple
+                onChange={handleGratificationImageUpload}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => gratificationInputRef.current?.click()}
+                disabled={gratificationImages.length >= 5}
+                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#E4002B] hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-gray-600"
+              >
+                <FaPlus className="text-[#E4002B]" />
+                <span className="font-medium">
+                  {gratificationImages.length === 0
+                    ? "Click to upload gratification images"
+                    : `Add more images (${gratificationImages.length}/5)`}
+                </span>
+              </button>
+
+              {gratificationImagePreviews.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+                  {gratificationImagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`Gratification ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGratificationImage(index)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition mb-10 disabled:opacity-60"
+            className="w-full bg-[#E4002B] text-white py-3 rounded-lg font-medium hover:bg-[#C3002B] transition mt-6 disabled:opacity-60"
           >
             {loading ? "Creating..." : "Create Campaign"}
           </button>

@@ -4,6 +4,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import * as XLSX from 'xlsx-js-style';
 import { API_URL } from "../../url/base";
+
 const customSelectStyles = {
   control: (provided, state) => ({
     ...provided,
@@ -22,14 +23,31 @@ const customSelectStyles = {
     ...provided,
     zIndex: 20,
   }),
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: "#FEE2E2",
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    color: "#E4002B",
+    fontWeight: "500",
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    color: "#E4002B",
+    ":hover": {
+      backgroundColor: "#E4002B",
+      color: "white",
+    },
+  }),
 };
 
 const RetailerPassbook = () => {
   // Retailer Info
   const [retailerInfo, setRetailerInfo] = useState(null);
 
-  // Filters
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  // Filters - ✅ Changed from single to multiple campaigns
+  const [selectedCampaigns, setSelectedCampaigns] = useState([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -154,30 +172,30 @@ const RetailerPassbook = () => {
     }
   };
 
-
   const resetPassbookData = () => {
     setPassbookData(null);
     setDisplayedCampaigns([]);
   };
 
   // ===============================
-  // APPLY FILTERS
+  // APPLY FILTERS - ✅ Updated for multiple campaigns
   // ===============================
   useEffect(() => {
     if (passbookData) {
       applyFilters();
     }
-  }, [selectedCampaign, fromDate, toDate, passbookData]);
+  }, [selectedCampaigns, fromDate, toDate, passbookData]);
 
   const applyFilters = () => {
     if (!passbookData) return;
 
     let filtered = [...passbookData.campaigns];
 
-    // Filter by Campaign
-    if (selectedCampaign) {
-      filtered = filtered.filter(
-        (c) => c.campaignId._id === selectedCampaign.value
+    // ✅ Filter by Multiple Campaigns
+    if (selectedCampaigns && selectedCampaigns.length > 0) {
+      const selectedCampaignIds = selectedCampaigns.map(c => c.value);
+      filtered = filtered.filter((c) =>
+        selectedCampaignIds.includes(c.campaignId._id)
       );
     }
 
@@ -203,7 +221,7 @@ const RetailerPassbook = () => {
           ...campaign,
           installments: filteredInstallments,
         };
-      }).filter((campaign) => campaign.installments.length > 0); // Add this line
+      }).filter((campaign) => campaign.installments.length > 0);
     }
 
     setDisplayedCampaigns(filtered);
@@ -213,7 +231,7 @@ const RetailerPassbook = () => {
   // CLEAR FILTERS
   // ===============================
   const handleClearFilters = () => {
-    setSelectedCampaign(null);
+    setSelectedCampaigns([]);
     setFromDate("");
     setToDate("");
     if (passbookData) {
@@ -230,13 +248,13 @@ const RetailerPassbook = () => {
       return;
     }
 
-    // ✅ Helper function to parse dates
+    // Helper function to parse dates
     const parseDate = (dateStr) => {
       if (!dateStr) return null;
       return new Date(dateStr);
     };
 
-    // ✅ Helper function to format date to DD/MM/YYYY
+    // Helper function to format date to DD/MM/YYYY
     const formatDateToDDMMYYYY = (dateStr) => {
       if (!dateStr || dateStr === "N/A") return "N/A";
 
@@ -266,7 +284,7 @@ const RetailerPassbook = () => {
       A: "RETAILER DETAILS"
     });
 
-    // Row 4: Retailer Info - ✅ Updated: Outlet Name and Retailer Name only
+    // Row 4: Retailer Info
     rows.push({
       A: "Outlet Code:",
       B: passbookData.outletCode,
@@ -278,31 +296,44 @@ const RetailerPassbook = () => {
       H: retailerInfo?.name || passbookData.retailerName || "N/A"
     });
 
-    // Row 5 & 6: Empty rows
+    // ✅ Row 5: Selected Campaigns (if filtered)
+    if (selectedCampaigns && selectedCampaigns.length > 0) {
+      rows.push({
+        A: "Filtered Campaigns:",
+        B: selectedCampaigns.map(c => c.label).join(", ")
+      });
+    }
+
+    // Empty rows
     rows.push({});
     rows.push({});
 
-    // Row 7: SUMMARY label
+    // Summary label
     rows.push({ A: "SUMMARY" });
 
-    // Row 8: Summary values
+    // ✅ Calculate summary based on displayed campaigns only
+    const displayedTotalBudget = displayedCampaigns.reduce((sum, c) => sum + (c.tca || 0), 0);
+    const displayedTotalPaid = displayedCampaigns.reduce((sum, c) => sum + (c.cPaid || 0), 0);
+    const displayedTotalBalance = displayedTotalBudget - displayedTotalPaid;
+
+    // Summary values
     rows.push({
       A: "Total Budget",
-      B: `₹${passbookData.tar || 0}`,
+      B: `₹${displayedTotalBudget}`,
       C: "",
       D: "Total Paid",
-      E: `₹${passbookData.taPaid || 0}`,
+      E: `₹${displayedTotalPaid}`,
       F: "",
       G: "Total Balance",
-      H: `₹${passbookData.taPending || 0}`,
+      H: `₹${displayedTotalBalance}`,
       I: "", J: ""
     });
 
-    // Row 9 & 10: Empty rows
+    // Empty rows
     rows.push({});
     rows.push({});
 
-    // Row 11: Header - ✅ Updated: Removed State, Outlet Name, Outlet Code; Changed Organization to Client
+    // Header
     rows.push({
       A: "S.No",
       B: "Campaign Name",
@@ -316,7 +347,7 @@ const RetailerPassbook = () => {
       J: "Remarks"
     });
 
-    // ✅ Data rows with continuous S.No and running balance calculation
+    // Data rows with continuous S.No and running balance calculation
     let serialNumber = 1;
 
     displayedCampaigns.forEach((campaign) => {
@@ -324,7 +355,6 @@ const RetailerPassbook = () => {
       const totalBudget = campaign.tca;
 
       if (installments.length === 0) {
-        // ✅ No installments - show "-" for empty fields
         rows.push({
           A: serialNumber++,
           B: campaign.campaignName,
@@ -338,14 +368,13 @@ const RetailerPassbook = () => {
           J: "-"
         });
       } else {
-        // ✅ Has installments - Calculate running balance
         let cumulativePaid = 0;
 
-        // Sort installments by date (oldest first) for proper balance calculation
+        // Sort installments by date (oldest first)
         const sortedInstallments = [...installments].sort((a, b) => {
           const dateA = parseDate(a.dateOfInstallment);
           const dateB = parseDate(b.dateOfInstallment);
-          return dateA - dateB; // Ascending order
+          return dateA - dateB;
         });
 
         sortedInstallments.forEach((inst) => {
@@ -359,8 +388,8 @@ const RetailerPassbook = () => {
             C: campaign.campaignId?.client || "N/A",
             D: campaign.campaignId?.type || "N/A",
             E: totalBudget,
-            F: paidAmount,                              // ✅ Amount paid in THIS installment
-            G: balance,                                  // ✅ Balance AFTER this payment
+            F: paidAmount,
+            G: balance,
             H: formatDateToDDMMYYYY(inst.dateOfInstallment),
             I: inst.utrNumber || "-",
             J: inst.remarks || "-"
@@ -397,7 +426,7 @@ const RetailerPassbook = () => {
         if (ws[cellAddress]) {
           if (R === 0) {
             ws[cellAddress].s = titleStyle;
-          } else if (R === 10) { // Header is now at row 11 (index 10)
+          } else if (rows[R] && rows[R].A === "S.No") {
             ws[cellAddress].s = headerStyle;
           } else {
             ws[cellAddress].s = dataStyle;
@@ -406,14 +435,14 @@ const RetailerPassbook = () => {
       }
     }
 
-    // Merge cells for title (Row 1, A1:J1)
+    // Merge cells for title
     if (!ws['!merges']) ws['!merges'] = [];
     ws['!merges'].push({
       s: { r: 0, c: 0 },
-      e: { r: 0, c: 9 } // ✅ Updated to column J (index 9)
+      e: { r: 0, c: 9 }
     });
 
-    // Column widths - ✅ Updated
+    // Column widths
     ws["!cols"] = [
       { wpx: 60 },   // A: S.No
       { wpx: 200 },  // B: Campaign Name
@@ -460,20 +489,26 @@ const RetailerPassbook = () => {
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Campaign Filter */}
+                  {/* ✅ Campaign Filter - Now supports multiple selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Campaign
+                      Campaigns
                     </label>
                     <Select
-                      value={selectedCampaign}
-                      onChange={setSelectedCampaign}
+                      value={selectedCampaigns}
+                      onChange={setSelectedCampaigns}
                       options={campaignOptions}
                       styles={customSelectStyles}
-                      placeholder="All Campaigns"
+                      placeholder="Select campaigns..."
                       isClearable
                       isSearchable
+                      isMulti // ✅ Enable multiple selection
                     />
+                    {selectedCampaigns.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {selectedCampaigns.length} campaign{selectedCampaigns.length > 1 ? 's' : ''} selected
+                      </p>
+                    )}
                   </div>
 
                   {/* From Date */}
@@ -503,7 +538,7 @@ const RetailerPassbook = () => {
                   </div>
                 </div>
 
-                {(selectedCampaign || fromDate || toDate) && (
+                {(selectedCampaigns.length > 0 || fromDate || toDate) && (
                   <button
                     onClick={handleClearFilters}
                     className="mt-4 text-sm text-red-600 underline hover:text-red-800"
@@ -519,10 +554,16 @@ const RetailerPassbook = () => {
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-semibold text-gray-700">
                       Summary
+                      {selectedCampaigns.length > 0 && (
+                        <span className="text-sm font-normal text-gray-500 ml-2">
+                          (Filtered: {displayedCampaigns.length} campaign{displayedCampaigns.length > 1 ? 's' : ''})
+                        </span>
+                      )}
                     </h2>
                     <button
                       onClick={handleDownloadPassbook}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
+                      disabled={displayedCampaigns.length === 0}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       Download Passbook
                     </button>
@@ -537,21 +578,39 @@ const RetailerPassbook = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">Total Budget (TAR)</p>
+                      <p className="text-sm text-gray-600">
+                        Total Budget (TAR)
+                        {selectedCampaigns.length > 0 && <span className="text-xs"> - Filtered</span>}
+                      </p>
                       <p className="text-2xl font-bold text-blue-600">
-                        ₹{passbookData.tar || 0}
+                        ₹{selectedCampaigns.length > 0
+                          ? displayedCampaigns.reduce((sum, c) => sum + (c.tca || 0), 0)
+                          : passbookData.tar || 0
+                        }
                       </p>
                     </div>
                     <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">Total Paid</p>
+                      <p className="text-sm text-gray-600">
+                        Total Paid
+                        {selectedCampaigns.length > 0 && <span className="text-xs"> - Filtered</span>}
+                      </p>
                       <p className="text-2xl font-bold text-green-600">
-                        ₹{passbookData.taPaid || 0}
+                        ₹{selectedCampaigns.length > 0
+                          ? displayedCampaigns.reduce((sum, c) => sum + (c.cPaid || 0), 0)
+                          : passbookData.taPaid || 0
+                        }
                       </p>
                     </div>
                     <div className="bg-yellow-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">Total Pending</p>
+                      <p className="text-sm text-gray-600">
+                        Total Pending
+                        {selectedCampaigns.length > 0 && <span className="text-xs"> - Filtered</span>}
+                      </p>
                       <p className="text-2xl font-bold text-yellow-600">
-                        ₹{passbookData.taPending || 0}
+                        ₹{selectedCampaigns.length > 0
+                          ? displayedCampaigns.reduce((sum, c) => sum + (c.tca || 0) - (c.cPaid || 0), 0)
+                          : passbookData.taPending || 0
+                        }
                       </p>
                     </div>
                   </div>

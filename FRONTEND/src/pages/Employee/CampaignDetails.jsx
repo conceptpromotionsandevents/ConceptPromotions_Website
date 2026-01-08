@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { API_URL } from "../../url/base";
+import React, { useState } from "react";
 import Info from "./Info";
 import Gratification from "./Gratification";
 import Report from "./EmployeeViewReports";
@@ -10,46 +8,7 @@ import OutletsAssigned from "./OutletsAssigned";
 import SubmitReport from "./SubmitReport";
 
 const CampaignDetails = ({ campaign, onBack }) => {
-  const [campaignData, setCampaignData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("info");
-
-  // Fetch full campaign details on mount
-  useEffect(() => {
-    const fetchCampaignDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("No authentication token found. Please login.");
-          setLoading(false);
-          return;
-        }
-
-        const response = await axios.get(
-          `${API_URL}/employee/campaigns/${campaign._id}/status`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-
-        setCampaignData(response.data);
-
-      } catch (err) {
-        console.error("Fetch campaign details error:", err);
-        setError(err.response?.data?.message || "Failed to fetch campaign details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (campaign?._id) {
-      fetchCampaignDetails();
-    }
-  }, [campaign]);
 
   // Format date helper
   const formatDate = (dateString) => {
@@ -65,57 +24,50 @@ const CampaignDetails = ({ campaign, onBack }) => {
     }
   };
 
-  // Prepare campaign object for child components
-  const campaignForComponents = campaignData ? {
-    name: campaignData.name,
-    startDate: formatDate(campaignData.employeeStatus?.startDate || campaignData.campaignStartDate),
-    endDate: formatDate(campaignData.employeeStatus?.endDate || campaignData.campaignEndDate),
-    client: campaignData.client,
-    type: campaignData.type,
-    status: campaignData.employeeStatus?.status || 'pending',
-    isActive: campaignData.isActive,
-    regions: campaignData.regions,
-    states: campaignData.states,
-    createdBy: campaignData.createdBy,
-    assignedAt: campaignData.employeeStatus?.assignedAt,
-    updatedAt: campaignData.employeeStatus?.updatedAt,
-    // Add any other fields your child components need
+  // ✅ Use campaign prop directly (it already has all data including info and gratification)
+  const campaignForComponents = campaign ? {
+    _id: campaign._id,
+    name: campaign.name,
+    startDate: formatDate(campaign.employeeStatus?.startDate || campaign.campaignStartDate),
+    endDate: formatDate(campaign.employeeStatus?.endDate || campaign.campaignEndDate),
+    client: campaign.client,
+    type: campaign.type,
+    status: campaign.employeeStatus?.status || 'pending',
+    isActive: campaign.isActive,
+    regions: campaign.regions || [],
+    states: campaign.states || [],
+    createdBy: campaign.createdBy,
+    assignedAt: campaign.employeeStatus?.assignedAt,
+    updatedAt: campaign.employeeStatus?.updatedAt,
+    assignedRetailers: campaign.assignedRetailers || [],
+
+    // ✅ Info section
+    info: {
+      description: campaign.info?.description || "",
+      tnc: campaign.info?.tnc || "",
+      banners: campaign.info?.banners || []
+    },
+
+    // ✅ Gratification section
+    gratification: {
+      type: campaign.gratification?.type || "",
+      description: campaign.gratification?.description || "",
+      images: campaign.gratification?.images || []
+    }
   } : null;
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-lg text-gray-600">Loading campaign details...</div>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (!campaign) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-md">
         <button
           onClick={onBack}
-          className="mb-4 text-[#E4002B] font-medium hover:underline"
+          className="mb-4 text-[#E4002B] font-medium hover:underline flex items-center gap-2"
         >
-          ← Back
+          <span>←</span> Back
         </button>
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
-          {error}
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
+          <p>No campaign data available.</p>
         </div>
-      </div>
-    );
-  }
-
-  if (!campaignData) {
-    return (
-      <div className="p-6 bg-white rounded-lg shadow-md">
-        <button
-          onClick={onBack}
-          className="mb-4 text-[#E4002B] font-medium hover:underline"
-        >
-          ← Back
-        </button>
-        <p>No campaign found.</p>
       </div>
     );
   }
@@ -132,31 +84,36 @@ const CampaignDetails = ({ campaign, onBack }) => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      {/* Back */}
+      {/* Back Button */}
       <button
         onClick={onBack}
-        className="mb-4 text-[#E4002B] font-medium hover:underline"
+        className="mb-4 text-[#E4002B] font-medium hover:underline flex items-center gap-2 transition-colors"
       >
-        ← Back
+        <span>←</span> Back
       </button>
 
-      {/* Heading */}
-      <h2 className="text-2xl font-bold text-[#E4002B] mb-6">
-        {campaignData.name}
-      </h2>
+      {/* Campaign Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-[#E4002B] mb-2">
+          {campaign.name}
+        </h2>
+        <p className="text-gray-600 text-sm">
+          Client: <span className="font-medium">{campaign.client}</span>
+        </p>
+      </div>
 
-      {/* Submit Report Button under heading */}
+      {/* Submit Report Button */}
       <button
         onClick={() => setActiveTab("submitReport")}
-        className="px-4 py-2 rounded-lg bg-[#E4002B] text-white font-medium shadow-md hover:bg-[#c60025] mb-4"
+        className="px-6 py-2.5 rounded-lg bg-[#E4002B] text-white font-medium shadow-md hover:bg-[#c60025] transition-colors mb-4"
       >
         Submit Report
       </button>
 
-      {/* Black separation line */}
-      <div className="w-full h-[1px] bg-black mb-6"></div>
+      {/* Divider */}
+      <div className="w-full h-[1px] bg-gray-300 mb-6"></div>
 
-      {/* 3×2 Grid Buttons */}
+      {/* Tab Navigation Grid */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
           { key: "info", label: "Info" },
@@ -168,8 +125,11 @@ const CampaignDetails = ({ campaign, onBack }) => {
         ].map((item) => (
           <button
             key={item.key}
-            className={`p-4 border rounded-lg text-center shadow-sm font-medium
-              ${activeTab === item.key ? "bg-[#E4002B] text-white" : "hover:shadow-md"}`}
+            className={`p-4 border-2 rounded-lg text-center font-medium transition-all
+              ${activeTab === item.key
+                ? "bg-[#E4002B] text-white border-[#E4002B] shadow-lg"
+                : "bg-white text-gray-700 border-gray-300 hover:border-[#E4002B] hover:shadow-md"
+              }`}
             onClick={() => setActiveTab(item.key)}
           >
             {item.label}
@@ -177,8 +137,8 @@ const CampaignDetails = ({ campaign, onBack }) => {
         ))}
       </div>
 
-      {/* CONTENT SECTION */}
-      <div className="mt-6 border-2 border-[#E4002B] rounded-lg p-6">
+      {/* Content Section */}
+      <div className="mt-6 border-2 border-[#E4002B] rounded-lg p-6 bg-gray-50">
         {tabComponents[activeTab]}
       </div>
     </div>

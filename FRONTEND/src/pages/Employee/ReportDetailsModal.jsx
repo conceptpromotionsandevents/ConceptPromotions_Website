@@ -21,26 +21,41 @@ const ReportDetailsModal = ({ report, onClose }) => {
     }
   };
 
-  const bufferToBase64 = (buffer, contentType) => {
-    if (!buffer || !buffer.data) return null;
+  // ✅ Helper to extract URL from image object or string
+  const getImageUrl = (imageData) => {
+    if (!imageData) return null;
+    
+    // If it's an object with url property (Cloudinary format)
+    if (typeof imageData === 'object' && imageData.url) {
+      return imageData.url;
+    }
+    
+    // If it's already a string URL
+    if (typeof imageData === 'string') {
+      return imageData;
+    }
+    
+    return null;
+  };
+
+  // ✅ Convert image URL to base64 for jsPDF
+  const getBase64FromUrl = async (url) => {
     try {
-      if (buffer.type === "Buffer" && Array.isArray(buffer.data)) {
-        const base64 = btoa(
-          buffer.data.reduce(
-            (data, byte) => data + String.fromCharCode(byte),
-            ""
-          )
-        );
-        return `data:${contentType || "image/jpeg"};base64,${base64}`;
-      }
-      return null;
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     } catch (error) {
-      console.error("Error converting buffer to base64:", error);
+      console.error("Error converting URL to base64:", error);
       return null;
     }
   };
 
-  // ✅ PDF DOWNLOAD FUNCTION WITH IMAGES
+  // ✅ PDF DOWNLOAD FUNCTION
   const handleDownloadPDF = async () => {
     try {
       const doc = new jsPDF();
@@ -59,16 +74,19 @@ const ReportDetailsModal = ({ report, onClose }) => {
       yPosition += 8;
 
       const basicInfoData = [
-        ['Report Type', report.reportType || 'N/A'],
-        ['Frequency', report.frequency || 'N/A'],
-        ['Date of Submission', formatDate(report.dateOfSubmission || report.createdAt)],
+        ["Report Type", report.reportType || "N/A"],
+        ["Frequency", report.frequency || "N/A"],
+        [
+          "Date of Submission",
+          formatDate(report.dateOfSubmission || report.createdAt),
+        ],
       ];
 
       autoTable(doc, {
         startY: yPosition,
-        head: [['Field', 'Value']],
+        head: [["Field", "Value"]],
         body: basicInfoData,
-        theme: 'grid',
+        theme: "grid",
         headStyles: { fillColor: [228, 0, 43] },
         margin: { left: 15, right: 15 },
       });
@@ -82,13 +100,13 @@ const ReportDetailsModal = ({ report, onClose }) => {
 
       autoTable(doc, {
         startY: yPosition,
-        head: [['Field', 'Value']],
+        head: [["Field", "Value"]],
         body: [
-          ['Campaign Name', report.campaignId?.name || 'N/A'],
-          ['Campaign Type', report.campaignId?.type || 'N/A'],
-          ['Client', report.campaignId?.client || 'N/A'],
+          ["Campaign Name", report.campaignId?.name || "N/A"],
+          ["Campaign Type", report.campaignId?.type || "N/A"],
+          ["Client", report.campaignId?.client || "N/A"],
         ],
-        theme: 'grid',
+        theme: "grid",
         headStyles: { fillColor: [228, 0, 43] },
         margin: { left: 15, right: 15 },
       });
@@ -102,20 +120,20 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition += 8;
 
         const retailerData = [
-          ['Retailer Name', report.retailer?.retailerName || 'N/A'],
-          ['Outlet Code', report.retailer?.outletCode || 'N/A'],
-          ['Outlet Name', report.retailer?.outletName || 'N/A'],
+          ["Retailer Name", report.retailer?.retailerName || "N/A"],
+          ["Outlet Code", report.retailer?.outletCode || "N/A"],
+          ["Outlet Name", report.retailer?.outletName || "N/A"],
         ];
 
         if (report.retailer?.retailerId?.contactNo) {
-          retailerData.push(['Contact', report.retailer.retailerId.contactNo]);
+          retailerData.push(["Contact", report.retailer.retailerId.contactNo]);
         }
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Field', 'Value']],
+          head: [["Field", "Value"]],
           body: retailerData,
-          theme: 'grid',
+          theme: "grid",
           headStyles: { fillColor: [228, 0, 43] },
           margin: { left: 15, right: 15 },
         });
@@ -130,19 +148,19 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition += 8;
 
         const employeeData = [
-          ['Employee Name', report.employee.employeeId.name || 'N/A'],
-          ['Employee Code', report.employee.employeeId.employeeId || 'N/A'],
+          ["Employee Name", report.employee.employeeId.name || report.employee.employeeName || "N/A"],
+          ["Employee Code", report.employee.employeeId.employeeId || report.employee.employeeCode || "N/A"],
         ];
 
         if (report.employee.employeeId.phone) {
-          employeeData.push(['Contact', report.employee.employeeId.phone]);
+          employeeData.push(["Contact", report.employee.employeeId.phone]);
         }
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Field', 'Value']],
+          head: [["Field", "Value"]],
           body: employeeData,
-          theme: 'grid',
+          theme: "grid",
           headStyles: { fillColor: [228, 0, 43] },
           margin: { left: 15, right: 15 },
         });
@@ -150,29 +168,41 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition = doc.lastAutoTable.finalY + 10;
       }
 
-      // Visit Details (if submitted by employee)
+      // Visit Details
       if (report.submittedBy?.role === "Employee") {
         doc.setFontSize(14);
         doc.text("Visit Details", 15, yPosition);
         yPosition += 8;
 
         const visitData = [
-          ['Type of Visit', report.typeOfVisit || 'N/A'],
-          ['Attendance Status', report.attendedVisit === "yes" ? "Attended" : "Not Attended"],
+          ["Type of Visit", report.typeOfVisit || "N/A"],
+          [
+            "Attendance Status",
+            report.attendedVisit === "yes" ? "Attended" : "Not Attended",
+          ],
         ];
 
         if (report.attendedVisit === "no" && report.reasonForNonAttendance) {
-          visitData.push(['Reason', report.reasonForNonAttendance.reason || 'N/A']);
-          if (report.reasonForNonAttendance.reason === "others" && report.reasonForNonAttendance.otherReason) {
-            visitData.push(['Additional Details', report.reasonForNonAttendance.otherReason]);
+          visitData.push([
+            "Reason",
+            report.reasonForNonAttendance.reason || "N/A",
+          ]);
+          if (
+            report.reasonForNonAttendance.reason === "others" &&
+            report.reasonForNonAttendance.otherReason
+          ) {
+            visitData.push([
+              "Additional Details",
+              report.reasonForNonAttendance.otherReason,
+            ]);
           }
         }
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Field', 'Value']],
+          head: [["Field", "Value"]],
           body: visitData,
-          theme: 'grid',
+          theme: "grid",
           headStyles: { fillColor: [228, 0, 43] },
           margin: { left: 15, right: 15 },
         });
@@ -181,26 +211,28 @@ const ReportDetailsModal = ({ report, onClose }) => {
       }
 
       // Product/Stock Information
-      if (report.reportType === "Stock" &&
-        (report.brand || report.product || report.sku || report.stockType)) {
-
+      if (
+        report.reportType === "Stock" &&
+        (report.brand || report.product || report.sku || report.stockType)
+      ) {
         doc.setFontSize(14);
         doc.text("Product/Stock Information", 15, yPosition);
         yPosition += 8;
 
         const stockData = [];
-        if (report.stockType) stockData.push(['Stock Type', report.stockType]);
-        if (report.brand) stockData.push(['Brand', report.brand]);
-        if (report.product) stockData.push(['Product', report.product]);
-        if (report.sku) stockData.push(['SKU', report.sku]);
-        if (report.productType) stockData.push(['Product Type', report.productType]);
-        if (report.quantity) stockData.push(['Quantity', report.quantity]);
+        if (report.stockType) stockData.push(["Stock Type", report.stockType]);
+        if (report.brand) stockData.push(["Brand", report.brand]);
+        if (report.product) stockData.push(["Product", report.product]);
+        if (report.sku) stockData.push(["SKU", report.sku]);
+        if (report.productType)
+          stockData.push(["Product Type", report.productType]);
+        if (report.quantity) stockData.push(["Quantity", report.quantity]);
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Field', 'Value']],
+          head: [["Field", "Value"]],
           body: stockData,
-          theme: 'grid',
+          theme: "grid",
           headStyles: { fillColor: [228, 0, 43] },
           margin: { left: 15, right: 15 },
         });
@@ -220,11 +252,12 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition += remarksLines.length * 7 + 10;
       }
 
-      // ✅ ADD SHOP DISPLAY IMAGES
-      if (report.reportType === "Window Display" &&
+      // ✅ ADD SHOP DISPLAY IMAGES FROM CLOUDINARY
+      if (
+        report.reportType === "Window Display" &&
         report.shopDisplayImages &&
-        report.shopDisplayImages.length > 0) {
-
+        report.shopDisplayImages.length > 0
+      ) {
         doc.addPage();
         yPosition = 20;
 
@@ -234,20 +267,22 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition += 10;
 
         for (let i = 0; i < report.shopDisplayImages.length; i++) {
-          const img = report.shopDisplayImages[i];
-          const imageSource = bufferToBase64(img.data, img.contentType);
+          const imageUrl = getImageUrl(report.shopDisplayImages[i]);
 
-          if (imageSource) {
+          if (imageUrl) {
             if (i > 0 && i % 2 === 0) {
               doc.addPage();
               yPosition = 20;
             }
 
             try {
-              doc.addImage(imageSource, 'JPEG', 15, yPosition, 180, 120);
-              doc.setFontSize(10);
-              doc.text(`Image ${i + 1}`, 15, yPosition + 125);
-              yPosition += 135;
+              const base64Image = await getBase64FromUrl(imageUrl);
+              if (base64Image) {
+                doc.addImage(base64Image, "JPEG", 15, yPosition, 180, 120);
+                doc.setFontSize(10);
+                doc.text(`Image ${i + 1}`, 15, yPosition + 125);
+                yPosition += 135;
+              }
             } catch (err) {
               console.error(`Error adding image ${i + 1}:`, err);
             }
@@ -255,11 +290,12 @@ const ReportDetailsModal = ({ report, onClose }) => {
         }
       }
 
-      // ✅ ADD BILL COPIES
-      if (report.reportType === "Stock" &&
+      // ✅ ADD BILL COPIES FROM CLOUDINARY
+      if (
+        report.reportType === "Stock" &&
         report.billCopies &&
-        report.billCopies.length > 0) {
-
+        report.billCopies.length > 0
+      ) {
         doc.addPage();
         yPosition = 20;
 
@@ -269,20 +305,22 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition += 10;
 
         for (let i = 0; i < report.billCopies.length; i++) {
-          const bill = report.billCopies[i];
-          const imageSource = bufferToBase64(bill.data, bill.contentType);
+          const billUrl = getImageUrl(report.billCopies[i]);
 
-          if (imageSource) {
+          if (billUrl) {
             if (i > 0 && i % 2 === 0) {
               doc.addPage();
               yPosition = 20;
             }
 
             try {
-              doc.addImage(imageSource, 'JPEG', 15, yPosition, 180, 120);
-              doc.setFontSize(10);
-              doc.text(bill.fileName || `Bill ${i + 1}`, 15, yPosition + 125);
-              yPosition += 135;
+              const base64Image = await getBase64FromUrl(billUrl);
+              if (base64Image) {
+                doc.addImage(base64Image, "JPEG", 15, yPosition, 180, 120);
+                doc.setFontSize(10);
+                doc.text(`Bill ${i + 1}`, 15, yPosition + 125);
+                yPosition += 135;
+              }
             } catch (err) {
               console.error(`Error adding bill ${i + 1}:`, err);
             }
@@ -290,11 +328,12 @@ const ReportDetailsModal = ({ report, onClose }) => {
         }
       }
 
-      // ✅ ADD OTHER FILES
-      if (report.reportType === "Others" &&
+      // ✅ ADD OTHER FILES FROM CLOUDINARY
+      if (
+        report.reportType === "Others" &&
         report.files &&
-        report.files.length > 0) {
-
+        report.files.length > 0
+      ) {
         doc.addPage();
         yPosition = 20;
 
@@ -304,20 +343,22 @@ const ReportDetailsModal = ({ report, onClose }) => {
         yPosition += 10;
 
         for (let i = 0; i < report.files.length; i++) {
-          const file = report.files[i];
-          const imageSource = bufferToBase64(file.data, file.contentType);
+          const fileUrl = getImageUrl(report.files[i]);
 
-          if (imageSource) {
+          if (fileUrl) {
             if (i > 0 && i % 2 === 0) {
               doc.addPage();
               yPosition = 20;
             }
 
             try {
-              doc.addImage(imageSource, 'JPEG', 15, yPosition, 180, 120);
-              doc.setFontSize(10);
-              doc.text(`File ${i + 1}`, 15, yPosition + 125);
-              yPosition += 135;
+              const base64Image = await getBase64FromUrl(fileUrl);
+              if (base64Image) {
+                doc.addImage(base64Image, "JPEG", 15, yPosition, 180, 120);
+                doc.setFontSize(10);
+                doc.text(`File ${i + 1}`, 15, yPosition + 125);
+                yPosition += 135;
+              }
             } catch (err) {
               console.error(`Error adding file ${i + 1}:`, err);
             }
@@ -326,7 +367,11 @@ const ReportDetailsModal = ({ report, onClose }) => {
       }
 
       // Save PDF
-      const fileName = `Report_${report.reportType || 'Unknown'}_${report.employee?.employeeId?.employeeId || report.retailer?.outletCode || 'Unknown'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Report_${report.reportType || "Unknown"}_${
+        report.employee?.employeeCode ||
+        report.retailer?.outletCode ||
+        "Unknown"
+      }_${new Date().toISOString().split("T")[0]}.pdf`;
       doc.save(fileName);
 
       toast.success("Report downloaded successfully!", { theme: "dark" });
@@ -353,14 +398,23 @@ const ReportDetailsModal = ({ report, onClose }) => {
                 Report Details
               </h2>
 
-              {/* ✅ Download and Close Buttons */}
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleDownloadPDF}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 cursor-pointer"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                   Download PDF
                 </button>
@@ -492,7 +546,7 @@ const ReportDetailsModal = ({ report, onClose }) => {
               )}
 
               {/* Employee Info */}
-              {report.employee?.employeeId && (
+              {report.employee && (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4 text-gray-700">
                     Employee Information
@@ -503,7 +557,7 @@ const ReportDetailsModal = ({ report, onClose }) => {
                         Employee Name
                       </label>
                       <p className="text-gray-800 bg-white px-3 py-2 rounded border">
-                        {report.employee.employeeId.name || "N/A"}
+                        {report.employee.employeeName || report.employee.employeeId?.name || "N/A"}
                       </p>
                     </div>
                     <div>
@@ -511,10 +565,10 @@ const ReportDetailsModal = ({ report, onClose }) => {
                         Employee Code
                       </label>
                       <p className="text-gray-800 bg-white px-3 py-2 rounded border">
-                        {report.employee.employeeId.employeeId || "N/A"}
+                        {report.employee.employeeCode || report.employee.employeeId?.employeeId || "N/A"}
                       </p>
                     </div>
-                    {report.employee.employeeId.phone && (
+                    {report.employee.employeeId?.phone && (
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-1">
                           Contact
@@ -528,7 +582,7 @@ const ReportDetailsModal = ({ report, onClose }) => {
                 </div>
               )}
 
-              {/* Employee Visit Details (if submitted by employee) */}
+              {/* Employee Visit Details */}
               {report.submittedBy?.role === "Employee" && (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4 text-gray-700">
@@ -564,7 +618,8 @@ const ReportDetailsModal = ({ report, onClose }) => {
                               {report.reasonForNonAttendance.reason || "N/A"}
                             </p>
                           </div>
-                          {report.reasonForNonAttendance.reason === "others" &&
+                          {report.reasonForNonAttendance.reason ===
+                            "others" &&
                             report.reasonForNonAttendance.otherReason && (
                               <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-600 mb-1">
@@ -668,7 +723,7 @@ const ReportDetailsModal = ({ report, onClose }) => {
                 </div>
               )}
 
-              {/* Shop Display Images */}
+              {/* ✅ Shop Display Images - CLOUDINARY URLs */}
               {report.reportType === "Window Display" &&
                 report.shopDisplayImages &&
                 report.shopDisplayImages.length > 0 && (
@@ -677,24 +732,25 @@ const ReportDetailsModal = ({ report, onClose }) => {
                       Shop Display Images ({report.shopDisplayImages.length})
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {report.shopDisplayImages.map((img, idx) => {
-                        const imageSource = bufferToBase64(
-                          img.data,
-                          img.contentType
-                        );
-                        if (!imageSource) return null;
+                      {report.shopDisplayImages.map((imageData, idx) => {
+                        const imageUrl = getImageUrl(imageData);
+                        if (!imageUrl) return null;
 
                         return (
                           <div
                             key={idx}
-                            className="relative bg-black rounded-lg overflow-hidden"
+                            className="relative bg-black rounded-lg overflow-hidden group"
                             style={{ height: "200px" }}
                           >
                             <img
-                              src={imageSource}
+                              src={imageUrl}
                               alt={`Display ${idx + 1}`}
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => window.open(imageUrl, '_blank')}
                             />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              {imageData.fileName || `Image ${idx + 1}`}
+                            </div>
                           </div>
                         );
                       })}
@@ -702,7 +758,7 @@ const ReportDetailsModal = ({ report, onClose }) => {
                   </div>
                 )}
 
-              {/* Bill Copies */}
+              {/* ✅ Bill Copies - CLOUDINARY URLs */}
               {report.reportType === "Stock" &&
                 report.billCopies &&
                 report.billCopies.length > 0 && (
@@ -712,24 +768,25 @@ const ReportDetailsModal = ({ report, onClose }) => {
                       {report.billCopies.length})
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {report.billCopies.map((bill, idx) => {
-                        const imageSource = bufferToBase64(
-                          bill.data,
-                          bill.contentType
-                        );
-                        if (!imageSource) return null;
+                      {report.billCopies.map((billData, idx) => {
+                        const billUrl = getImageUrl(billData);
+                        if (!billUrl) return null;
 
                         return (
                           <div
                             key={idx}
-                            className="relative bg-black rounded-lg overflow-hidden"
+                            className="relative bg-black rounded-lg overflow-hidden group"
                             style={{ height: "300px" }}
                           >
                             <img
-                              src={imageSource}
+                              src={billUrl}
                               alt={`Bill Copy ${idx + 1}`}
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => window.open(billUrl, '_blank')}
                             />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              {billData.fileName || `Bill ${idx + 1}`}
+                            </div>
                           </div>
                         );
                       })}
@@ -737,7 +794,7 @@ const ReportDetailsModal = ({ report, onClose }) => {
                   </div>
                 )}
 
-              {/* Other Files */}
+              {/* ✅ Other Files - CLOUDINARY URLs */}
               {report.reportType === "Others" &&
                 report.files &&
                 report.files.length > 0 && (
@@ -746,42 +803,31 @@ const ReportDetailsModal = ({ report, onClose }) => {
                       Files ({report.files.length})
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {report.files.map((file, idx) => {
-                        const imageSource = bufferToBase64(
-                          file.data,
-                          file.contentType
-                        );
-                        if (!imageSource) return null;
+                      {report.files.map((fileData, idx) => {
+                        const fileUrl = getImageUrl(fileData);
+                        if (!fileUrl) return null;
 
                         return (
                           <div
                             key={idx}
-                            className="relative bg-black rounded-lg overflow-hidden"
+                            className="relative bg-black rounded-lg overflow-hidden group"
                             style={{ height: "200px" }}
                           >
                             <img
-                              src={imageSource}
+                              src={fileUrl}
                               alt={`File ${idx + 1}`}
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => window.open(fileUrl, '_blank')}
                             />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              {fileData.fileName || `File ${idx + 1}`}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 )}
-
-              {/* N/A Report Type Block */}
-              {!report.reportType && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-700">
-                    Additional Information
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    This report does not have a specific type assigned.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         </div>

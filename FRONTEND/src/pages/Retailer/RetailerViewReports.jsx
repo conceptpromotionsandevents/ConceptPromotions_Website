@@ -5,9 +5,10 @@ import ReportDetailsModal from "./ReportDetailsModal";
 import { API_URL } from "../../url/base";
 
 const RetailerViewReports = ({ campaign }) => {
-  // Date Range Filter
+  // Filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [reportTypeFilter, setReportTypeFilter] = useState(""); // ✅ NEW: Report type filter
 
   // Data
   const [displayReports, setDisplayReports] = useState([]);
@@ -21,15 +22,23 @@ const RetailerViewReports = ({ campaign }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalReports, setTotalReports] = useState(0);
-  const [limit] = useState(3); // Reports per page
+  const [limit] = useState(10); // ✅ Increased to 10 per page
 
   // Retailer Info
   const [retailerInfo, setRetailerInfo] = useState(null);
 
-  // ✅ ADD THESE MISSING STATE VARIABLES
+  // Modal
   const [showModal, setShowModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
+
+  // ✅ Report type options
+  const reportTypeOptions = [
+    { value: "", label: "All Types" },
+    { value: "Window Display", label: "Window Display" },
+    { value: "Stock", label: "Stock" },
+    { value: "Others", label: "Others" },
+  ];
 
   // Fetch retailer info and campaign ID
   useEffect(() => {
@@ -47,8 +56,10 @@ const RetailerViewReports = ({ campaign }) => {
       });
       const data = await response.json();
       setRetailerInfo(data);
+      console.log("Retailer info loaded:", data);
     } catch (err) {
       console.error("Error fetching retailer info:", err);
+      toast.error("Failed to load retailer information", { theme: "dark" });
     }
   };
 
@@ -74,7 +85,7 @@ const RetailerViewReports = ({ campaign }) => {
     }
   };
 
-  // Fetch Retailer Reports
+  // ✅ UPDATED: Fetch Retailer Reports using the specific endpoint
   const fetchReports = async (page = 1) => {
     if (!retailerInfo?._id) {
       toast.error("Retailer information not loaded", { theme: "dark" });
@@ -87,8 +98,9 @@ const RetailerViewReports = ({ campaign }) => {
     try {
       const token = localStorage.getItem("retailer_token");
 
+      // ✅ Using the specific endpoint that excludes N/A reports
       const res = await fetch(
-        `${API_URL}/reports/retailer/${retailerInfo._id}`,
+        `${API_URL}/reports/retailer-reports/${retailerInfo._id}`,
         {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
@@ -102,21 +114,34 @@ const RetailerViewReports = ({ campaign }) => {
           theme: "dark",
         });
         setDisplayReports([]);
+        setTotalReports(0);
+        setTotalPages(0);
         return;
       }
 
       let reports = data.reports || [];
 
-      // Client-side filtering for campaign
+      console.log(`Fetched ${reports.length} reports from backend`);
+
+      // ✅ Filter by campaign
       if (campaignId) {
         reports = reports.filter(
           (report) =>
             report.campaignId?._id === campaignId ||
             report.campaignId === campaignId
         );
+        console.log(`After campaign filter: ${reports.length} reports`);
       }
 
-      // Client-side filtering for date range
+      // ✅ Filter by report type
+      if (reportTypeFilter) {
+        reports = reports.filter(
+          (report) => report.reportType === reportTypeFilter
+        );
+        console.log(`After report type filter: ${reports.length} reports`);
+      }
+
+      // ✅ Filter by date range
       if (fromDate || toDate) {
         reports = reports.filter((report) => {
           const reportDate = new Date(
@@ -134,9 +159,10 @@ const RetailerViewReports = ({ campaign }) => {
           }
           return true;
         });
+        console.log(`After date filter: ${reports.length} reports`);
       }
 
-      // Client-side pagination
+      // ✅ Client-side pagination
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
       const paginatedReports = reports.slice(startIndex, endIndex);
@@ -156,34 +182,44 @@ const RetailerViewReports = ({ campaign }) => {
         });
       }
     } catch (err) {
-      console.log("Reports Fetch Error:", err);
+      console.error("Reports Fetch Error:", err);
       toast.error("Failed to load reports", { theme: "dark" });
       setDisplayReports([]);
+      setTotalReports(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // Clear all filters
+  // ✅ UPDATED: Clear all filters including report type
   const handleClearFilters = () => {
     setFromDate("");
     setToDate("");
+    setReportTypeFilter("");
     setDisplayReports([]);
     setHasSearched(false);
     setCurrentPage(1);
+    setTotalReports(0);
+    setTotalPages(0);
+    toast.info("Filters cleared", { theme: "dark" });
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "N/A";
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch (error) {
+      return "N/A";
+    }
   };
 
-  // ✅ UPDATE THIS FUNCTION
   const handleViewDetails = async (report) => {
     console.log("Viewing details for report:", report);
     setLoadingReport(true);
@@ -215,7 +251,6 @@ const RetailerViewReports = ({ campaign }) => {
     }
   };
 
-  // ✅ ADD THIS FUNCTION
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedReport(null);
@@ -266,6 +301,16 @@ const RetailerViewReports = ({ campaign }) => {
     return pageNumbers;
   };
 
+  // ✅ Get badge color based on report type
+  const getReportTypeBadge = (type) => {
+    const badges = {
+      "Window Display": "bg-purple-100 text-purple-700",
+      Stock: "bg-green-100 text-green-700",
+      Others: "bg-orange-100 text-orange-700",
+    };
+    return badges[type] || "bg-gray-100 text-gray-700";
+  };
+
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} />
@@ -273,8 +318,8 @@ const RetailerViewReports = ({ campaign }) => {
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-[#E4002B] mb-8">My Reports</h1>
 
-          {/* Display Campaign Name - Automatically picked */}
-          <div className="mb-4 p-4 bg-[#EDEDED] border border-gray-300 rounded-lg">
+          {/* Display Campaign Name */}
+          <div className="mb-6 p-4 bg-[#EDEDED] border border-gray-300 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Campaign:</p>
             <p className="text-xl font-semibold text-gray-800">
               {campaign?.name || "Loading..."}
@@ -291,6 +336,24 @@ const RetailerViewReports = ({ campaign }) => {
             <h2 className="text-lg font-semibold mb-4 text-gray-700">
               Filter Reports (Optional)
             </h2>
+
+            {/* ✅ Report Type Filter */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Report Type
+              </label>
+              <select
+                value={reportTypeFilter}
+                onChange={(e) => setReportTypeFilter(e.target.value)}
+                className="w-full md:w-1/2 px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+              >
+                {reportTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Date Range Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -329,10 +392,10 @@ const RetailerViewReports = ({ campaign }) => {
                 {loading ? "Searching..." : "Search Reports"}
               </button>
 
-              {(fromDate || toDate) && (
+              {(fromDate || toDate || reportTypeFilter) && (
                 <button
                   onClick={handleClearFilters}
-                  className="text-sm text-red-600 underline hover:text-red-800"
+                  className="px-4 py-2 text-sm text-red-600 border border-red-600 rounded-md hover:bg-red-50 transition"
                 >
                   Clear Filters
                 </button>
@@ -390,16 +453,27 @@ const RetailerViewReports = ({ campaign }) => {
                           {(currentPage - 1) * limit + index + 1}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                          <span className="font-medium">
+                          {/* ✅ Enhanced Report Type Display */}
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${getReportTypeBadge(
+                              report.reportType
+                            )}`}
+                          >
                             {report.reportType || "N/A"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                          {report.employee?.employeeId?.name ? (
+                          {report.employee?.employeeId?.name ||
+                          report.employee?.employeeName ? (
                             <>
-                              <div>{report.employee.employeeId.name}</div>
+                              <div className="font-medium">
+                                {report.employee.employeeId?.name ||
+                                  report.employee.employeeName}
+                              </div>
                               <div className="text-xs text-gray-500">
-                                {report.employee.employeeId.employeeId || ""}
+                                {report.employee.employeeId?.employeeId ||
+                                  report.employee.employeeCode ||
+                                  ""}
                               </div>
                             </>
                           ) : (
@@ -511,6 +585,19 @@ const RetailerViewReports = ({ campaign }) => {
           {/* Empty State */}
           {!loading && hasSearched && displayReports.length === 0 && (
             <div className="text-center py-12 text-gray-500 bg-[#EDEDED] rounded-lg">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
               <p className="text-lg font-medium mb-2">No reports found</p>
               <p className="text-sm">
                 Try adjusting your search criteria or clear filters to see all
@@ -522,10 +609,23 @@ const RetailerViewReports = ({ campaign }) => {
           {/* Initial State */}
           {!hasSearched && (
             <div className="text-center py-12 text-gray-400 bg-[#EDEDED] rounded-lg">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-300 mb-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
               <p className="text-lg font-medium mb-2">Ready to search reports</p>
               <p className="text-sm">
                 Click "Search Reports" to view all reports for this campaign, or
-                use date filters to narrow down results.
+                use filters to narrow down results.
               </p>
             </div>
           )}
@@ -533,8 +633,22 @@ const RetailerViewReports = ({ campaign }) => {
       </div>
 
       {/* Report Details Modal */}
-      {showModal && selectedReport && (
-        <ReportDetailsModal report={selectedReport} onClose={handleCloseModal} />
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          {loadingReport ? (
+            <div className="bg-white rounded-lg p-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E4002B]"></div>
+              <p className="mt-4 text-gray-600">Loading report details...</p>
+            </div>
+          ) : (
+            selectedReport && (
+              <ReportDetailsModal
+                report={selectedReport}
+                onClose={handleCloseModal}
+              />
+            )
+          )}
+        </div>
       )}
     </>
   );

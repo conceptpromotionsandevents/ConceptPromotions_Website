@@ -74,6 +74,9 @@ const isImageFile = (file) => {
   return file && file.type && file.type.startsWith("image/");
 };
 
+// File size limit: 10MB per file
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 const SubmitReport = ({ campaign }) => {
   // Visit flow states
   const [selectedRetailer, setSelectedRetailer] = useState(null);
@@ -120,6 +123,27 @@ const SubmitReport = ({ campaign }) => {
       fetchCampaignId();
     }
   }, [campaign]);
+
+  // Cleanup blob URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      shopDisplayImages.forEach((file) => {
+        if (file instanceof File) {
+          URL.revokeObjectURL(URL.createObjectURL(file));
+        }
+      });
+      billCopies.forEach((file) => {
+        if (file instanceof File) {
+          URL.revokeObjectURL(URL.createObjectURL(file));
+        }
+      });
+      otherFiles.forEach((file) => {
+        if (file instanceof File) {
+          URL.revokeObjectURL(URL.createObjectURL(file));
+        }
+      });
+    };
+  }, [shopDisplayImages, billCopies, otherFiles]);
 
   const fetchEmployeeInfo = async () => {
     try {
@@ -172,7 +196,7 @@ const SubmitReport = ({ campaign }) => {
     }
   };
 
-  // FETCH ASSIGNED RETAILERS (on mount)
+  // FETCH ASSIGNED RETAILERS
   useEffect(() => {
     if (!campaignId || !employeeInfo) return;
 
@@ -193,8 +217,9 @@ const SubmitReport = ({ campaign }) => {
         if (currentEmployee && currentEmployee.retailers) {
           const mapped = currentEmployee.retailers.map((r) => ({
             value: r._id || r.id,
-            label: `${r.uniqueId || r.retailerCode || ""} - ${r.shopDetails?.shopName || r.name
-              }`,
+            label: `${r.uniqueId || r.retailerCode || ""} - ${
+              r.shopDetails?.shopName || r.name
+            }`,
             data: r,
           }));
           setAssignedRetailers(mapped);
@@ -210,7 +235,7 @@ const SubmitReport = ({ campaign }) => {
     fetchAssignedRetailers();
   }, [campaignId, employeeInfo]);
 
-  // FETCH SCHEDULED VISITS (after retailer is selected)
+  // FETCH SCHEDULED VISITS
   useEffect(() => {
     if (!selectedRetailer || !campaignId) return;
 
@@ -221,7 +246,6 @@ const SubmitReport = ({ campaign }) => {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // Filter schedules for selected retailer and campaign
         const filteredSchedules = res.data.schedules.filter(
           (sch) =>
             (sch.campaignId?._id === campaignId || sch.campaignId === campaignId) &&
@@ -231,8 +255,9 @@ const SubmitReport = ({ campaign }) => {
 
         const options = filteredSchedules.map((sch) => ({
           value: sch._id,
-          label: `${new Date(sch.visitDate).toLocaleDateString()} - ${sch.retailerId?.shopDetails?.shopName || sch.retailerId?.name || "N/A"
-            }`,
+          label: `${new Date(sch.visitDate).toLocaleDateString()} - ${
+            sch.retailerId?.shopDetails?.shopName || sch.retailerId?.name || "N/A"
+          }`,
           full: sch,
         }));
 
@@ -245,20 +270,41 @@ const SubmitReport = ({ campaign }) => {
     fetchSchedules();
   }, [selectedRetailer, campaignId]);
 
-  // FILE HANDLERS
+  // Validate file size
+  const validateFileSize = (file) => {
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File "${file.name}" is too large. Maximum size is 10MB.`);
+      return false;
+    }
+    return true;
+  };
+
+  // FILE HANDLERS WITH VALIDATION
   const handleShopImagesChange = (e) => {
     const newFiles = Array.from(e.target.files || []);
-    setShopDisplayImages((prev) => [...prev, ...newFiles]);
+    const validFiles = newFiles.filter(validateFileSize);
+    if (validFiles.length > 0) {
+      setShopDisplayImages((prev) => [...prev, ...validFiles]);
+      setError(""); // Clear error if files are valid
+    }
   };
 
   const handleBillCopiesChange = (e) => {
     const newFiles = Array.from(e.target.files || []);
-    setBillCopies((prev) => [...prev, ...newFiles]);
+    const validFiles = newFiles.filter(validateFileSize);
+    if (validFiles.length > 0) {
+      setBillCopies((prev) => [...prev, ...validFiles]);
+      setError(""); // Clear error if files are valid
+    }
   };
 
   const handleOtherFilesChange = (e) => {
     const newFiles = Array.from(e.target.files || []);
-    setOtherFiles((prev) => [...prev, ...newFiles]);
+    const validFiles = newFiles.filter(validateFileSize);
+    if (validFiles.length > 0) {
+      setOtherFiles((prev) => [...prev, ...validFiles]);
+      setError(""); // Clear error if files are valid
+    }
   };
 
   const removeShopImage = (index) => {
@@ -309,8 +355,8 @@ const SubmitReport = ({ campaign }) => {
         return;
       }
     }
+
     if (attended.value === "yes") {
-      // Only require schedule for scheduled visits
       if (visitType.value === "scheduled" && !visitScheduleId) {
         setError("Please select a visit schedule");
         return;
@@ -346,7 +392,6 @@ const SubmitReport = ({ campaign }) => {
       let retailerIdToSubmit = selectedRetailer.value;
       let campaignIdToSubmit = campaignId;
 
-      // If schedule selected, use its campaign ID
       if (visitScheduleId && visitScheduleId.full) {
         campaignIdToSubmit =
           visitScheduleId.full?.campaignId?._id ||
@@ -359,14 +404,16 @@ const SubmitReport = ({ campaign }) => {
       formData.append("typeOfVisit", visitType.value);
       formData.append("attendedVisit", attended.value);
 
+      // Submitter info - Using bracket notation for Cloudinary compatibility
       formData.append("submittedBy[role]", "Employee");
       formData.append("submittedBy[userId]", employeeInfo._id || employeeInfo.id);
 
+      // Employee info - Using bracket notation
       formData.append("employee[employeeId]", employeeInfo._id || employeeInfo.id);
       formData.append("employee[employeeName]", employeeInfo.name);
       formData.append("employee[employeeCode]", employeeInfo.employeeId);
 
-      // Retailer info
+      // Retailer info - Using bracket notation
       const retailerData = selectedRetailer.data;
       formData.append("retailer[retailerId]", retailerData._id || retailerData.id);
       formData.append(
@@ -406,18 +453,21 @@ const SubmitReport = ({ campaign }) => {
           formData.append("productType", productType.value);
           formData.append("quantity", quantity);
 
+          // Append bill copies - Backend will upload to Cloudinary
           billCopies.forEach((file) => {
             formData.append("billCopies", file);
           });
         }
 
         if (reportType.value === "Window Display") {
+          // Append shop display images - Backend will upload to Cloudinary
           shopDisplayImages.forEach((file) => {
             formData.append("shopDisplayImages", file);
           });
         }
 
         if (reportType.value === "Others") {
+          // Append other files - Backend will upload to Cloudinary
           otherFiles.forEach((file) => {
             formData.append("files", file);
           });
@@ -495,7 +545,7 @@ const SubmitReport = ({ campaign }) => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* STEP 1: Select Retailer FIRST */}
+        {/* STEP 1: Select Retailer */}
         <div>
           <label className="block font-medium mb-1">Select Retailer *</label>
           <Select
@@ -503,7 +553,6 @@ const SubmitReport = ({ campaign }) => {
             value={selectedRetailer}
             onChange={(v) => {
               setSelectedRetailer(v);
-              // Reset all subsequent fields
               setVisitType(null);
               setAttended(null);
               setNotVisitedReason(null);
@@ -522,7 +571,7 @@ const SubmitReport = ({ campaign }) => {
           )}
         </div>
 
-        {/* STEP 2: Type of Visit (Only show after retailer selected) */}
+        {/* STEP 2: Type of Visit */}
         {selectedRetailer && (
           <div>
             <label className="block font-medium mb-1">Type of Visit *</label>
@@ -541,7 +590,7 @@ const SubmitReport = ({ campaign }) => {
           </div>
         )}
 
-        {/* STEP 3: Attended Visit? (Common question for both scheduled/unscheduled) */}
+        {/* STEP 3: Attended Visit? */}
         {selectedRetailer && visitType && (
           <div>
             <label className="block font-medium mb-1">Attended Visit? *</label>
@@ -560,7 +609,7 @@ const SubmitReport = ({ campaign }) => {
           </div>
         )}
 
-        {/* BRANCH A: If Attended = NO - Show Reason */}
+        {/* BRANCH A: If Attended = NO */}
         {selectedRetailer && visitType && attended?.value === "no" && (
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
             <label className="block font-medium mb-2">
@@ -576,7 +625,7 @@ const SubmitReport = ({ campaign }) => {
             {notVisitedReason?.value === "others" && (
               <input
                 type="text"
-                className="border rounded p-2 w-full mt-3"
+                className="border rounded p-2 w-full mt-3 focus:outline-none focus:ring-2 focus:ring-[#E4002B]"
                 placeholder="Specify other reason"
                 value={otherReasonText}
                 onChange={(e) => setOtherReasonText(e.target.value)}
@@ -588,7 +637,7 @@ const SubmitReport = ({ campaign }) => {
         {/* BRANCH B: If Attended = YES */}
         {selectedRetailer && visitType && attended?.value === "yes" && (
           <>
-            {/* Show Visit Schedule Selection ONLY for SCHEDULED visits */}
+            {/* Visit Schedule (Scheduled visits only) */}
             {visitType.value === "scheduled" && (
               <div>
                 <label className="block font-medium mb-1">Select Visit Schedule *</label>
@@ -607,269 +656,155 @@ const SubmitReport = ({ campaign }) => {
               </div>
             )}
 
-            {/* REST OF THE FORM - Show immediately for unscheduled, after schedule selection for scheduled */}
+            {/* REST OF THE FORM */}
             {(visitType.value === "unscheduled" ||
               (visitType.value === "scheduled" && visitScheduleId)) && (
-                <>
-                  {/* Report Type */}
-                  <div>
-                    <label className="block font-medium mb-1">Type of Report *</label>
-                    <Select
-                      styles={customSelectStyles}
-                      options={reportTypes}
-                      value={reportType}
-                      onChange={setReportType}
-                      placeholder="Select Report Type"
-                      isSearchable
-                    />
-                  </div>
+              <>
+                {/* Report Type */}
+                <div>
+                  <label className="block font-medium mb-1">Type of Report *</label>
+                  <Select
+                    styles={customSelectStyles}
+                    options={reportTypes}
+                    value={reportType}
+                    onChange={setReportType}
+                    placeholder="Select Report Type"
+                    isSearchable
+                  />
+                </div>
 
-                  {/* Frequency */}
-                  <div>
-                    <label className="block font-medium mb-1">Frequency *</label>
-                    <Select
-                      styles={customSelectStyles}
-                      options={frequencyOptions}
-                      value={frequency}
-                      onChange={setFrequency}
-                      placeholder="Select Frequency"
-                      isSearchable
-                    />
-                  </div>
+                {/* Frequency */}
+                <div>
+                  <label className="block font-medium mb-1">Frequency *</label>
+                  <Select
+                    styles={customSelectStyles}
+                    options={frequencyOptions}
+                    value={frequency}
+                    onChange={setFrequency}
+                    placeholder="Select Frequency"
+                    isSearchable
+                  />
+                </div>
 
-                  {/* Date of Submission */}
-                  <div>
-                    <label className="block font-medium mb-1">Date of Submission *</label>
-                    <input
-                      type="date"
-                      className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
-                      value={dateOfSubmission}
-                      onChange={(e) => setDateOfSubmission(e.target.value)}
-                      max={getTodayDate()}
-                      required
-                    />
-                  </div>
+                {/* Date of Submission */}
+                <div>
+                  <label className="block font-medium mb-1">Date of Submission *</label>
+                  <input
+                    type="date"
+                    className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                    value={dateOfSubmission}
+                    onChange={(e) => setDateOfSubmission(e.target.value)}
+                    max={getTodayDate()}
+                    required
+                  />
+                </div>
 
-                  {/* Remarks */}
-                  <div>
-                    <label className="block font-medium mb-1">Remarks (Optional)</label>
-                    <textarea
-                      className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
-                      rows="3"
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      placeholder="Add any additional notes..."
-                    />
-                  </div>
+                {/* Remarks */}
+                <div>
+                  <label className="block font-medium mb-1">Remarks (Optional)</label>
+                  <textarea
+                    className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                    rows="3"
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="Add any additional notes..."
+                  />
+                </div>
 
-                  {/* STOCK REPORT FIELDS */}
-                  {reportType?.value === "Stock" && (
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-md border">
-                      <h4 className="font-semibold text-[#E4002B]">Stock Details</h4>
+                {/* STOCK REPORT FIELDS */}
+                {reportType?.value === "Stock" && (
+                  <div className="space-y-4 bg-gray-50 p-4 rounded-md border">
+                    <h4 className="font-semibold text-[#E4002B]">Stock Details</h4>
 
-                      <div>
-                        <label className="block font-medium mb-1">Type of Stock *</label>
-                        <Select
-                          styles={customSelectStyles}
-                          options={stockTypeOptions}
-                          value={stockType}
-                          onChange={setStockType}
-                          placeholder="Select Stock Type"
-                          isSearchable
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-medium mb-1">Brand *</label>
-                        <input
-                          type="text"
-                          className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
-                          placeholder="Enter brand name"
-                          value={brand}
-                          onChange={(e) => setBrand(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-medium mb-1">Product *</label>
-                        <input
-                          type="text"
-                          className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
-                          placeholder="Enter product name"
-                          value={product}
-                          onChange={(e) => setProduct(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-medium mb-1">SKU *</label>
-                        <input
-                          type="text"
-                          className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
-                          placeholder="Enter SKU"
-                          value={sku}
-                          onChange={(e) => setSku(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-medium mb-1">Product Type *</label>
-                        <Select
-                          styles={customSelectStyles}
-                          options={productTypeOptions}
-                          value={productType}
-                          onChange={setProductType}
-                          placeholder="Select Product Type"
-                          isSearchable
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-medium mb-1">Quantity *</label>
-                        <input
-                          type="number"
-                          className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
-                          placeholder="Enter quantity"
-                          value={quantity}
-                          onChange={(e) => setQuantity(e.target.value)}
-                          min="0"
-                        />
-                      </div>
-
-                      {/* Bill Copies */}
-                      <div>
-                        <label className="block font-medium mb-1">
-                          Bill Copies (Images/PDF)
-                        </label>
-                        <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
-                          <FiPlus className="text-3xl text-gray-400" />
-                          <span>Click or drop files here</span>
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            multiple
-                            className="hidden"
-                            onChange={handleBillCopiesChange}
-                          />
-                        </label>
-
-                        {billCopies.length > 0 && (
-                          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {billCopies.map((file, index) => (
-                              <div
-                                key={index}
-                                className="relative border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 group"
-                              >
-                                {isImageFile(file) ? (
-                                  <>
-                                    <img
-                                      src={URL.createObjectURL(file)}
-                                      className="w-full h-32 object-cover"
-                                      alt={`bill-${index}`}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => removeBillCopy(index)}
-                                      className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <FiX size={16} />
-                                    </button>
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
-                                      {file.name.length > 15
-                                        ? file.name.substring(0, 12) + "..."
-                                        : file.name}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="flex flex-col items-center justify-center h-32 p-2 relative">
-                                    <div className="text-4xl text-gray-400 mb-2">📄</div>
-                                    <p className="text-xs text-gray-600 text-center truncate w-full px-2">
-                                      {file.name}
-                                    </p>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeBillCopy(index)}
-                                      className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <FiX size={16} />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                    <div>
+                      <label className="block font-medium mb-1">Type of Stock *</label>
+                      <Select
+                        styles={customSelectStyles}
+                        options={stockTypeOptions}
+                        value={stockType}
+                        onChange={setStockType}
+                        placeholder="Select Stock Type"
+                        isSearchable
+                      />
                     </div>
-                  )}
 
-                  {/* WINDOW DISPLAY */}
-                  {reportType?.value === "Window Display" && (
+                    <div>
+                      <label className="block font-medium mb-1">Brand *</label>
+                      <input
+                        type="text"
+                        className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                        placeholder="Enter brand name"
+                        value={brand}
+                        onChange={(e) => setBrand(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-medium mb-1">Product *</label>
+                      <input
+                        type="text"
+                        className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                        placeholder="Enter product name"
+                        value={product}
+                        onChange={(e) => setProduct(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-medium mb-1">SKU *</label>
+                      <input
+                        type="text"
+                        className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                        placeholder="Enter SKU"
+                        value={sku}
+                        onChange={(e) => setSku(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-medium mb-1">Product Type *</label>
+                      <Select
+                        styles={customSelectStyles}
+                        options={productTypeOptions}
+                        value={productType}
+                        onChange={setProductType}
+                        placeholder="Select Product Type"
+                        isSearchable
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-medium mb-1">Quantity *</label>
+                      <input
+                        type="number"
+                        className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                        placeholder="Enter quantity"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+
+                    {/* Bill Copies */}
                     <div>
                       <label className="block font-medium mb-1">
-                        Upload Shop Display Images
+                        Bill Copies (Images/PDF) - Max 10MB per file
                       </label>
-                      <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
-                        <FiPlus className="text-3xl text-gray-400" />
-                        <span>Click or drop images here</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={handleShopImagesChange}
-                        />
-                      </label>
-
-                      {shopDisplayImages.length > 0 && (
-                        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                          {shopDisplayImages.map((file, index) => (
-                            <div
-                              key={index}
-                              className="relative border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 group"
-                            >
-                              <img
-                                src={URL.createObjectURL(file)}
-                                className="w-full h-32 object-cover"
-                                alt={`preview-${index}`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeShopImage(index)}
-                                className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <FiX size={16} />
-                              </button>
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
-                                {file.name.length > 15
-                                  ? file.name.substring(0, 12) + "..."
-                                  : file.name}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* OTHERS */}
-                  {reportType?.value === "Others" && (
-                    <div>
-                      <label className="block font-medium mb-1">Upload Files</label>
                       <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
                         <FiPlus className="text-3xl text-gray-400" />
                         <span>Click or drop files here</span>
                         <input
                           type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
                           multiple
                           className="hidden"
-                          onChange={handleOtherFilesChange}
+                          onChange={handleBillCopiesChange}
                         />
                       </label>
 
-                      {otherFiles.length > 0 && (
+                      {billCopies.length > 0 && (
                         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                          {otherFiles.map((file, index) => (
+                          {billCopies.map((file, index) => (
                             <div
                               key={index}
                               className="relative border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 group"
@@ -879,11 +814,11 @@ const SubmitReport = ({ campaign }) => {
                                   <img
                                     src={URL.createObjectURL(file)}
                                     className="w-full h-32 object-cover"
-                                    alt={`other-${index}`}
+                                    alt={`bill-${index}`}
                                   />
                                   <button
                                     type="button"
-                                    onClick={() => removeOtherFile(index)}
+                                    onClick={() => removeBillCopy(index)}
                                     className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                   >
                                     <FiX size={16} />
@@ -902,7 +837,7 @@ const SubmitReport = ({ campaign }) => {
                                   </p>
                                   <button
                                     type="button"
-                                    onClick={() => removeOtherFile(index)}
+                                    onClick={() => removeBillCopy(index)}
                                     className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                   >
                                     <FiX size={16} />
@@ -914,9 +849,126 @@ const SubmitReport = ({ campaign }) => {
                         </div>
                       )}
                     </div>
-                  )}
-                </>
-              )}
+                  </div>
+                )}
+
+                {/* WINDOW DISPLAY */}
+                {reportType?.value === "Window Display" && (
+                  <div>
+                    <label className="block font-medium mb-1">
+                      Upload Shop Display Images - Max 10MB per file
+                    </label>
+                    <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
+                      <FiPlus className="text-3xl text-gray-400" />
+                      <span>Click or drop images here</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={handleShopImagesChange}
+                      />
+                    </label>
+
+                    {shopDisplayImages.length > 0 && (
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {shopDisplayImages.map((file, index) => (
+                          <div
+                            key={index}
+                            className="relative border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 group"
+                          >
+                            <img
+                              src={URL.createObjectURL(file)}
+                              className="w-full h-32 object-cover"
+                              alt={`preview-${index}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeShopImage(index)}
+                              className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <FiX size={16} />
+                            </button>
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
+                              {file.name.length > 15
+                                ? file.name.substring(0, 12) + "..."
+                                : file.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* OTHERS */}
+                {reportType?.value === "Others" && (
+                  <div>
+                    <label className="block font-medium mb-1">
+                      Upload Files - Max 10MB per file
+                    </label>
+                    <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
+                      <FiPlus className="text-3xl text-gray-400" />
+                      <span>Click or drop files here</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                        multiple
+                        className="hidden"
+                        onChange={handleOtherFilesChange}
+                      />
+                    </label>
+
+                    {otherFiles.length > 0 && (
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {otherFiles.map((file, index) => (
+                          <div
+                            key={index}
+                            className="relative border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 group"
+                          >
+                            {isImageFile(file) ? (
+                              <>
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  className="w-full h-32 object-cover"
+                                  alt={`other-${index}`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeOtherFile(index)}
+                                  className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <FiX size={16} />
+                                </button>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center truncate">
+                                  {file.name.length > 15
+                                    ? file.name.substring(0, 12) + "..."
+                                    : file.name}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-32 p-2 relative">
+                                <div className="text-4xl text-gray-400 mb-2">📄</div>
+                                <p className="text-xs text-gray-600 text-center truncate w-full px-2">
+                                  {file.name}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => removeOtherFile(index)}
+                                  className="absolute top-1 right-1 bg-[#E4002B] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <FiX size={16} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </>
         )}
 
