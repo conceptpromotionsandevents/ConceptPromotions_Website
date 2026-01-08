@@ -625,23 +625,35 @@ export const updateRetailer = async (req, res) => {
 =============================== */
 export const getRetailerCampaigns = async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).json({ message: "Unauthorized" });
+        /* =========================
+           AUTH CHECK (RETAILER)
+        ========================== */
+        if (!req.user || req.user.role !== "retailer") {
+            return res.status(403).json({
+                success: false,
+                message: "Only retailers can access campaigns",
+            });
         }
 
-        const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const retailerId = decoded.id;
+        const retailerId = req.user.id;
 
+        /* =========================
+           VALIDATE RETAILER
+        ========================== */
         const retailer = await Retailer.findById(retailerId)
             .select("name uniqueId retailerCode")
             .lean();
 
         if (!retailer) {
-            return res.status(404).json({ message: "Retailer not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Retailer not found",
+            });
         }
 
+        /* =========================
+           QUERY FILTERS
+        ========================== */
         const { status, isActive } = req.query;
 
         const query = {
@@ -652,41 +664,57 @@ export const getRetailerCampaigns = async (req, res) => {
             query.isActive = isActive === "true";
         }
 
+        /* =========================
+           FETCH CAMPAIGNS
+        ========================== */
         const campaigns = await Campaign.find(query)
             .populate("createdBy", "name email")
+            .populate("assignedRetailers.retailerId", "name contactNo")
             .populate({
                 path: "assignedEmployeeRetailers.employeeId",
                 select: "name phone email",
-                options: { strictPopulate: false },
             })
             .sort({ createdAt: -1 })
             .lean();
 
-        const campaignsWithStatus = campaigns.map((campaign) => {
-            const assignedRetailers = Array.isArray(campaign.assignedRetailers)
-                ? campaign.assignedRetailers
-                : [];
+        /* =========================
+           MAP RETAILER VIEW
+        ========================== */
+        const mapped = campaigns.map((campaign) => {
+            /* ---- normalize sub-documents ---- */
+            campaign.info ??= { description: "", tnc: "", banners: [] };
+            campaign.info.banners ??= [];
 
-            const retailerEntry = assignedRetailers.find(
-                (r) => r.retailerId?.toString() === retailerId.toString()
-            );
+            campaign.gratification ??= {
+                type: "",
+                description: "",
+                images: [],
+            };
+            campaign.gratification.images ??= [];
 
-            const employeeMappings = Array.isArray(
+            /* ---- retailer entry ---- */
+            const retailerEntry =
+                campaign.assignedRetailers?.find(
+                    (r) =>
+                        r.retailerId &&
+                        r.retailerId._id.toString() === retailerId.toString()
+                ) || null;
+
+            /* ---- employee mappings ---- */
+            const assignedEmployees =
                 campaign.assignedEmployeeRetailers
-            )
-                ? campaign.assignedEmployeeRetailers
-                : [];
-
-            const assignedEmployees = employeeMappings
-                .filter(
-                    (m) => m.retailerId?.toString() === retailerId.toString()
-                )
-                .map((m) => ({
-                    _id: m.employeeId?._id || null,
-                    name: m.employeeId?.name || "",
-                    phone: m.employeeId?.phone || "",
-                    email: m.employeeId?.email || "",
-                }));
+                    ?.filter(
+                        (m) =>
+                            m.retailerId &&
+                            m.employeeId &&
+                            m.retailerId.toString() === retailerId.toString()
+                    )
+                    .map((m) => ({
+                        _id: m.employeeId._id,
+                        name: m.employeeId.name,
+                        phone: m.employeeId.phone,
+                        email: m.employeeId.email,
+                    })) || [];
 
             return {
                 _id: campaign._id,
@@ -701,42 +729,39 @@ export const getRetailerCampaigns = async (req, res) => {
                 createdBy: campaign.createdBy,
                 createdAt: campaign.createdAt,
 
-                /* ✅ FIXED (same key, correct source) */
-                bannerImages: campaign.info?.banners || [],
-
-                /* ✅ ADDED (new schema fields, no renames) */
-                info: campaign.info || {
-                    description: "",
-                    tnc: "",
-                    banners: [],
-                },
-
-                gratification: campaign.gratification || {
-                    type: "",
-                    description: "",
-                    images: [],
-                },
+                info: campaign.info,
+                gratification: campaign.gratification,
 
                 retailerStatus: {
-                    status: retailerEntry?.status || "pending",
-                    assignedAt: retailerEntry?.assignedAt || null,
-                    updatedAt: retailerEntry?.updatedAt || null,
+                    status: retailerEntry?.status ?? "pending",
+                    assignedAt: retailerEntry?.assignedAt ?? null,
+                    updatedAt: retailerEntry?.updatedAt ?? null,
                     startDate:
-                        retailerEntry?.startDate || campaign.campaignStartDate,
-                    endDate: retailerEntry?.endDate || campaign.campaignEndDate,
+                        retailerEntry?.startDate ??
+                        campaign.campaignStartDate,
+                    endDate:
+                        retailerEntry?.endDate ??
+                        campaign.campaignEndDate,
                 },
 
                 assignedEmployees,
             };
         });
 
+        /* =========================
+           STATUS FILTER
+        ========================== */
         const finalResult = status
-            ? campaignsWithStatus.filter(
+            ? mapped.filter(
                   (c) => c.retailerStatus.status === status.toLowerCase()
               )
-            : campaignsWithStatus;
+            : mapped;
 
+        /* =========================
+           RESPONSE
+        ========================== */
         return res.status(200).json({
+            success: true,
             count: finalResult.length,
             retailer: {
                 id: retailer._id,
@@ -749,12 +774,12 @@ export const getRetailerCampaigns = async (req, res) => {
     } catch (error) {
         console.error("Get retailer campaigns error:", error);
         return res.status(500).json({
+            success: false,
             message: "Server error",
             error: error.message,
         });
     }
 };
-
 
 // ====== BULK REGISTER RETAILERS ======
 

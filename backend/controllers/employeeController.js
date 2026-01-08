@@ -449,19 +449,32 @@ export const loginEmployee = async (req, res) => {
 //GET EMPLOYEE CAMPAIGNS
 export const getEmployeeCampaigns = async (req, res) => {
     try {
-        const employeeId = req.user.id;
-
-        // -------------------------------
-        // Validate employee
-        // -------------------------------
-        const employee = await Employee.findById(employeeId).select("name email");
-        if (!employee) {
-            return res.status(404).json({ message: "Employee not found" });
+        /* =========================
+           AUTH CHECK (EMPLOYEE)
+        ========================== */
+        if (!req.user || req.user.role !== "employee") {
+            return res.status(403).json({
+                success: false,
+                message: "Only employees can access campaigns",
+            });
         }
 
-        // -------------------------------
-        // Fetch campaigns
-        // -------------------------------
+        const employeeId = req.user.id;
+
+        /* =========================
+           VALIDATE EMPLOYEE
+        ========================== */
+        const employee = await Employee.findById(employeeId).select("name email");
+        if (!employee) {
+            return res.status(404).json({
+                success: false,
+                message: "Employee not found",
+            });
+        }
+
+        /* =========================
+           FETCH CAMPAIGNS
+        ========================== */
         const campaigns = await Campaign.find({
             "assignedEmployees.employeeId": employeeId,
         })
@@ -470,41 +483,63 @@ export const getEmployeeCampaigns = async (req, res) => {
             .populate("assignedRetailers.retailerId", "name contactNo")
             .sort({ createdAt: -1 });
 
-        // -------------------------------
-        // Map employee-specific status
-        // -------------------------------
-        const campaignsWithStatus = campaigns.map((campaign) => {
-            const campaignObj = campaign.toObject();
+        /* =========================
+           MAP EMPLOYEE-SPECIFIC VIEW
+        ========================== */
+        const campaignsWithStatus = campaigns.map((c) => {
+            const campaign = c.toObject();
 
-            // 🔒 Null-safe employee lookup
-            const employeeEntry = campaignObj.assignedEmployees?.find(
+            /* ---- Ensure sub-documents ---- */
+            campaign.info ??= { description: "", tnc: "", banners: [] };
+            campaign.info.banners ??= [];
+
+            campaign.gratification ??= {
+                type: "",
+                description: "",
+                images: [],
+            };
+            campaign.gratification.images ??= [];
+
+            /* ---- Remove orphan refs ---- */
+            campaign.assignedEmployees =
+                campaign.assignedEmployees?.filter(
+                    (e) => e.employeeId !== null
+                ) || [];
+
+            campaign.assignedRetailers =
+                campaign.assignedRetailers?.filter(
+                    (r) => r.retailerId !== null
+                ) || [];
+
+            /* ---- Employee-specific status ---- */
+            const employeeEntry = campaign.assignedEmployees.find(
                 (emp) =>
                     emp.employeeId &&
-                    emp.employeeId._id &&
                     emp.employeeId._id.toString() === employeeId.toString()
             );
 
             return {
-                ...campaignObj,
+                ...campaign,
 
                 employeeStatus: {
                     status: employeeEntry?.status ?? "pending",
                     startDate:
                         employeeEntry?.startDate ??
-                        campaignObj.campaignStartDate,
+                        campaign.campaignStartDate,
                     endDate:
                         employeeEntry?.endDate ??
-                        campaignObj.campaignEndDate,
+                        campaign.campaignEndDate,
                     assignedAt: employeeEntry?.assignedAt ?? null,
                     updatedAt: employeeEntry?.updatedAt ?? null,
                 },
             };
         });
 
-        // -------------------------------
-        // Response
-        // -------------------------------
+        /* =========================
+           RESPONSE
+        ========================== */
         res.status(200).json({
+            success: true,
             message: "Campaigns fetched successfully",
             employee: {
                 id: employee._id,
@@ -516,6 +551,7 @@ export const getEmployeeCampaigns = async (req, res) => {
     } catch (error) {
         console.error("Get employee campaigns error:", error);
         res.status(500).json({
+            success: false,
             message: "Server error",
             error: error.message,
         });
