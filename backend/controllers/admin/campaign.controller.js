@@ -4,6 +4,7 @@ import {
     Campaign,
     ClientAdmin,
     Employee,
+    VisitSchedule
   
    
 } from "../../models/user.js";
@@ -59,8 +60,8 @@ export const getAllCampaigns = async (req, res) => {
 export const addCampaign = async (req, res) => {
     try {
         /* =========================
-       AUTH CHECK
-    ========================== */
+           AUTH CHECK
+        ========================== */
         if (!req.user || req.user.role !== "admin") {
             return res.status(403).json({
                 success: false,
@@ -69,31 +70,31 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       SAFE BODY EXTRACT
-    ========================== */
+           SAFE BODY EXTRACT
+        ========================== */
         const body = req.body || {};
 
-    let {
-      name,
-      client,
-      type,
-      regions,
-      states,
-      campaignStartDate,
-      campaignEndDate,
+        let {
+            name,
+            client,
+            type,
+            regions,
+            states,
+            campaignStartDate,
+            campaignEndDate,
 
-      // INFO
-      description,
-      termsAndConditions,
+            // INFO
+            description,
+            termsAndConditions,
 
-      // GRATIFICATION
-      gratificationType,
-      gratificationDescription,
-    } = body;
+            // GRATIFICATION
+            gratificationType,
+            gratificationDescription,
+        } = body;
 
         /* =========================
-       REQUIRED FIELDS
-    ========================== */
+           REQUIRED FIELDS
+        ========================== */
         if (
             !name ||
             !client ||
@@ -111,8 +112,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       PARSE ARRAYS (multipart-safe)
-    ========================== */
+           PARSE ARRAYS (multipart-safe)
+        ========================== */
         try {
             if (typeof regions === "string") regions = JSON.parse(regions);
             if (typeof states === "string") states = JSON.parse(states);
@@ -123,14 +124,14 @@ export const addCampaign = async (req, res) => {
             });
         }
 
-        if (!Array.isArray(regions) || regions.length === 0) {
+        if (!Array.isArray(regions) || !regions.length) {
             return res.status(400).json({
                 success: false,
                 message: "At least one region is required",
             });
         }
 
-        if (!Array.isArray(states) || states.length === 0) {
+        if (!Array.isArray(states) || !states.length) {
             return res.status(400).json({
                 success: false,
                 message: "At least one state is required",
@@ -138,8 +139,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       CLIENT VALIDATION
-    ========================== */
+           CLIENT VALIDATION
+        ========================== */
         const clientOrg = await ClientAdmin.findOne({
             organizationName: client,
         }).select("_id");
@@ -152,8 +153,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       DATE VALIDATION
-    ========================== */
+           DATE VALIDATION
+        ========================== */
         const startDate = new Date(campaignStartDate);
         const endDate = new Date(campaignEndDate);
 
@@ -171,67 +172,71 @@ export const addCampaign = async (req, res) => {
             });
         }
 
-    /* =========================
-       UPLOAD INFO BANNERS
-    ========================== */
-        const banners = [];
+        /* =========================
+           UPLOAD INFO BANNERS
+        ========================== */
+        const infoBanners = [];
 
-    if (req.files?.banners?.length) {
-      for (const file of req.files.banners) {
-        const result = await uploadToCloudinary(
-          file.buffer,
-          "campaigns/banners",
-          "image"
-        );
+        if (req.files?.banners?.length) {
+            for (const file of req.files.banners) {
+                const result = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/banners",
+                    "image"
+                );
 
-        banners.push({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
-      }
-    }
-
-    /* =========================
-       UPLOAD GRATIFICATION IMAGES
-    ========================== */
-    const gratificationImages = [];
-
-    if (req.files?.gratificationImages?.length) {
-      for (const file of req.files.gratificationImages) {
-        const result = await uploadToCloudinary(
-          file.buffer,
-          "campaigns/gratification",
-          "image"
-        );
-
-        gratificationImages.push({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
-      }
-    }
+                infoBanners.push({
+                    url: result.secure_url,
+                    publicId: result.public_id,
+                });
+            }
+        }
 
         /* =========================
-       CREATE CAMPAIGN
-    ========================== */
-    const campaign = new Campaign({
-      name,
-      client,
-      type,
-      regions,
-      states,
-      createdBy: req.user.id,
-      campaignStartDate: startDate,
-      campaignEndDate: endDate,
-      banners,
-      termsAndConditions,
-      gratification: {
-        type: gratificationType || "",
-        amount: gratificationAmount || null,
-        description: gratificationDescription || "",
-        conditions: gratificationConditions || "",
-      },
-    });
+           UPLOAD GRATIFICATION IMAGES
+        ========================== */
+        const gratificationImages = [];
+
+        if (req.files?.gratificationImages?.length) {
+            for (const file of req.files.gratificationImages) {
+                const result = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/gratification",
+                    "image"
+                );
+
+                gratificationImages.push({
+                    url: result.secure_url,
+                    publicId: result.public_id,
+                });
+            }
+        }
+
+        /* =========================
+           CREATE CAMPAIGN (SCHEMA SAFE)
+        ========================== */
+        const campaign = new Campaign({
+            name,
+            client,
+            type,
+            regions,
+            states,
+            createdBy: req.user.id,
+            campaignStartDate: startDate,
+            campaignEndDate: endDate,
+
+            info: {
+                description: description || "",
+                tnc: termsAndConditions,
+                banners: infoBanners,
+            },
+
+            gratification: {
+                type: gratificationType || "",
+                description: gratificationDescription || "",
+                images: gratificationImages,
+            },
+        });
 
         await campaign.save();
 
@@ -249,6 +254,7 @@ export const addCampaign = async (req, res) => {
         });
     }
 };
+
 
 // ====== UPDATE CAMPAIGN STATUS ======
 export const updateCampaignStatus = async (req, res) => {
@@ -320,9 +326,37 @@ export const getCampaignById = async (req, res) => {
             });
         }
 
+        const campaignObj = campaign.toObject();
+
+        /* =========================
+           ENSURE SUB-DOCUMENTS
+        ========================== */
+        campaignObj.info ??= { description: "", tnc: "", banners: [] };
+        campaignObj.info.banners ??= [];
+
+        campaignObj.gratification ??= {
+            type: "",
+            description: "",
+            images: [],
+        };
+        campaignObj.gratification.images ??= [];
+
+        /* =========================
+           REMOVE ORPHAN REFERENCES
+        ========================== */
+        campaignObj.assignedEmployees =
+            campaignObj.assignedEmployees?.filter(
+                (emp) => emp.employeeId !== null
+            ) || [];
+
+        campaignObj.assignedRetailers =
+            campaignObj.assignedRetailers?.filter(
+                (ret) => ret.retailerId !== null
+            ) || [];
+
         res.status(200).json({
             success: true,
-            campaign,
+            campaign: campaignObj,
         });
     } catch (error) {
         console.error("Get campaign by ID error:", error);
@@ -333,6 +367,7 @@ export const getCampaignById = async (req, res) => {
         });
     }
 };
+
 
 // ====== GET EMPLOYEE CAMPAIGNS ======
 export const getEmployeeCampaigns = async (req, res) => {
@@ -365,6 +400,7 @@ export const getEmployeeCampaigns = async (req, res) => {
     }
 };
 
+
 // ====== DELETE CAMPAIGN ======
 export const deleteCampaign = async (req, res) => {
     try {
@@ -384,15 +420,32 @@ export const deleteCampaign = async (req, res) => {
             });
 
         /* =========================
-           DELETE BANNERS FROM CLOUDINARY
+           ✅ DELETE INFO BANNERS FROM CLOUDINARY
         ========================== */
-        if (campaign.banners && campaign.banners.length > 0) {
-            for (const banner of campaign.banners) {
+        if (campaign.info?.banners && campaign.info.banners.length > 0) {
+            for (const banner of campaign.info.banners) {
                 try {
                     await deleteFromCloudinary(banner.publicId, "image");
                 } catch (err) {
                     console.error(
                         `Failed to delete banner ${banner.publicId}:`,
+                        err
+                    );
+                    // Continue with deletion even if Cloudinary cleanup fails
+                }
+            }
+        }
+
+        /* =========================
+           ✅ DELETE GRATIFICATION IMAGES FROM CLOUDINARY
+        ========================== */
+        if (campaign.gratification?.images && campaign.gratification.images.length > 0) {
+            for (const image of campaign.gratification.images) {
+                try {
+                    await deleteFromCloudinary(image.publicId, "image");
+                } catch (err) {
+                    console.error(
+                        `Failed to delete gratification image ${image.publicId}:`,
                         err
                     );
                     // Continue with deletion even if Cloudinary cleanup fails
@@ -407,7 +460,7 @@ export const deleteCampaign = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Campaign and associated banners deleted successfully",
+            message: "Campaign and associated images deleted successfully",
         });
     } catch (error) {
         console.error("Delete campaign error:", error);
@@ -418,6 +471,7 @@ export const deleteCampaign = async (req, res) => {
         });
     }
 };
+
 
 // ====== ASSIGN CAMPAIGN (employees + retailers) ======
 export const assignCampaign = async (req, res) => {
@@ -609,6 +663,15 @@ export const updateCampaign = async (req, res) => {
         }
 
         /* =========================
+           ENSURE SUB-DOCUMENTS EXIST
+        ========================== */
+        campaign.info ??= { description: "", tnc: "", banners: [] };
+        campaign.info.banners ??= [];
+
+        campaign.gratification ??= { type: "", description: "", images: [] };
+        campaign.gratification.images ??= [];
+
+        /* =========================
            SAFE BODY EXTRACT
         ========================== */
         const body = req.body || {};
@@ -631,9 +694,6 @@ export const updateCampaign = async (req, res) => {
             gratificationType,
             gratificationDescription,
 
-            assignedRetailers,
-            assignedEmployees,
-
             removeBanners,
             removeGratificationImages,
         } = body;
@@ -644,10 +704,6 @@ export const updateCampaign = async (req, res) => {
         try {
             if (typeof regions === "string") regions = JSON.parse(regions);
             if (typeof states === "string") states = JSON.parse(states);
-            if (typeof assignedRetailers === "string")
-                assignedRetailers = JSON.parse(assignedRetailers);
-            if (typeof assignedEmployees === "string")
-                assignedEmployees = JSON.parse(assignedEmployees);
             if (typeof removeBanners === "string")
                 removeBanners = JSON.parse(removeBanners);
             if (typeof removeGratificationImages === "string")
@@ -674,6 +730,12 @@ export const updateCampaign = async (req, res) => {
         if (termsAndConditions !== undefined)
             campaign.info.tnc = termsAndConditions;
 
+        /* =========================
+           DATE VALIDATION
+        ========================== */
+        let startDate = campaign.campaignStartDate;
+        let endDate = campaign.campaignEndDate;
+
         if (campaignStartDate) {
             const d = new Date(campaignStartDate);
             if (isNaN(d)) {
@@ -682,7 +744,7 @@ export const updateCampaign = async (req, res) => {
                     message: "Invalid campaign start date format",
                 });
             }
-            campaign.campaignStartDate = d;
+            startDate = d;
         }
 
         if (campaignEndDate) {
@@ -693,8 +755,18 @@ export const updateCampaign = async (req, res) => {
                     message: "Invalid campaign end date format",
                 });
             }
-            campaign.campaignEndDate = d;
+            endDate = d;
         }
+
+        if (startDate > endDate) {
+            return res.status(400).json({
+                success: false,
+                message: "Campaign start date cannot be after end date",
+            });
+        }
+
+        campaign.campaignStartDate = startDate;
+        campaign.campaignEndDate = endDate;
 
         /* =========================
            UPDATE GRATIFICATION

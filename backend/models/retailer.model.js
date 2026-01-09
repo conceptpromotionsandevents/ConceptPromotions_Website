@@ -1,10 +1,7 @@
-// models/retailer.model.js
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
-
 const { Schema, model, Types } = mongoose;
-
 
 const retailerSchema = new Schema(
     {
@@ -17,7 +14,6 @@ const retailerSchema = new Schema(
         gender: { type: String },
         govtIdType: String,
         govtIdNumber: String,
-
 
         shopDetails: {
             shopName: { type: String, required: true },
@@ -34,7 +30,6 @@ const retailerSchema = new Schema(
             },
         },
 
-
         bankDetails: {
             bankName: { type: String, required: true },
             accountNumber: { type: String, required: true },
@@ -42,8 +37,6 @@ const retailerSchema = new Schema(
             branchName: { type: String, required: true },
         },
 
-
-        // -------- UPDATED FOR CLOUDINARY --------
         govtIdPhoto: {
             url: String,
             publicId: String,
@@ -61,10 +54,8 @@ const retailerSchema = new Schema(
             publicId: String,
         },
 
-
         tnc: { type: Boolean },
         pennyCheck: { type: Boolean },
-
 
         phoneVerified: { type: Boolean, default: true },
         email: String,
@@ -77,7 +68,6 @@ const retailerSchema = new Schema(
             },
         ],
 
-
         assignedEmployee: {
             type: Schema.Types.ObjectId,
             ref: "Employee",
@@ -86,55 +76,57 @@ const retailerSchema = new Schema(
     { timestamps: true }
 );
 
-
 retailerSchema.index({ email: 1, contactNo: 1 });
 
-// 🚀 AUTO GENERATE UNIQUE ID + RETAILER CODE + PASSWORD FROM CONTACT
+/* ======================================================
+   PRE-VALIDATE (ONLY MOVED CODE – NO LOGIC CHANGE)
+====================================================== */
 retailerSchema.pre("validate", function (next) {
-    // ✅ Set password to contactNo BEFORE validation if it's a new document
+   
     if (this.isNew && !this.password) {
         this.password = this.contactNo;
     }
+
+    
+    if (!this.uniqueId) {
+        const name = this.name.charAt(0).toUpperCase();
+        const businessType = this.shopDetails?.businessType || "O";
+        const typeLetter = businessType.charAt(0).toUpperCase();
+
+        const state = this.shopDetails?.shopAddress?.state || "NA";
+        const city = this.shopDetails?.shopAddress?.city || "NA";
+
+        const stateCode = state.substring(0, 2).toUpperCase();
+        const cityCode = city.substring(0, 3).toUpperCase();
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+
+        this.uniqueId = `${name}${typeLetter}${stateCode}${cityCode}${randomNum}`;
+    }
+
+    if (!this.retailerCode) {
+        const timestamp = Date.now().toString().slice(-6);
+        const randomPart = Math.floor(100 + Math.random() * 900);
+        this.retailerCode = `R${timestamp}${randomPart}`;
+    }
+
     next();
 });
 
+/* ======================================================
+   PRE-SAVE (UNCHANGED – PASSWORD HASHING)
+====================================================== */
 retailerSchema.pre("save", async function (next) {
     try {
-        // Hash password if it's modified (including new documents)
         if (this.isModified("password") && this.password) {
             this.password = await bcrypt.hash(this.password, 10);
         }
-
-        // Generate uniqueId
-        if (!this.uniqueId) {
-            const name = this.name.charAt(0).toUpperCase();
-            const businessType = this.shopDetails?.businessType || "O";
-            const typeLetter = businessType.charAt(0).toUpperCase();
-
-            const state = this.shopDetails?.shopAddress?.state || "NA";
-            const city = this.shopDetails?.shopAddress?.city || "NA";
-
-            const stateCode = state.substring(0, 2).toUpperCase();
-            const cityCode = city.substring(0, 3).toUpperCase();
-            const randomNum = Math.floor(1000 + Math.random() * 9000);
-
-            this.uniqueId = `${name}${typeLetter}${stateCode}${cityCode}${randomNum}`;
-        }
-
-        // Generate retailerCode
-        if (!this.retailerCode) {
-            const timestamp = Date.now().toString().slice(-6);
-            const randomPart = Math.floor(100 + Math.random() * 900);
-            this.retailerCode = `R${timestamp}${randomPart}`;
-        }
-
         next();
     } catch (err) {
         next(err);
     }
 });
 
-// ✅ Method to compare password (useful for login)
+
 retailerSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };

@@ -11,9 +11,13 @@ import {
     getBudgetByRetailerId,
     getPassbookData,
     updateCampaignTCA,
+    bulkAddCampaignTCA,
+    bulkAddPayments
 } from "../controllers/payment.controller.js";
-import { protect } from "../middleware/authMiddleware.js";
+import multer from "multer";
 
+import { protect } from "../middleware/authMiddleware.js";
+const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
 // Apply authentication middleware to all routes
@@ -48,5 +52,18 @@ router.delete(
     deletePayment
 );
 router.delete("/:budgetId/campaign/:campaignId", deleteCampaign);
+router.post(
+    "/campaign-tca/bulk",
+    protect,
+    upload.single("file"),
+    bulkAddCampaignTCA
+);
+router.post(
+    "/payments/bulk",
+    protect,
+    upload.single("file"),
+    bulkAddPayments
+);
+
 
 export default router;

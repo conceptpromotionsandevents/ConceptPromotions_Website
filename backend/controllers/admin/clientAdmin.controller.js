@@ -77,3 +77,107 @@ export const addClientAdmin = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+// ====== GET ALL CLIENT ADMINS ======
+export const getAllClientAdmins = async (req, res) => {
+    try {
+        /* =========================
+           AUTH CHECK - Only admins can view all clients
+        ========================== */
+        if (!req.user || req.user.role !== "admin") {
+            return res.status(403).json({
+                success: false,
+                message: "Only admins can view all client admins",
+            });
+        }
+
+        /* =========================
+           QUERY FILTERS (optional)
+        ========================== */
+        const { organizationName, state, region } = req.query;
+
+        const filter = {};
+        
+        // Filter by organization name (case-insensitive partial match)
+        if (organizationName) {
+            filter.organizationName = { 
+                $regex: organizationName, 
+                $options: "i" 
+            };
+        }
+
+        // Filter by state
+        if (state) {
+            filter.states = state;
+        }
+
+        // Filter by region
+        if (region) {
+            filter.regions = region;
+        }
+
+        /* =========================
+           FETCH CLIENT ADMINS
+        ========================== */
+        const clientAdmins = await ClientAdmin.find(filter)
+            .select("-password -registrationDetails.password") // Exclude sensitive data
+            .sort({ createdAt: -1 }); // Most recent first
+
+        /* =========================
+           RESPONSE
+        ========================== */
+        return res.status(200).json({
+            success: true,
+            count: clientAdmins.length,
+            clientAdmins,
+        });
+    } catch (error) {
+        console.error("Get all client admins error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+
+// ====== GET CLIENT ADMIN BY ID ======
+export const getClientAdminById = async (req, res) => {
+    try {
+        /* =========================
+           AUTH CHECK
+        ========================== */
+        if (!req.user || req.user.role !== "admin") {
+            return res.status(403).json({
+                success: false,
+                message: "Only admins can view client admin details",
+            });
+        }
+
+        /* =========================
+           FETCH CLIENT ADMIN
+        ========================== */
+        const { id } = req.params;
+
+        const clientAdmin = await ClientAdmin.findById(id)
+            .select("-password -registrationDetails.password");
+
+        if (!clientAdmin) {
+            return res.status(404).json({
+                success: false,
+                message: "Client admin not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            clientAdmin,
+        });
+    } catch (error) {
+        console.error("Get client admin by ID error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};

@@ -59,6 +59,11 @@ import {
     updateVisitScheduleStatus,
 } from "../controllers/admin/visitSchedule.controller.js";
 import{ bulkRegisterRetailers} from "../controllers/retailerController.js"
+import {
+  
+    getAllClientAdmins,
+    getClientAdminById,
+} from "../controllers/admin/clientAdmin.controller.js";
 
 import { loginClientAdmin } from "../controllers/clientController.js";
 import { getEmployeeVisitProgress } from "../controllers/employeeController.js";
@@ -88,6 +93,11 @@ router.put(
   ]),
   updateCampaign
 );
+// Get all client admins (with optional filters)
+router.get("/client-admins", protect, getAllClientAdmins);
+
+// Get single client admin by ID
+router.get("/client-admins/:id", protect, getClientAdminById);
 
 
 router.get("/campaigns/:id", protect, getCampaignById);
