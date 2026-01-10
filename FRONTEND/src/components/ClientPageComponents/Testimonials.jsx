@@ -5,7 +5,7 @@ import { FaQuoteLeft } from "react-icons/fa";
 const testimonials = [
   {
     id: 1,
-    image: "/testi2.jpg",
+    image: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/testi2_fnuzy0.jpg",
     client: "ITC Limited",
     feedback:
       "Thank you ITC for your trust and partnership. We deeply value our collaboration and look forward to achieving many more milestones together.",

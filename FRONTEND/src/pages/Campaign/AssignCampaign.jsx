@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Select from "react-select";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API_URL } from "../../url/base";
+import { FaUpload, FaDownload, FaTimes, FaFileExcel } from "react-icons/fa";
+import ExcelJS from 'exceljs';
 
 const BUSINESS_TYPES = [
   "Grocery Retailer",
@@ -28,10 +30,7 @@ const customSelectStyles = {
     color: "#333",
     "&:active": { backgroundColor: "#FECACA" },
   }),
-  menu: (provided) => ({
-    ...provided,
-    zIndex: 20,
-  }),
+  menu: (provided) => ({ ...provided, zIndex: 60 }),
 };
 
 const AssignCampaign = () => {
@@ -41,8 +40,14 @@ const AssignCampaign = () => {
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
 
   // Assignment Flow
-  const [assignType, setAssignType] = useState(null);
   const [assignTarget, setAssignTarget] = useState(null);
+
+  // Bulk Upload States
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkPartyType, setBulkPartyType] = useState(null); // NEW: Party type for bulk
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
 
   // Filters
   const [state, setState] = useState(null);
@@ -57,49 +62,36 @@ const AssignCampaign = () => {
   const [loadingRetailers, setLoadingRetailers] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
-  // Employee States 
+  // Employee States
   const [allEmployees, setAllEmployees] = useState([]);
   const [employeeTableData, setEmployeeTableData] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-
   const [employeeState, setEmployeeState] = useState(null);
   const [employeeFutureField1, setEmployeeFutureField1] = useState(null);
   const [employeeFutureField2, setEmployeeFutureField2] = useState(null);
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
 
-
-  // ✅ Fetch Campaigns
+  // Fetch Campaigns
   useEffect(() => {
     fetchCampaigns();
   }, []);
 
-  // Fetch campaigns from backend
   const fetchCampaigns = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${API_URL}/admin/campaigns`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
+      const res = await fetch(`${API_URL}/admin/campaigns`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.message || "Error fetching campaigns", {
-          theme: "dark",
-        });
+        toast.error(data.message || "Error fetching campaigns", { theme: "dark" });
         return;
       }
 
-      // Filter Active Campaigns ONLY
-      const activeCampaigns = (data.campaigns || []).filter(
-        (c) => c.isActive === true
-      );
-
+      const activeCampaigns = data.campaigns.filter((c) => c.isActive === true);
       const campaignOptions = activeCampaigns.map((c) => ({
         value: c._id,
         label: c.name,
@@ -108,48 +100,48 @@ const AssignCampaign = () => {
 
       setCampaigns(campaignOptions);
     } catch (err) {
-      console.log("Campaign Fetch Error:", err);
+      console.log("Campaign Fetch Error", err);
       toast.error("Failed to load campaigns", { theme: "dark" });
     } finally {
       setLoadingCampaigns(false);
     }
   };
 
-  // ✅ Fetch ALL Retailers and show immediately
+  // Fetch ALL Retailers
   const fetchAllRetailers = async () => {
     setLoadingRetailers(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${API_URL}/admin/retailers`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch(`${API_URL}/admin/retailers`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
+
       if (!res.ok) {
         toast.error("Failed to fetch retailers", { theme: "dark" });
         return;
       }
-      const retailers = data.retailers || [];
+
+      const retailers = data.retailers;
       setAllRetailers(retailers);
       applyFilters(retailers);
       toast.success(`Loaded ${retailers.length} retailers`, { theme: "dark" });
     } catch (err) {
-      console.log("Retailer Fetch Error:", err);
+      console.log("Retailer Fetch Error", err);
       toast.error("Error loading retailers", { theme: "dark" });
     } finally {
       setLoadingRetailers(false);
     }
   };
 
-  // ✅ Fetch ALL Employees 
+  // Fetch ALL Employees
   const fetchAllEmployees = async () => {
     setLoadingEmployees(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${API_URL}/admin/employees`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch(`${API_URL}/admin/employees`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -157,11 +149,10 @@ const AssignCampaign = () => {
         return;
       }
 
-      const employees = data.employees || [];
+      const employees = data.employees;
       setAllEmployees(employees);
       applyEmployeeFilters(employees);
       toast.success(`Loaded ${employees.length} employees`, { theme: "dark" });
-
     } catch (err) {
       toast.error("Error loading employees", { theme: "dark" });
     } finally {
@@ -169,7 +160,7 @@ const AssignCampaign = () => {
     }
   };
 
-  // ✅ Apply filters to retailers
+  // Apply filters to retailers
   const applyFilters = (retailersList = allRetailers) => {
     let filtered = [...retailersList];
 
@@ -194,35 +185,34 @@ const AssignCampaign = () => {
       );
     }
 
-    // 🔍 Dynamic Search Filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((r) =>
-        r.uniqueId?.toLowerCase().includes(query) ||
-        r.shopDetails?.shopName?.toLowerCase().includes(query) ||
-        r.name?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (r) =>
+          r.uniqueId?.toLowerCase().includes(query) ||
+          r.shopDetails?.shopName?.toLowerCase().includes(query) ||
+          r.name?.toLowerCase().includes(query)
       );
     }
 
-    // ✅ Add assignment status to each retailer
+    // Add assignment status
     filtered = filtered.map((r) => {
       const assignedRetailer = selectedCampaign?.data?.assignedRetailers?.find(
         (ar) => ar.retailerId === r._id || ar.retailerId?._id === r._id
       );
       return {
         ...r,
-        assignmentStatus: assignedRetailer ? assignedRetailer.status : "not_assigned"
+        assignmentStatus: assignedRetailer ? assignedRetailer.status : "not_assigned",
       };
     });
 
     setTableData(filtered);
-
     if (filtered.length === 0) {
       toast.info("No retailers match your search/filter.", { theme: "dark" });
     }
   };
 
-  // ✅ Apply filters to employees
+  // Apply filters to employees
   const applyEmployeeFilters = (employeesList = allEmployees) => {
     let filtered = [...employeesList];
 
@@ -237,44 +227,42 @@ const AssignCampaign = () => {
       filtered = filtered.filter(
         (e) =>
           e.employeeId?.toLowerCase().includes(query) ||
-          e.name?.toLowerCase().includes(query) ||
-          e.email?.toLowerCase().includes(query)
+          e.name?.toLowerCase().includes(query)
       );
     }
 
-    // ✅ Add assignment status to each employee
+    // Add assignment status
     filtered = filtered.map((e) => {
       const assignedEmployee = selectedCampaign?.data?.assignedEmployees?.find(
         (ae) => ae.employeeId === e._id || ae.employeeId?._id === e._id
       );
       return {
         ...e,
-        assignmentStatus: assignedEmployee ? assignedEmployee.status : "not_assigned"
+        assignmentStatus: assignedEmployee ? assignedEmployee.status : "not_assigned",
       };
     });
 
     setEmployeeTableData(filtered);
-
     if (filtered.length === 0) {
       toast.info("No employees match search/filter.", { theme: "dark" });
     }
   };
 
+  // Effects for fetching and filtering
   useEffect(() => {
-    if (assignType === "individual" && assignTarget === "retailer" && allRetailers.length === 0) {
+    if (assignTarget === "retailer" && allRetailers.length === 0) {
       fetchAllRetailers();
-    } else if (assignType === "individual" && assignTarget === "retailer" && allRetailers.length > 0) {
+    } else if (assignTarget === "retailer" && allRetailers.length > 0) {
       applyFilters();
     }
-  }, [assignType, assignTarget]);
+  }, [assignTarget]);
 
   useEffect(() => {
     if (allRetailers.length > 0 && assignTarget === "retailer") {
       applyFilters();
     }
-  }, [state, businessType, futureField]);
+  }, [state, businessType, futureField, searchQuery]);
 
-  // Auto-remove selected retailers that disappear from table after filtering
   useEffect(() => {
     setSelectedRetailers((prev) =>
       prev.filter((id) => tableData.some((r) => r._id === id))
@@ -282,18 +270,12 @@ const AssignCampaign = () => {
   }, [tableData]);
 
   useEffect(() => {
-    if (allRetailers.length > 0 && assignTarget === "retailer") {
-      applyFilters();
-    }
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (assignType === "individual" && assignTarget === "employee" && allEmployees.length === 0) {
+    if (assignTarget === "employee" && allEmployees.length === 0) {
       fetchAllEmployees();
     } else if (assignTarget === "employee" && allEmployees.length > 0) {
       applyEmployeeFilters();
     }
-  }, [assignType, assignTarget]);
+  }, [assignTarget]);
 
   useEffect(() => {
     if (assignTarget === "employee" && allEmployees.length > 0) {
@@ -301,22 +283,32 @@ const AssignCampaign = () => {
     }
   }, [employeeState, employeeFutureField1, employeeFutureField2, employeeSearchQuery]);
 
-  // Auto-remove selected employees that disappear from table after filtering
   useEffect(() => {
     setSelectedEmployees((prev) =>
       prev.filter((id) => employeeTableData.some((e) => e._id === id))
     );
   }, [employeeTableData]);
 
-  // ✅ Handle individual checkbox toggle
-  // ✅ Handle individual checkbox toggle
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showBulkModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showBulkModal]);
+
+
+  // Checkbox handlers for retailers
   const handleCheckboxChange = (retailerId, assignmentStatus) => {
-    // Check if already assigned
     if (assignmentStatus && assignmentStatus !== "not_assigned") {
-      toast.warning(
-        `This retailer is already ${assignmentStatus} for this campaign!`,
-        { theme: "dark", autoClose: 3000 }
-      );
+      toast.warning(`This retailer is already ${assignmentStatus} for this campaign!`, {
+        theme: "dark",
+        autoClose: 3000,
+      });
       return;
     }
 
@@ -329,27 +321,24 @@ const AssignCampaign = () => {
     });
   };
 
-  // ✅ Handle select all checkbox
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      // Only select retailers that are NOT already assigned
       const selectableIds = tableData
         .filter((r) => r.assignmentStatus === "not_assigned")
         .map((r) => r._id);
 
       if (selectableIds.length === 0) {
         toast.info("All displayed retailers are already assigned to this campaign", {
-          theme: "dark"
+          theme: "dark",
         });
         return;
       }
 
       const alreadyAssignedCount = tableData.length - selectableIds.length;
       if (alreadyAssignedCount > 0) {
-        toast.info(
-          `${alreadyAssignedCount} retailer(s) skipped (already assigned)`,
-          { theme: "dark" }
-        );
+        toast.info(`${alreadyAssignedCount} retailers skipped (already assigned)`, {
+          theme: "dark",
+        });
       }
 
       setSelectedRetailers(selectableIds);
@@ -358,22 +347,20 @@ const AssignCampaign = () => {
     }
   };
 
-  // ✅ Check if all visible retailers are selected
-  // ✅ Check if all visible retailers are selected
   const selectableRetailers = tableData.filter((r) => r.assignmentStatus === "not_assigned");
-  const isAllSelected = selectableRetailers.length > 0 &&
+  const isAllSelected =
+    selectableRetailers.length > 0 &&
     selectedRetailers.length === selectableRetailers.length &&
     selectableRetailers.every((r) => selectedRetailers.includes(r._id));
   const isSomeSelected = selectedRetailers.length > 0 && !isAllSelected;
 
-  // ✅ Handle employee checkbox toggle
+  // Checkbox handlers for employees
   const handleEmployeeCheckboxChange = (employeeId, assignmentStatus) => {
-    // Check if already assigned
     if (assignmentStatus && assignmentStatus !== "not_assigned") {
-      toast.warning(
-        `This employee is already ${assignmentStatus} for this campaign!`,
-        { theme: "dark", autoClose: 3000 }
-      );
+      toast.warning(`This employee is already ${assignmentStatus} for this campaign!`, {
+        theme: "dark",
+        autoClose: 3000,
+      });
       return;
     }
 
@@ -386,27 +373,24 @@ const AssignCampaign = () => {
     });
   };
 
-  // ✅ Handle employee select all
   const handleEmployeeSelectAll = (e) => {
     if (e.target.checked) {
-      // Only select employees that are NOT already assigned
       const selectableIds = employeeTableData
         .filter((emp) => emp.assignmentStatus === "not_assigned")
         .map((emp) => emp._id);
 
       if (selectableIds.length === 0) {
         toast.info("All displayed employees are already assigned to this campaign", {
-          theme: "dark"
+          theme: "dark",
         });
         return;
       }
 
       const alreadyAssignedCount = employeeTableData.length - selectableIds.length;
       if (alreadyAssignedCount > 0) {
-        toast.info(
-          `${alreadyAssignedCount} employee(s) skipped (already assigned)`,
-          { theme: "dark" }
-        );
+        toast.info(`${alreadyAssignedCount} employees skipped (already assigned)`, {
+          theme: "dark",
+        });
       }
 
       setSelectedEmployees(selectableIds);
@@ -415,52 +399,51 @@ const AssignCampaign = () => {
     }
   };
 
-  // ✅ Check if all visible employees are selected
-  const selectableEmployees = employeeTableData.filter((e) => e.assignmentStatus === "not_assigned");
-  const isAllEmployeesSelected = selectableEmployees.length > 0 &&
+  const selectableEmployees = employeeTableData.filter(
+    (e) => e.assignmentStatus === "not_assigned"
+  );
+  const isAllEmployeesSelected =
+    selectableEmployees.length > 0 &&
     selectedEmployees.length === selectableEmployees.length &&
     selectableEmployees.every((e) => selectedEmployees.includes(e._id));
   const isSomeEmployeesSelected = selectedEmployees.length > 0 && !isAllEmployeesSelected;
 
+  // Handle individual assignment
   const handleAssign = async () => {
     if (!selectedCampaign) {
       toast.error("Please select a campaign first", { theme: "dark" });
       return;
     }
 
-    // Check based on assignTarget
-    const targetCount = assignTarget === "retailer" ? selectedRetailers.length : selectedEmployees.length;
-    const targetType = assignTarget === "retailer" ? "retailer(s)" : "employee(s)";
+    const targetCount =
+      assignTarget === "retailer" ? selectedRetailers.length : selectedEmployees.length;
+    const targetType = assignTarget === "retailer" ? "retailers" : "employees";
 
     if (targetCount === 0) {
       toast.error(`Please select at least one ${assignTarget}`, { theme: "dark" });
       return;
     }
 
-    // Show confirmation
     const confirmMessage = `Are you sure you want to assign "${selectedCampaign.label}" to ${targetCount} ${targetType}?`;
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    if (!window.confirm(confirmMessage)) return;
 
     setAssigning(true);
+
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${API_URL}/admin/campaigns/assign`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            campaignId: selectedCampaign.value,
-            retailerIds: assignTarget === "retailer" ? selectedRetailers : [],
-            employeeIds: assignTarget === "employee" ? selectedEmployees : [],
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/admin/campaigns/assign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          campaignId: selectedCampaign.value,
+          retailerIds: assignTarget === "retailer" ? selectedRetailers : [],
+          employeeIds: assignTarget === "employee" ? selectedEmployees : [],
+        }),
+      });
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -470,26 +453,17 @@ const AssignCampaign = () => {
         });
       } else {
         toast.success(
-          data.message || `Campaign assigned to ${targetCount} ${targetType}! ✅`,
-          {
-            theme: "dark",
-            autoClose: 4000,
-          }
+          data.message || `Campaign assigned to ${targetCount} ${targetType}!`,
+          { theme: "dark", autoClose: 4000 }
         );
 
         // Remove assigned items from lists
         if (assignTarget === "retailer") {
-          setAllRetailers((prev) =>
-            prev.filter((r) => !selectedRetailers.includes(r._id))
-          );
-          setTableData((prev) =>
-            prev.filter((r) => !selectedRetailers.includes(r._id))
-          );
+          setAllRetailers((prev) => prev.filter((r) => !selectedRetailers.includes(r._id)));
+          setTableData((prev) => prev.filter((r) => !selectedRetailers.includes(r._id)));
           setSelectedRetailers([]);
         } else {
-          setAllEmployees((prev) =>
-            prev.filter((e) => !selectedEmployees.includes(e._id))
-          );
+          setAllEmployees((prev) => prev.filter((e) => !selectedEmployees.includes(e._id)));
           setEmployeeTableData((prev) =>
             prev.filter((e) => !selectedEmployees.includes(e._id))
           );
@@ -497,8 +471,8 @@ const AssignCampaign = () => {
         }
       }
     } catch (error) {
-      console.error("Assign error:", error);
-      toast.error("Network error: Unable to reach server", {
+      console.error("Assign error", error);
+      toast.error("Network error. Unable to reach server", {
         theme: "dark",
         autoClose: 5000,
       });
@@ -509,7 +483,6 @@ const AssignCampaign = () => {
 
   const handleCampaignChange = (selected) => {
     setSelectedCampaign(selected);
-    setAssignType(null);
     setAssignTarget(null);
     setState(null);
     setBusinessType(null);
@@ -524,29 +497,239 @@ const AssignCampaign = () => {
     setEmployeeSearchQuery("");
   };
 
+  // ============================================
+  // BULK UPLOAD FUNCTIONS (UPDATED)
+  // ============================================
+
+  const downloadBulkTemplate = () => {
+    if (!bulkPartyType) {
+      toast.error("Please select party type first", { theme: "dark" });
+      return;
+    }
+
+    let fileName;
+    let publicPath;
+
+    if (bulkPartyType === "employee") {
+      fileName = "Employee_Campaign_Assignment_Template.xlsx";
+      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768044566/Employee_Campaign_Assignment_Template_vqrquz.xlsx";
+    } else {
+      fileName = "Retailer_Campaign_Assignment_Template.xlsx";
+      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768044566/Retailer_Campaign_Assignment_Template_g7p1xz.xlsx";
+    }
+
+    const link = document.createElement("a");
+    link.href = publicPath;
+    link.download = fileName;
+    link.click();
+
+    toast.success("Template downloaded", { theme: "dark" });
+  };
+
+
+  const handleBulkFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const fileExtension = file.name.split(".").pop().toLowerCase();
+      if (fileExtension !== "xlsx" && fileExtension !== "xls") {
+        toast.error("Please upload only Excel files (.xlsx or .xls)", { theme: "dark" });
+        return;
+      }
+      setBulkFile(file);
+      setBulkResult(null);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkPartyType) {
+      toast.error("Please select party type first", { theme: "dark" });
+      return;
+    }
+
+    if (!bulkFile) {
+      toast.error("Please select an Excel file to upload", { theme: "dark" });
+      return;
+    }
+
+    setBulkUploading(true);
+    setBulkResult(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("file", bulkFile);
+
+      const response = await fetch(`${API_URL}/admin/campaigns/bulk-assign`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok || response.status === 207) {
+        setBulkResult(data);
+
+        if (data.summary?.failed === 0) {
+          toast.success(
+            `All ${data.summary.successful} assignments completed successfully!`,
+            { theme: "dark", autoClose: 3000 }
+          );
+        } else {
+          toast.warning(
+            `${data.summary.successful} successful, ${data.summary.failed} failed. Check details below.`,
+            { theme: "dark", autoClose: 5000 }
+          );
+        }
+      } else {
+        setBulkResult(data);
+        toast.error(data.message || "Bulk upload failed", { theme: "dark" });
+      }
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+      toast.error("Network error. Please try again.", { theme: "dark" });
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const downloadFailedRows = async () => {
+    if (!bulkResult || !bulkResult.failedRows || bulkResult.failedRows.length === 0) {
+      toast.error("No failed rows to download", { theme: "dark" });
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Failed Rows");
+
+    if (bulkPartyType === "employee") {
+      worksheet.columns = [
+        { header: "Row Number", key: "rowNumber", width: 12 },
+        { header: "Reason", key: "reason", width: 50 },
+        { header: "campaignName", key: "campaignName", width: 25 },
+        { header: "employeeId", key: "employeeId", width: 20 },
+        { header: "name", key: "name", width: 20 },
+        { header: "phone", key: "phone", width: 15 },
+        { header: "state", key: "state", width: 15 },
+      ];
+
+      bulkResult.failedRows.forEach((row) => {
+        worksheet.addRow({
+          rowNumber: row.rowNumber || "-",
+          reason: row.reason,
+          campaignName: row.data?.campaignName || "-",
+          employeeId: row.data?.employeeId || "-",
+          name: row.data?.name || "-",
+          phone: row.data?.phone || "-",
+          state: row.data?.state || "-",
+        });
+      });
+    } else {
+      worksheet.columns = [
+        { header: "Row Number", key: "rowNumber", width: 12 },
+        { header: "Reason", key: "reason", width: 50 },
+        { header: "campaignName", key: "campaignName", width: 25 },
+        { header: "uniqueId", key: "uniqueId", width: 20 },
+        { header: "retailerName", key: "retailerName", width: 20 },
+        { header: "outletName", key: "outletName", width: 20 },
+        { header: "businessType", key: "businessType", width: 25 },
+        { header: "state", key: "state", width: 15 },
+      ];
+
+      bulkResult.failedRows.forEach((row) => {
+        worksheet.addRow({
+          rowNumber: row.rowNumber || "-",
+          reason: row.reason,
+          campaignName: row.data?.campaignName || "-",
+          uniqueId: row.data?.uniqueId || "-",
+          retailerName: row.data?.retailerName || "-",
+          outletName: row.data?.shopName || "-",
+          businessType: row.data?.businessType || "-",
+          state: row.data?.state || "-",
+        });
+      });
+    }
+
+    // Style the header row
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFFF0000" },
+      };
+      cell.font = {
+        color: { argb: "FFFFFFFF" },
+        bold: true,
+        size: 12,
+      };
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+    });
+
+    try {
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `Failed_${bulkPartyType}_Assignment_${new Date().toISOString().split("T")[0]}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+
+      toast.success("Failed rows downloaded", { theme: "dark" });
+    } catch (error) {
+      console.error("Error downloading failed rows:", error);
+      toast.error("Failed to download file", { theme: "dark" });
+    }
+  };
+
+  const closeBulkModal = () => {
+    setShowBulkModal(false);
+    setBulkPartyType(null);
+    setBulkFile(null);
+    setBulkResult(null);
+    document.getElementById("bulkFileUpload")?.value ? document.getElementById("bulkFileUpload").value = "" : null;
+  };
+
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer />
+
       <div className="min-h-screen bg-[#171717] p-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-[#E4002B] mb-8">
-            Assign Campaign
-          </h1>
+          {/* Header with Bulk Upload Button */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-[#E4002B]">Assign Campaign</h1>
 
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition bg-[#E4002B] text-white hover:bg-[#c4001f]"
+            >
+              <FaUpload />
+              Bulk Upload
+            </button>
+          </div>
+
+          {/* Campaign Selection */}
           <div className="bg-[#EDEDED] rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4 text-gray-700">
-              Select Campaign *
-            </h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-700">Select Campaign</h2>
             <Select
               value={selectedCampaign}
               onChange={handleCampaignChange}
               options={campaigns}
               isLoading={loadingCampaigns}
               styles={customSelectStyles}
-              placeholder="Choose a campaign"
+              placeholder="Choose a campaign..."
               isSearchable
               className="max-w-md"
             />
+
             {selectedCampaign && (
               <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
                 <p>
@@ -556,13 +739,13 @@ const AssignCampaign = () => {
                   <strong>Type:</strong> {selectedCampaign.data.type}
                 </p>
                 <p>
-                  <strong>Region(s):</strong>{" "}
+                  <strong>Regions:</strong>{" "}
                   {Array.isArray(selectedCampaign.data.regions)
                     ? selectedCampaign.data.regions.join(", ")
                     : selectedCampaign.data.region || "N/A"}
                 </p>
                 <p>
-                  <strong>State(s):</strong>{" "}
+                  <strong>States:</strong>{" "}
                   {Array.isArray(selectedCampaign.data.states)
                     ? selectedCampaign.data.states.join(", ")
                     : selectedCampaign.data.state || "N/A"}
@@ -571,20 +754,21 @@ const AssignCampaign = () => {
             )}
           </div>
 
+          {/* Assignment Target Selection */}
           {selectedCampaign && (
             <div className="bg-[#EDEDED] rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                Assignment Type *
-              </h2>
+              <h2 className="text-lg font-semibold mb-4 text-gray-700">Assign To</h2>
               <Select
                 value={
-                  assignType
-                    ? { label: assignType === "individual" ? "Individual Assign" : "Bulk Assign", value: assignType }
+                  assignTarget
+                    ? {
+                      label: assignTarget === "retailer" ? "Retailer" : "Employee",
+                      value: assignTarget,
+                    }
                     : null
                 }
                 onChange={(e) => {
-                  setAssignType(e.value);
-                  setAssignTarget(null);
+                  setAssignTarget(e.value);
                   setState(null);
                   setBusinessType(null);
                   setFutureField(null);
@@ -598,51 +782,16 @@ const AssignCampaign = () => {
                   setSelectedEmployees([]);
                 }}
                 options={[
-                  { label: "Individual Assign", value: "individual" },
-                  { label: "Bulk Assign", value: "bulk" },
+                  { label: "Retailer", value: "retailer" },
+                  { label: "Employee", value: "employee" },
                 ]}
                 styles={customSelectStyles}
                 className="mb-6 max-w-md"
-                placeholder="Select assignment type"
+                placeholder="Select target"
               />
 
-              {assignType && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                    Assign To *
-                  </h2>
-                  <Select
-                    value={
-                      assignTarget
-                        ? { label: assignTarget === "retailer" ? "Retailer" : "Employee", value: assignTarget }
-                        : null
-                    }
-                    onChange={(e) => {
-                      setAssignTarget(e.value);
-                      setState(null);
-                      setBusinessType(null);
-                      setFutureField(null);
-                      setTableData([]);
-                      setSelectedRetailers([]);
-                      setEmployeeState(null);
-                      setEmployeeFutureField1(null);
-                      setEmployeeFutureField2(null);
-                      setEmployeeSearchQuery("");
-                      setEmployeeTableData([]);
-                      setSelectedEmployees([]);
-                    }}
-                    options={[
-                      { label: "Retailer", value: "retailer" },
-                      { label: "Employee", value: "employee" },
-                    ]}
-                    styles={customSelectStyles}
-                    className="mb-6 max-w-md"
-                    placeholder="Select target"
-                  />
-                </>
-              )}
-
-              {assignType === "individual" && assignTarget === "retailer" && (
+              {/* RETAILER SECTION */}
+              {assignTarget === "retailer" && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 text-gray-700">
                     Filter Retailers {loadingRetailers ? "(Loading...)" : ""}
@@ -656,13 +805,13 @@ const AssignCampaign = () => {
                       <Select
                         value={state}
                         onChange={setState}
-                        options={[...new Set(allRetailers.map((r) => r?.shopDetails?.shopAddress?.state))]
+                        options={[
+                          ...new Set(
+                            allRetailers.map((r) => r?.shopDetails?.shopAddress?.state)
+                          ),
+                        ]
                           .filter(Boolean)
-                          .map((state) => ({
-                            label: state,
-                            value: state,
-                          }))
-                        }
+                          .map((state) => ({ label: state, value: state }))}
                         styles={customSelectStyles}
                         placeholder="Select state"
                         isSearchable
@@ -678,10 +827,7 @@ const AssignCampaign = () => {
                       <Select
                         value={businessType}
                         onChange={setBusinessType}
-                        options={BUSINESS_TYPES.map((b) => ({
-                          label: b,
-                          value: b,
-                        }))}
+                        options={BUSINESS_TYPES.map((b) => ({ label: b, value: b }))}
                         styles={customSelectStyles}
                         placeholder="Select business type"
                         isSearchable
@@ -699,22 +845,21 @@ const AssignCampaign = () => {
                         onChange={setFutureField}
                         options={[]}
                         styles={customSelectStyles}
-                        placeholder="Coming soon"
+                        placeholder="Coming soon..."
                         isDisabled
                       />
                     </div>
                   </div>
 
-                  {/* 🔍 Search Bar Inside Filters */}
+                  {/* Search Bar */}
                   <div className="flex items-center justify-between mb-6 gap-4">
                     <input
                       type="text"
-                      placeholder="Search by Unique Code / Outlet Name / Retailer Name"
+                      placeholder="Search by Unique Code, Outlet Name, Retailer Name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full md:w-96 px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
-
                     {(searchQuery || state || businessType) && (
                       <button
                         onClick={() => {
@@ -730,7 +875,9 @@ const AssignCampaign = () => {
                   </div>
                 </>
               )}
-              {assignType === "individual" && assignTarget === "employee" && (
+
+              {/* EMPLOYEE SECTION */}
+              {assignTarget === "employee" && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 text-gray-700">
                     Filter Employees {loadingEmployees ? "(Loading...)" : ""}
@@ -744,7 +891,11 @@ const AssignCampaign = () => {
                       <Select
                         value={employeeState}
                         onChange={setEmployeeState}
-                        options={[...new Set(allEmployees.map((e) => e?.correspondenceAddress?.state))]
+                        options={[
+                          ...new Set(
+                            allEmployees.map((e) => e?.correspondenceAddress?.state)
+                          ),
+                        ]
                           .filter(Boolean)
                           .map((s) => ({ label: s, value: s }))}
                         styles={customSelectStyles}
@@ -764,7 +915,7 @@ const AssignCampaign = () => {
                         onChange={setEmployeeFutureField1}
                         options={[]}
                         styles={customSelectStyles}
-                        placeholder="Coming soon"
+                        placeholder="Coming soon..."
                         isDisabled
                       />
                     </div>
@@ -778,22 +929,21 @@ const AssignCampaign = () => {
                         onChange={setEmployeeFutureField2}
                         options={[]}
                         styles={customSelectStyles}
-                        placeholder="Coming soon"
+                        placeholder="Coming soon..."
                         isDisabled
                       />
                     </div>
                   </div>
 
-                  {/* 🔍 Search Bar */}
+                  {/* Search Bar */}
                   <div className="flex items-center justify-between mb-6 gap-4">
                     <input
                       type="text"
-                      placeholder="Search by Employee ID / Name / Email"
+                      placeholder="Search by Employee ID, Name..."
                       value={employeeSearchQuery}
                       onChange={(e) => setEmployeeSearchQuery(e.target.value)}
                       className="w-full md:w-96 px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
-
                     {(employeeSearchQuery || employeeState) && (
                       <button
                         onClick={() => {
@@ -811,8 +961,9 @@ const AssignCampaign = () => {
                 </>
               )}
 
-              {(loadingRetailers || tableData.length > 0) &&
-                assignTarget === "retailer" && (
+              {/* RETAILER TABLE */}
+              {loadingRetailers ||
+                (tableData.length > 0 && assignTarget === "retailer" && (
                   <div className="bg-white rounded-lg shadow-md p-6 mt-6">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-lg font-semibold text-gray-700">
@@ -827,122 +978,136 @@ const AssignCampaign = () => {
                         Fetching retailers...
                       </div>
                     ) : (
-                      <>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    onChange={handleSelectAll}
+                                    checked={isAllSelected}
+                                    ref={(input) => {
+                                      if (input) input.indeterminate = isSomeSelected;
+                                    }}
+                                    className="w-4 h-4 cursor-pointer"
+                                  />
+                                  All
+                                </label>
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                S.No
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Unique Code
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Outlet Name
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Retailer Name
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Business Type
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                State
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {tableData.map((r, index) => {
+                              const isAlreadyAssigned =
+                                r.assignmentStatus !== "not_assigned";
+                              return (
+                                <tr
+                                  key={r._id}
+                                  className={`hover:bg-gray-50 ${selectedRetailers.includes(r._id)
+                                    ? "bg-red-50"
+                                    : isAlreadyAssigned
+                                      ? "bg-gray-100 opacity-60"
+                                      : ""
+                                    }`}
+                                >
+                                  <td className="px-4 py-3">
                                     <input
                                       type="checkbox"
-                                      onChange={handleSelectAll}
-                                      checked={isAllSelected}
-                                      ref={(input) => input && (input.indeterminate = isSomeSelected)}
-                                      className="w-4 h-4 cursor-pointer"
+                                      checked={selectedRetailers.includes(r._id)}
+                                      onChange={() =>
+                                        handleCheckboxChange(r._id, r.assignmentStatus)
+                                      }
+                                      disabled={isAlreadyAssigned}
+                                      className={`w-4 h-4 ${isAlreadyAssigned
+                                        ? "cursor-not-allowed"
+                                        : "cursor-pointer"
+                                        }`}
                                     />
-                                    All
-                                  </label>
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">S.No</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unique Code</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outlet Name</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Retailer Name</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business Type</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">State</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  Status
-                                </th>
-                              </tr>
-                            </thead>
-
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {tableData.map((r, index) => {
-                                const isAlreadyAssigned = r.assignmentStatus !== "not_assigned";
-                                return (
-                                  <tr
-                                    key={r._id}
-                                    className={`hover:bg-gray-50 ${selectedRetailers.includes(r._id)
-                                      ? "bg-red-50"
-                                      : isAlreadyAssigned
-                                        ? "bg-gray-100 opacity-60"
-                                        : ""
-                                      }`}
-                                  >
-                                    <td className="px-4 py-3">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedRetailers.includes(r._id)}
-                                        onChange={() => handleCheckboxChange(r._id, r.assignmentStatus)}
-                                        disabled={isAlreadyAssigned}
-                                        className={`w-4 h-4 ${isAlreadyAssigned ? "cursor-not-allowed" : "cursor-pointer"
-                                          }`}
-                                      />
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm">{index + 1}</td>
-
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-700">
-                                      {r.uniqueId || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-700">
-                                      {r.shopDetails?.shopName || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-700">
-                                      {r.name || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                      {r.shopDetails?.businessType || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                      {r.shopDetails?.shopAddress?.state || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm">
-                                      {r.assignmentStatus === "not_assigned" ? (
-                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                                          Available
-                                        </span>
-                                      ) : (
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${r.assignmentStatus === "pending"
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">{index + 1}</td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                                    {r.uniqueId || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                                    {r.shopDetails?.shopName || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {r.name || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    {r.shopDetails?.businessType || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    {r.shopDetails?.shopAddress?.state || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">
+                                    {r.assignmentStatus === "not_assigned" ? (
+                                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                        Available
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${r.assignmentStatus === "pending"
                                           ? "bg-yellow-100 text-yellow-700"
                                           : r.assignmentStatus === "accepted"
                                             ? "bg-blue-100 text-blue-700"
                                             : "bg-red-100 text-red-700"
-                                          }`}>
-                                          {r.assignmentStatus.charAt(0).toUpperCase() + r.assignmentStatus.slice(1)}
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <button
-                          onClick={handleAssign}
-                          disabled={assigning || selectedRetailers.length === 0}
-                          className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${assigning || selectedRetailers.length === 0
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-red-600 hover:bg-red-700"
-                            }`}
-                        >
-                          {assigning
-                            ? "Assigning..."
-                            : `Assign Campaign to ${selectedRetailers.length} Retailer(s)`}
-                        </button>
-                      </>
+                                          }`}
+                                      >
+                                        {r.assignmentStatus.charAt(0).toUpperCase() +
+                                          r.assignmentStatus.slice(1)}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
+
+                    <button
+                      onClick={handleAssign}
+                      disabled={assigning || selectedRetailers.length === 0}
+                      className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${assigning || selectedRetailers.length === 0
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-red-600 hover:bg-red-700"
+                        }`}
+                    >
+                      {assigning
+                        ? "Assigning..."
+                        : `Assign Campaign to ${selectedRetailers.length} Retailers`}
+                    </button>
                   </div>
-                )}
-              {(loadingEmployees || employeeTableData.length > 0) &&
-                assignTarget === "employee" && assignType === "individual" && (
+                ))}
+
+              {/* EMPLOYEE TABLE */}
+              {loadingEmployees ||
+                (employeeTableData.length > 0 && assignTarget === "employee" && (
                   <div className="bg-white rounded-lg shadow-md p-6 mt-6">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-lg font-semibold text-gray-700">
@@ -957,122 +1122,411 @@ const AssignCampaign = () => {
                         Fetching employees...
                       </div>
                     ) : (
-                      <>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    onChange={handleEmployeeSelectAll}
+                                    checked={isAllEmployeesSelected}
+                                    ref={(input) => {
+                                      if (input)
+                                        input.indeterminate = isSomeEmployeesSelected;
+                                    }}
+                                    className="w-4 h-4 cursor-pointer"
+                                  />
+                                  All
+                                </label>
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                S.No
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Employee ID
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Name
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Phone
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                State
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {employeeTableData.map((e, index) => {
+                              const isAlreadyAssigned =
+                                e.assignmentStatus !== "not_assigned";
+                              return (
+                                <tr
+                                  key={e._id}
+                                  className={`hover:bg-gray-50 ${selectedEmployees.includes(e._id)
+                                    ? "bg-red-50"
+                                    : isAlreadyAssigned
+                                      ? "bg-gray-100 opacity-60"
+                                      : ""
+                                    }`}
+                                >
+                                  <td className="px-4 py-3">
                                     <input
                                       type="checkbox"
-                                      onChange={handleEmployeeSelectAll}
-                                      checked={isAllEmployeesSelected}
-                                      ref={(input) => input && (input.indeterminate = isSomeEmployeesSelected)}
-                                      className="w-4 h-4 cursor-pointer"
+                                      checked={selectedEmployees.includes(e._id)}
+                                      onChange={() =>
+                                        handleEmployeeCheckboxChange(
+                                          e._id,
+                                          e.assignmentStatus
+                                        )
+                                      }
+                                      disabled={isAlreadyAssigned}
+                                      className={`w-4 h-4 ${isAlreadyAssigned
+                                        ? "cursor-not-allowed"
+                                        : "cursor-pointer"
+                                        }`}
                                     />
-                                    All
-                                  </label>
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">S.No</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">State</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                              </tr>
-                            </thead>
-
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {employeeTableData.map((e, index) => {
-                                const isAlreadyAssigned = e.assignmentStatus !== "not_assigned";
-                                return (
-                                  <tr
-                                    key={e._id}
-                                    className={`hover:bg-gray-50 ${selectedEmployees.includes(e._id)
-                                      ? "bg-red-50"
-                                      : isAlreadyAssigned
-                                        ? "bg-gray-100 opacity-60"
-                                        : ""
-                                      }`}
-                                  >
-                                    <td className="px-4 py-3">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedEmployees.includes(e._id)}
-                                        onChange={() => handleEmployeeCheckboxChange(e._id, e.assignmentStatus)}
-                                        disabled={isAlreadyAssigned}
-                                        className={`w-4 h-4 ${isAlreadyAssigned ? "cursor-not-allowed" : "cursor-pointer"
-                                          }`}
-                                      />
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm">{index + 1}</td>
-
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-700">
-                                      {e.employeeId || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-700">
-                                      {e.name || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                      {e.email || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                      {e.phone || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                      {e.correspondenceAddress?.state || "-"}
-                                    </td>
-
-                                    <td className="px-4 py-3 text-sm">
-                                      {e.assignmentStatus === "not_assigned" ? (
-                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                                          Available
-                                        </span>
-                                      ) : (
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${e.assignmentStatus === "pending"
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">{index + 1}</td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                                    {e.employeeId || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {e.name || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    {e.phone || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    {e.correspondenceAddress?.state || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">
+                                    {e.assignmentStatus === "not_assigned" ? (
+                                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                        Available
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${e.assignmentStatus === "pending"
                                           ? "bg-yellow-100 text-yellow-700"
                                           : e.assignmentStatus === "accepted"
                                             ? "bg-blue-100 text-blue-700"
                                             : "bg-red-100 text-red-700"
-                                          }`}>
-                                          {e.assignmentStatus.charAt(0).toUpperCase() + e.assignmentStatus.slice(1)}
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <button
-                          onClick={handleAssign}
-                          disabled={assigning || selectedEmployees.length === 0}
-                          className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${assigning || selectedEmployees.length === 0
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-red-600 hover:bg-red-700"
-                            }`}
-                        >
-                          {assigning
-                            ? "Assigning..."
-                            : `Assign Campaign to ${selectedEmployees.length} Employee(s)`}
-                        </button>
-                      </>
+                                          }`}
+                                      >
+                                        {e.assignmentStatus.charAt(0).toUpperCase() +
+                                          e.assignmentStatus.slice(1)}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
+
+                    <button
+                      onClick={handleAssign}
+                      disabled={assigning || selectedEmployees.length === 0}
+                      className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${assigning || selectedEmployees.length === 0
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-red-600 hover:bg-red-700"
+                        }`}
+                    >
+                      {assigning
+                        ? "Assigning..."
+                        : `Assign Campaign to ${selectedEmployees.length} Employees`}
+                    </button>
                   </div>
-                )}
+                ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Bulk Upload Modal with Transparent Background */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full min-h-[50vh] max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white z-50 border-b border-gray-200 p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-red-600">Bulk Campaign Assignment</h2>
+              <button
+                onClick={closeBulkModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Step 1: Select Party Type */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 text-gray-700">
+                  Select Party Type
+                </h3>
+                <Select
+                  value={
+                    bulkPartyType
+                      ? {
+                        label: bulkPartyType === "employee" ? "Employee" : "Retailer",
+                        value: bulkPartyType,
+                      }
+                      : null
+                  }
+                  onChange={(e) => {
+                    setBulkPartyType(e.value);
+                    setBulkFile(null);
+                    setBulkResult(null);
+                  }}
+                  options={[
+                    { label: "Employee", value: "employee" },
+                    { label: "Retailer", value: "retailer" },
+                  ]}
+                  styles={customSelectStyles}
+                  className="max-w-md"
+                  placeholder="Select party type..."
+                  isSearchable
+                />
+              </div>
+
+              {bulkPartyType && (
+                <>
+                  {/* Step 2: Download Template */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3 text-gray-700">
+                      Download Template
+                    </h3>
+                    <div className="mb-3 text-sm text-gray-600">
+                      <p className="font-medium mb-2">
+                        Template columns:
+                      </p>
+                      {bulkPartyType === "employee" ? (
+                        <p>
+                          <strong>Sno</strong>, <strong>campaignName</strong>, <strong>employeeId</strong>, <strong>name</strong>, <strong>phone</strong>, <strong>state</strong>
+                          <br />
+                          <span className="text-xs text-red-600 mt-1 block">*Backend validation: campaignName & employeeId only</span>
+                        </p>
+                      ) : (
+                        <p>
+                          <strong>Sno</strong>, <strong>campaignName</strong>, <strong>UniqueId</strong>, <strong>retailerName</strong>, <strong>outletName</strong>, <strong>businessType</strong>, <strong>state</strong>
+                          <br />
+                          <span className="text-xs text-red-600 mt-1 block">*Backend validation: campaignName & UniqueId only</span>
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={downloadBulkTemplate}
+                      className="flex items-center gap-2 bg-[#E4002B] text-white px-6 py-3 rounded-lg hover:bg-[#c4001f] transition"
+                    >
+                      <FaDownload />
+                      Download {bulkPartyType === "employee" ? "Employee" : "Retailer"} Template
+                    </button>
+                  </div>
+
+                  {/* Step 3: Upload File */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3 text-gray-700">
+                      Upload Filled Template
+                    </h3>
+                    <label
+                      htmlFor="bulkFileUpload"
+                      className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg p-8 cursor-pointer hover:border-[#E4002B] transition"
+                    >
+                      <FaFileExcel className="text-5xl text-green-600 mb-3" />
+                      {!bulkFile ? (
+                        <>
+                          <p className="text-gray-600 mb-2 text-lg">
+                            Click to choose Excel file
+                          </p>
+                          <FaUpload className="text-gray-500 text-2xl" />
+                        </>
+                      ) : (
+                        <p className="text-gray-700 font-medium text-lg">{bulkFile.name}</p>
+                      )}
+                      <input
+                        id="bulkFileUpload"
+                        type="file"
+                        accept=".xlsx, .xls"
+                        onChange={handleBulkFileChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {bulkFile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkFile(null);
+                          document.getElementById("bulkFileUpload").value = "";
+                        }}
+                        className="flex items-center gap-2 text-red-500 text-sm hover:underline mt-3"
+                      >
+                        <FaTimes /> Remove File
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Upload Button */}
+                  <button
+                    onClick={handleBulkUpload}
+                    disabled={bulkUploading || !bulkFile}
+                    className={`w-full py-3 rounded-lg font-semibold transition ${bulkUploading || !bulkFile
+                      ? "bg-gray-400 cursor-not-allowed text-white"
+                      : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
+                      }`}
+                  >
+                    {bulkUploading ? "Uploading..." : "Upload & Assign"}
+                  </button>
+
+                  {/* Upload Results */}
+                  {bulkResult && (
+                    <div className="mt-6 bg-gray-50 rounded-lg p-6 border border-gray-200">
+                      <h3 className="text-xl font-bold mb-4 text-gray-800">Upload Results</h3>
+
+                      {/* Summary */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-blue-50 p-4 rounded-lg text-center">
+                          <p className="text-sm text-gray-600">Total Rows</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {bulkResult.summary?.totalRows || 0}
+                          </p>
+                        </div>
+                        <div className="bg-green-50 p-4 rounded-lg text-center">
+                          <p className="text-sm text-gray-600">Successful</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {bulkResult.summary?.successful || 0}
+                          </p>
+                        </div>
+                        <div className="bg-red-50 p-4 rounded-lg text-center">
+                          <p className="text-sm text-gray-600">Failed</p>
+                          <p className="text-2xl font-bold text-red-600">
+                            {bulkResult.summary?.failed || 0}
+                          </p>
+                        </div>
+                        <div className="bg-purple-50 p-4 rounded-lg text-center">
+                          <p className="text-sm text-gray-600">Success Rate</p>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {(() => {
+                              const total = bulkResult.summary?.totalRows || 0;
+                              const successful = bulkResult.summary?.successful || 0;
+
+                              if (total === 0) return '0%';
+
+                              const rate = (successful / total) * 100;
+                              return `${rate.toFixed(2)}%`;
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Failed Rows */}
+                      {bulkResult.failedRows && bulkResult.failedRows.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-red-700">
+                              Failed Rows ({bulkResult.failedRows.length})
+                            </h4>
+                            <button
+                              onClick={downloadFailedRows}
+                              className="flex items-center gap-2 bg-[#E4002B] text-white px-4 py-2 rounded-lg hover:bg-[#c4001f] transition text-sm"
+                            >
+                              <FaDownload />
+                              Download Failed Rows
+                            </button>
+                          </div>
+                          <div className="max-h-60 overflow-y-auto border border-red-200 rounded-lg">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-red-50">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                    Row #
+                                  </th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                    Reason
+                                  </th>
+                                  {bulkPartyType === "employee" ? (
+                                    <>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                        Campaign
+                                      </th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                        Employee ID
+                                      </th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                        Name
+                                      </th>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                        Campaign
+                                      </th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                        Retailer Code
+                                      </th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                        Retailer Name
+                                      </th>
+                                    </>
+                                  )}
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {bulkResult.failedRows.map((row, index) => (
+                                  <tr key={index} className="hover:bg-gray-50">
+                                    <td className="px-4 py-2 text-sm font-medium">
+                                      {row.rowNumber}
+                                    </td>
+                                    <td
+                                      className="px-4 py-2 text-sm text-red-600 max-w-xs"
+                                      title={row.reason}
+                                    >
+                                      {row.reason}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm">
+                                      {row.data?.campaignName || "-"}
+                                    </td>
+                                    {bulkPartyType === "employee" ? (
+                                      <>
+                                        <td className="px-4 py-2 text-sm">
+                                          {row.data?.employeeId || "-"}
+                                        </td>
+                                        <td className="px-4 py-2 text-sm">
+                                          {row.data?.name || "-"}
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <td className="px-4 py-2 text-sm">
+                                          {row.data?.outletCode || row.data?.uniqueId || "-"}
+                                        </td>
+                                        <td className="px-4 py-2 text-sm">
+                                          {row.data?.retailerName || "-"}
+                                        </td>
+                                      </>
+                                    )}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

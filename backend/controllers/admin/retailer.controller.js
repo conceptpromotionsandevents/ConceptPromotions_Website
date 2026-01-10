@@ -84,9 +84,9 @@ export const registerRetailer = async (req, res) => {
             GSTNo: body.GSTNo || "",
             outletPhoto: files.outletPhoto
                 ? {
-                      data: files.outletPhoto[0].buffer,
-                      contentType: files.outletPhoto[0].mimetype,
-                  }
+                    data: files.outletPhoto[0].buffer,
+                    contentType: files.outletPhoto[0].mimetype,
+                }
                 : undefined,
 
             shopAddress: {
@@ -123,23 +123,23 @@ export const registerRetailer = async (req, res) => {
 
             govtIdPhoto: files.govtIdPhoto
                 ? {
-                      data: files.govtIdPhoto[0].buffer,
-                      contentType: files.govtIdPhoto[0].mimetype,
-                  }
+                    data: files.govtIdPhoto[0].buffer,
+                    contentType: files.govtIdPhoto[0].mimetype,
+                }
                 : undefined,
 
             personPhoto: files.personPhoto
                 ? {
-                      data: files.personPhoto[0].buffer,
-                      contentType: files.personPhoto[0].mimetype,
-                  }
+                    data: files.personPhoto[0].buffer,
+                    contentType: files.personPhoto[0].mimetype,
+                }
                 : undefined,
 
             registrationForm: files.registrationForm
                 ? {
-                      data: files.registrationForm[0].buffer,
-                      contentType: files.registrationForm[0].mimetype,
-                  }
+                    data: files.registrationForm[0].buffer,
+                    contentType: files.registrationForm[0].mimetype,
+                }
                 : undefined,
 
             shopDetails,
@@ -171,73 +171,100 @@ export const registerRetailer = async (req, res) => {
 // ====== BULK REGISTER RETAILERS ======
 export const bulkRegisterRetailers = async (req, res) => {
     try {
-        // Only admins can bulk upload retailers
+        /* ---------------- ADMIN CHECK ---------------- */
         if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can upload retailers" });
+            return res.status(403).json({
+                success: false,
+                message: "Only admins can upload retailers",
+            });
         }
 
+        /* ---------------- FILE CHECK ---------------- */
         if (!req.file) {
-            return res
-                .status(400)
-                .json({ message: "Excel/CSV file is required" });
+            return res.status(400).json({
+                success: false,
+                message: "Excel/CSV file is required",
+            });
         }
 
-        // Read Excel
+        /* ---------------- READ EXCEL ---------------- */
         const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        const rows = XLSX.utils.sheet_to_json(sheet, {
+            raw: false,
+            defval: "",
+        });
 
         const retailersToInsert = [];
-        const failedRows = []; // ✅ Track failed rows with full data
+        const failedRows = [];
 
+        /* ---------------- PROCESS EACH ROW ---------------- */
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
 
+            /* =================================================
+               ✅ EXCEL-PROOF NUMERIC SANITIZATION
+            ================================================= */
+            const contactNo = row.contactNo
+                ? row.contactNo
+                    .toString()
+                    .split(".")[0]
+                    .replace(/\D/g, "")
+                    .slice(0, 10)
+                : "";
+
+            const shopPincode = row.shopPincode
+                ? row.shopPincode
+                    .toString()
+                    .split(".")[0]
+                    .replace(/\D/g, "")
+                    .slice(0, 6)
+                : "";
+
+            const accountNumber = row.accountNumber
+                ? row.accountNumber
+                    .toString()
+                    .split(".")[0]
+                    .replace(/\D/g, "")
+                : "";
+
+            /* ---------------- EXTRACT FIELDS ---------------- */
             const {
-                // SHOP DETAILS
                 shopName,
                 shopAddress,
-                shopAddress2,
                 shopCity,
                 shopState,
-                shopPincode,
-                GSTNo,
                 businessType,
                 ownershipType,
-
-                // OWNER/RETAILER DETAILS
+                GSTNo,
                 name,
                 PANCard,
-                contactNo,
                 email,
-                gender,
                 govtIdType,
                 govtIdNumber,
-
-                // BANK DETAILS
                 bankName,
-                accountNumber,
                 IFSC,
                 branchName,
-
-                // OPTIONAL
-                partOfIndia,
             } = row;
 
-            // ✅ VALIDATION - Check required fields
+            /* ---------------- VALIDATION ---------------- */
             const missingFields = [];
+
+            // Shop
             if (!shopName) missingFields.push("shopName");
             if (!shopAddress) missingFields.push("shopAddress");
             if (!shopCity) missingFields.push("shopCity");
             if (!shopState) missingFields.push("shopState");
             if (!shopPincode) missingFields.push("shopPincode");
             if (!businessType) missingFields.push("businessType");
-            if (!name) missingFields.push("name");
             if (!PANCard) missingFields.push("PANCard");
+
+            // Retailer
+            if (!name) missingFields.push("name");
             if (!contactNo) missingFields.push("contactNo");
-            if (!email) missingFields.push("email");
+
+            // Bank
             if (!bankName) missingFields.push("bankName");
             if (!accountNumber) missingFields.push("accountNumber");
             if (!IFSC) missingFields.push("IFSC");
@@ -245,146 +272,146 @@ export const bulkRegisterRetailers = async (req, res) => {
 
             if (missingFields.length > 0) {
                 failedRows.push({
-                    rowNumber: i + 2, // Excel row (accounting for header)
-                    reason: `Missing required fields: ${missingFields.join(
-                        ", "
-                    )}`,
-                    data: row, // ✅ Return original row data
+                    rowNumber: i + 2,
+                    reason: `Missing required fields: ${missingFields.join(", ")}`,
+                    data: row,
                 });
                 continue;
             }
 
-            // ✅ CHECK DUPLICATES
-            const exists = await Retailer.findOne({
-                $or: [{ email }, { contactNo }],
-            });
+            /* ---------------- CONTACT VALIDATION ---------------- */
+            if (!/^[6-9]\d{9}$/.test(contactNo)) {
+                failedRows.push({
+                    rowNumber: i + 2,
+                    reason: `Invalid contact number: ${contactNo}`,
+                    data: row,
+                });
+                continue;
+            }
 
+            /* ---------------- PINCODE VALIDATION ---------------- */
+            if (shopPincode.length !== 6) {
+                failedRows.push({
+                    rowNumber: i + 2,
+                    reason: `Invalid pincode: ${shopPincode}`,
+                    data: row,
+                });
+                continue;
+            }
+
+            /* ---------------- EMAIL VALIDATION ---------------- */
+            if (email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    failedRows.push({
+                        rowNumber: i + 2,
+                        reason: `Invalid email format: ${email}`,
+                        data: row,
+                    });
+                    continue;
+                }
+            }
+
+            /* ---------------- DUPLICATE CHECK ---------------- */
+            const exists = await Retailer.findOne({ contactNo });
             if (exists) {
                 failedRows.push({
                     rowNumber: i + 2,
-                    reason: `Duplicate entry: Email '${email}' or Contact '${contactNo}' already exists`,
-                    data: row, // ✅ Return original row data
+                    reason: `Duplicate contact number: ${contactNo}`,
+                    data: row,
                     existingRetailer: {
                         id: exists._id,
                         name: exists.name,
-                        email: exists.email,
                         contactNo: exists.contactNo,
+                        uniqueId: exists.uniqueId,
+                        retailerCode: exists.retailerCode,
                     },
                 });
                 continue;
             }
 
-            // ✅ VALIDATE EMAIL FORMAT
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                failedRows.push({
-                    rowNumber: i + 2,
-                    reason: `Invalid email format: ${email}`,
-                    data: row,
-                });
-                continue;
-            }
+            /* ---------------- TEMP EMAIL ---------------- */
+            const finalEmail = email
+                ? email
+                : `temp+${contactNo}@retailer.local`;
 
-            // ✅ VALIDATE CONTACT NUMBER
-            const contactRegex = /^[6-9]\d{9}$/;
-            if (!contactRegex.test(String(contactNo))) {
-                failedRows.push({
-                    rowNumber: i + 2,
-                    reason: `Invalid contact number: ${contactNo}. Must be 10 digits starting with 6-9`,
-                    data: row,
-                });
-                continue;
-            }
+            /* ---------------- BUILD OBJECT ---------------- */
+            retailersToInsert.push({
+                name,
+                contactNo,
+                email: finalEmail,
+                password: contactNo,
 
-            // ✅ VALIDATE PINCODE
-            if (String(shopPincode).length !== 6) {
-                failedRows.push({
-                    rowNumber: i + 2,
-                    reason: `Invalid pincode: ${shopPincode}. Must be 6 digits`,
-                    data: row,
-                });
-                continue;
-            }
+                govtIdType: govtIdType || undefined,
+                govtIdNumber: govtIdNumber || undefined,
 
-            // ✅ BUILD RETAILER - If all validations pass
-            try {
-                const hashedPassword = await bcrypt.hash(String(contactNo), 10);
-
-                retailersToInsert.push({
-                    name,
-                    email,
-                    contactNo,
-                    password: hashedPassword,
-
-                    uniqueId: generateUniqueId(),
-                    retailerCode: generateUniqueId(),
-
-                    gender: gender || "",
-                    govtIdType: govtIdType || "",
-                    govtIdNumber: govtIdNumber || "",
-
-                    shopDetails: {
-                        shopName,
-                        businessType,
-                        PANCard,
-                        ownershipType: ownershipType || "",
-                        GSTNo: GSTNo || "",
-                        shopAddress: {
-                            address: shopAddress,
-                            address2: shopAddress2 || "",
-                            city: shopCity,
-                            state: shopState,
-                            pincode: shopPincode,
-                        },
+                shopDetails: {
+                    shopName,
+                    businessType,
+                    PANCard,
+                    ownershipType: ownershipType || undefined,
+                    GSTNo: GSTNo || undefined,
+                    shopAddress: {
+                        address: shopAddress,
+                        city: shopCity,
+                        state: shopState,
+                        pincode: shopPincode,
                     },
+                },
 
-                    bankDetails: {
-                        bankName,
-                        accountNumber,
-                        IFSC,
-                        branchName,
-                    },
+                bankDetails: {
+                    bankName,
+                    accountNumber,
+                    IFSC,
+                    branchName,
+                },
 
-                    createdBy: "AdminAdded",
-                    phoneVerified: true,
-                    partOfIndia: partOfIndia || "N",
-                });
-            } catch (err) {
-                failedRows.push({
-                    rowNumber: i + 2,
-                    reason: `Error processing row: ${err.message}`,
-                    data: row,
-                });
-            }
+                phoneVerified: true,
+                tnc: false,
+                pennyCheck: false,
+            });
         }
 
-        // ✅ INSERT SUCCESSFUL ROWS
+        /* ---------------- INSERT ---------------- */
         let insertedRetailers = [];
         if (retailersToInsert.length > 0) {
             try {
                 insertedRetailers = await Retailer.insertMany(
-                    retailersToInsert
+                    retailersToInsert,
+                    { ordered: false }
                 );
             } catch (err) {
-                return res.status(500).json({
-                    message: "Database insertion failed",
-                    error: err.message,
-                    failedRows: failedRows,
-                });
+                if (err.insertedDocs) {
+                    insertedRetailers = err.insertedDocs;
+                }
+
+                if (err.writeErrors) {
+                    err.writeErrors.forEach((e) => {
+                        const doc = retailersToInsert[e.index];
+                        failedRows.push({
+                            rowNumber: e.index + 2,
+                            reason: e.message,
+                            data: {
+                                name: doc.name,
+                                contactNo: doc.contactNo,
+                                shopName: doc.shopDetails?.shopName,
+                            },
+                        });
+                    });
+                }
             }
         }
 
-        // ✅ COMPREHENSIVE RESPONSE
+        /* ---------------- RESPONSE ---------------- */
         const response = {
             success: true,
             summary: {
                 totalRows: rows.length,
                 successful: insertedRetailers.length,
                 failed: failedRows.length,
-                successRate: `${(
-                    (insertedRetailers.length / rows.length) *
-                    100
-                ).toFixed(2)}%`,
+                successRate: rows.length
+                    ? `${((insertedRetailers.length / rows.length) * 100).toFixed(2)}%`
+                    : "0%",
             },
             insertedRetailers: insertedRetailers.map((r) => ({
                 id: r._id,
@@ -393,36 +420,29 @@ export const bulkRegisterRetailers = async (req, res) => {
                 contactNo: r.contactNo,
                 uniqueId: r.uniqueId,
                 retailerCode: r.retailerCode,
+                shopName: r.shopDetails?.shopName,
             })),
-            failedRows: failedRows, // ✅ Complete failed row data
+            failedRows,
         };
 
-        // ✅ DETERMINE STATUS CODE
         if (insertedRetailers.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "No retailers were added. All rows failed validation.",
+                message: "No retailers were added",
                 ...response,
             });
         }
 
-        if (failedRows.length > 0) {
-            return res.status(207).json({
-                // 207 = Multi-Status (partial success)
-                success: true,
-                message: `${insertedRetailers.length} retailers added, ${failedRows.length} rows failed`,
-                ...response,
-            });
-        }
-
-        return res.status(201).json({
+        return res.status(failedRows.length ? 207 : 201).json({
             success: true,
-            message: `All ${insertedRetailers.length} retailers added successfully`,
+            message: failedRows.length
+                ? "Bulk upload completed with partial success"
+                : "All retailers added successfully",
             ...response,
         });
     } catch (error) {
-        console.error("Bulk retailer upload error:", error);
-        res.status(500).json({
+        console.error("❌ Bulk retailer upload error:", error);
+        return res.status(500).json({
             success: false,
             message: "Server error",
             error: error.message,

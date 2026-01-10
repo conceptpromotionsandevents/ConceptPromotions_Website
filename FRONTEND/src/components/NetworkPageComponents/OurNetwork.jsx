@@ -1,7 +1,6 @@
 import React from "react";
 import CountUp from "react-countup";
 import { motion } from "framer-motion";
-import networkImg from "/map.png";
 
 const stats = [
   { value: 24, suffix: "+", label: "States • All 4 Metros" },
@@ -38,7 +37,7 @@ const OurNetwork = () => {
             className="flex-1 flex justify-center"
           >
             <img
-              src={networkImg}
+              src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037889/map_amukei.png"
               alt="Our Network"
               className="w-full max-w-md md:max-w-lg object-contain h-[320px] md:h-[480px]"
             />

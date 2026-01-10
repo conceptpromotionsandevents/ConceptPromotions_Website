@@ -180,7 +180,7 @@ const EmployeeDashboard = () => {
                 <div className="flex justify-between items-center py-4 max-w-screen-xl mx-auto relative">
 
                     <img
-                        src="supreme.png"
+                        src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/supreme_chdev9.png"
                         alt="Logo"
                         className="h-14 cursor-pointer"
                     />

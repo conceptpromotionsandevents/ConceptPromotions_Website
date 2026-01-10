@@ -64,7 +64,7 @@ const Navbar = () => {
       <div className="flex items-center">
         <Link to="/">
           <img
-            src="cpLogo.jpg"
+            src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038270/cpfullloog_ha27fk.jpg"
             alt="Concept Promotions Logo"
             className="h-12 w-auto object-contain cursor-pointer"
           />

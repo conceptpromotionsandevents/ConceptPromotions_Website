@@ -3,7 +3,7 @@ import { FaFileExcel, FaUpload, FaDownload, FaTimes, FaCheckCircle, FaTimesCircl
 import { IoClose } from "react-icons/io5";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { API_URL } from "../../url/base";
 
 // Searchable Dropdown Component
@@ -104,9 +104,7 @@ const BulkUpload = () => {
     }
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    
+  const handleUpload = async () => {
     if (!selectedFile) {
       toast.error("Please select an Excel file to upload", { theme: "dark" });
       return;
@@ -122,7 +120,7 @@ const BulkUpload = () => {
 
     try {
       const token = localStorage.getItem("token");
-      
+
       if (!token) {
         toast.error("Please login first", { theme: "dark" });
         setUploading(false);
@@ -132,7 +130,8 @@ const BulkUpload = () => {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const endpoint = partyType === "Employee" 
+      // Updated endpoint paths to match backend routes
+      const endpoint = partyType === "Employee"
         ? `${API_URL}/admin/employees/bulk`
         : `${API_URL}/admin/retailers/bulk`;
 
@@ -146,11 +145,10 @@ const BulkUpload = () => {
 
       const data = await response.json();
 
-      // ✅ Handle all response codes properly
+      // Handle all response codes properly
       if (response.ok || response.status === 207) {
-        // Success or partial success
         setUploadResult(data);
-        
+
         if (data.summary?.failed === 0) {
           toast.success(`All ${data.summary.successful} ${partyType.toLowerCase()}s uploaded successfully!`, {
             theme: "dark",
@@ -163,21 +161,19 @@ const BulkUpload = () => {
           );
         }
       } else if (response.status === 400) {
-        // ✅ 400 Error - Show failed rows if available
         setUploadResult(data);
-        
+
         if (data.failedRows && data.failedRows.length > 0) {
-          toast.error(`Upload failed: ${data.failedRows.length} rows have errors`, { 
+          toast.error(`Upload failed: ${data.failedRows.length} rows have errors`, {
             theme: "dark",
-            autoClose: 5000 
+            autoClose: 5000
           });
         } else {
-          toast.error(data.message || "Upload failed - All rows failed validation", { 
-            theme: "dark" 
+          toast.error(data.message || "Upload failed - All rows failed validation", {
+            theme: "dark"
           });
         }
       } else {
-        // Other errors
         toast.error(data.message || "Upload failed", { theme: "dark" });
         setUploadResult(data);
       }
@@ -211,26 +207,105 @@ const BulkUpload = () => {
     }));
 
     const ws = XLSX.utils.json_to_sheet(failedData);
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 12 },  // Row Number
+      { wch: 50 },  // Reason
+    ];
+
+    // Add widths for data columns based on party type
+    if (partyType === "Employee") {
+      columnWidths.push(
+        { wch: 25 },  // name
+        { wch: 30 },  // email
+        { wch: 15 },  // contactNo
+        { wch: 15 },  // employeeType
+        { wch: 20 }   // position
+      );
+    } else {
+      columnWidths.push(
+        { wch: 25 },  // shopName
+        { wch: 35 },  // shopAddress
+        { wch: 20 },  // shopCity
+        { wch: 20 },  // shopState
+        { wch: 12 },  // shopPincode
+        { wch: 20 },  // GSTNo
+        { wch: 18 },  // businessType
+        { wch: 18 },  // ownershipType
+        { wch: 25 },  // name
+        { wch: 15 },  // PANCard
+        { wch: 15 },  // contactNo
+        { wch: 30 },  // email
+        { wch: 15 },  // govtIdType
+        { wch: 20 },  // govtIdNumber
+        { wch: 20 },  // bankName
+        { wch: 20 },  // accountNumber
+        { wch: 15 },  // IFSC
+        { wch: 25 }   // branchName
+      );
+    }
+
+    ws['!cols'] = columnWidths;
+
+    // Style the header row (row 1) with red background and white text
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const address = XLSX.utils.encode_col(C) + "1";
+      if (!ws[address]) continue;
+
+      ws[address].s = {
+        fill: {
+          fgColor: { rgb: "FF0000" }  // Red background
+        },
+        font: {
+          color: { rgb: "FFFFFF" },    // White text
+          bold: true,
+          sz: 12
+        },
+        alignment: {
+          horizontal: "center",
+          vertical: "center"
+        }
+      };
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Failed Rows");
     XLSX.writeFile(wb, `Failed_${partyType}_Upload_${new Date().toISOString().split('T')[0]}.xlsx`);
-    
+
     toast.success("Failed rows downloaded", { theme: "dark" });
   };
 
-  const getSampleFileUrl = () => {
-    return partyType === "Employee" 
-      ? "/sample_5_employees.xlsx"
-      : "/sample_5_retailers.xlsx";
+  // Download sample Excel file from cloudinary folder
+  const downloadSampleFile = () => {
+    let fileName;
+    let publicPath;
+
+    if (partyType === "Employee") {
+      fileName = "Sample_Employees_Template.xlsx";
+      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768038331/Sample_Employees_Template_esdiac.xlsx"; 
+    } else {
+      fileName = "Sample_Retailers_Template.xlsx";
+      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768043642/Sample_Retailers_Template_kgdh8b.xlsx"; 
+    }
+
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a');
+    link.href = publicPath;
+    link.download = fileName;
+    link.click();
+
+    toast.success("Sample template downloaded", { theme: "dark" });
   };
 
   return (
     <>
       <ToastContainer />
-      
-      <div className="min-h-screen flex flex-col justify-start items-center bg-[#171717] px-4 py-8">
-        <div className="bg-[#EDEDED] shadow-md rounded-xl p-8 w-full max-w-4xl">
-          <h1 className="text-3xl font-semibold mb-4 text-[#E4002B] text-center">
+
+      <div className="min-h-screen flex flex-col justify-start items-center bg-black px-4 py-8">
+        <div className="bg-gray-100 shadow-md rounded-xl p-8 w-full max-w-4xl">
+          <h1 className="text-3xl font-semibold mb-4 text-red-600 text-center">
             Bulk Upload Data
           </h1>
           <p className="text-gray-600 mb-6 text-center">
@@ -246,7 +321,6 @@ const BulkUpload = () => {
               setPartyType(val);
               setSelectedFile(null);
               setUploadResult(null);
-              // ✅ Fixed: Check if element exists
               const fileInput = document.getElementById("fileUpload");
               if (fileInput) {
                 fileInput.value = "";
@@ -256,27 +330,26 @@ const BulkUpload = () => {
 
           {partyType && (
             <>
-              <h2 className="text-xl font-semibold text-[#E4002B] mb-4 text-center">
+              <h2 className="text-xl font-semibold text-red-600 mb-4 text-center">
                 {partyType} Bulk Upload
               </h2>
 
               {/* Download Sample File */}
               <div className="flex justify-center mb-6">
-                <a
-                  href={getSampleFileUrl()}
-                  download
-                  className="inline-flex items-center gap-2 bg-[#E4002B] text-white px-6 py-3 rounded-lg hover:bg-[#C3002B] transition"
+                <button
+                  onClick={downloadSampleFile}
+                  className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition"
                 >
                   <FaDownload />
                   Download Sample Excel
-                </a>
+                </button>
               </div>
 
               {/* File Upload */}
-              <form onSubmit={handleUpload} className="flex flex-col items-center">
+              <div className="flex flex-col items-center">
                 <label
                   htmlFor="fileUpload"
-                  className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg p-8 cursor-pointer hover:border-[#E4002B] transition"
+                  className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg p-8 cursor-pointer hover:border-red-600 transition"
                 >
                   <FaFileExcel className="text-5xl text-green-600 mb-3" />
                   {!selectedFile ? (
@@ -307,23 +380,22 @@ const BulkUpload = () => {
                 )}
 
                 <button
-                  type="submit"
+                  onClick={handleUpload}
                   disabled={uploading || !selectedFile}
-                  className={`mt-6 px-8 py-3 rounded-lg font-semibold transition ${
-                    uploading || !selectedFile
-                      ? "bg-gray-400 cursor-not-allowed text-white"
-                      : "bg-[#E4002B] text-white hover:bg-[#C3002B]"
-                  }`}
+                  className={`mt-6 px-8 py-3 rounded-lg font-semibold transition ${uploading || !selectedFile
+                    ? "bg-gray-400 cursor-not-allowed text-white"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                    }`}
                 >
                   {uploading ? "Uploading..." : "Upload File"}
                 </button>
-              </form>
+              </div>
 
               {/* Upload Results */}
               {uploadResult && (
                 <div className="mt-8 bg-white rounded-lg p-6 border border-gray-200">
                   <h3 className="text-xl font-bold mb-4 text-gray-800">Upload Results</h3>
-                  
+
                   {/* Summary */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-blue-50 p-4 rounded-lg text-center">
@@ -361,17 +433,14 @@ const BulkUpload = () => {
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Name</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Email</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Contact</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                {partyType === "Employee" ? "Employee ID" : "Unique ID"}
-                              </th>
                               {partyType === "Retailer" && (
                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Retailer Code</th>
                               )}
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {(partyType === "Employee" 
-                              ? uploadResult.insertedEmployees 
+                            {(partyType === "Employee"
+                              ? uploadResult.insertedEmployees
                               : uploadResult.insertedRetailers
                             )?.map((item, index) => (
                               <tr key={index} className="hover:bg-gray-50">
@@ -380,9 +449,6 @@ const BulkUpload = () => {
                                 <td className="px-4 py-2 text-sm">{item.email || "-"}</td>
                                 <td className="px-4 py-2 text-sm">
                                   {item.phone || item.contactNo}
-                                </td>
-                                <td className="px-4 py-2 text-sm font-medium text-green-600">
-                                  {item.employeeId || item.uniqueId}
                                 </td>
                                 {partyType === "Retailer" && (
                                   <td className="px-4 py-2 text-sm font-medium text-blue-600">
@@ -439,8 +505,8 @@ const BulkUpload = () => {
                                 </td>
                                 <td className="px-4 py-2 text-sm">{row.data?.name || "-"}</td>
                                 <td className="px-4 py-2 text-sm">
-                                  {partyType === "Retailer" 
-                                    ? row.data?.contactNo || "-" 
+                                  {partyType === "Retailer"
+                                    ? row.data?.contactNo || "-"
                                     : row.data?.email || "-"}
                                 </td>
                                 {partyType === "Retailer" && (

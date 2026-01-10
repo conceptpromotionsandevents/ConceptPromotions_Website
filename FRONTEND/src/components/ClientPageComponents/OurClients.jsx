@@ -1,18 +1,18 @@
 import React from "react";
 
 const clients = [
-  { name: "Coca Cola", logo: "/logos/CocaCola.jpg", zoom: true },
-  { name: "ITC", logo: "/logos/ITC.png", zoom: true },
-  { name: "HUL", logo: "/logos/HUL.png", zoom: true },
-  { name: "Glenmark Pharma", logo: "/logos/Glenmark.jpg", zoom: true },
-  { name: "Heritage Foods", logo: "/logos/Heritage.png" },
-  { name: "Rajdhani", logo: "/logos/Rajdhani.png", zoom: true },
-  { name: "Raymond", logo: "/logos/Raymond.png", zoom: true },
-  { name: "Vibhor Oil", logo: "/logos/Vibhor.png", zoom: true },
-  { name: "Henkel Swaskoff", logo: "/logos/Henkel.png", zoom: true },
-  { name: "Pidilite", logo: "/logos/Pidilite.jpeg" },
-  { name: "Tea Valley", logo: "/logos/TeaValley.png", zoom: true },
-  { name: "Mangaldeep Agarbatti", logo: "/logos/Mangaldeep.jpg", zoom: true },
+  { name: "Coca Cola", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038230/CocaCola_i5njec.jpg", zoom: true },
+  { name: "ITC", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038232/ITC_m845tj.png", zoom: true },
+  { name: "HUL", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038231/HUL_sibllg.png", zoom: true },
+  { name: "Glenmark Pharma", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038230/Glenmark_cizjeb.jpg", zoom: true },
+  { name: "Heritage Foods", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038230/Heritage_u0dtia.png" },
+  { name: "Rajdhani", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038235/Rajdhani_qqm24l.png", zoom: true },
+  { name: "Raymond", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038237/Raymond_gzrg3u.png", zoom: true },
+  { name: "Vibhor Oil", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038238/Vibhor_m6u3jr.png", zoom: true },
+  { name: "Henkel Swaskoff", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038231/Henkel_cpktu9.png", zoom: true },
+  { name: "Pidilite", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038234/Pidilite_ea9pyk.jpg" },
+  { name: "Tea Valley", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038238/TeaValley_z1nou9.png", zoom: true },
+  { name: "Mangaldeep Agarbatti", logo: "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768038233/Mangaldeep_nshdpe.jpg", zoom: true },
 ];
 
 const OurClients = () => {

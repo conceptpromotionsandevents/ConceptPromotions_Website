@@ -86,12 +86,12 @@ const Footer = () => {
             </h3>
             <div className="flex justify-center md:justify-start items-center gap-2 mt-2">
               <img
-                src="/Playstore.png"
+                src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037893/Playstore_kctght.png"
                 alt="Google Play"
                 className="h-15 w-auto cursor-pointer hover:opacity-80 transition"
               />
               <img
-                src="/Appstore.png"
+                src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037881/Appstore_nwcf5v.png"
                 alt="App Store"
                 className="h-15 w-auto cursor-pointer hover:opacity-80 transition"
               />

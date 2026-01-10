@@ -14,7 +14,7 @@ const AboutSection = () => {
           className="md:w-1/2"
         >
           <img
-            src="/about_img1.jpg"
+            src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037881/about_img1_jxnywd.jpg"
             alt="Who We Are"
             className="rounded-2xl shadow-lg object-cover w-full h-80 md:h-[320px] border-2 border-[#44090a]"
           />
@@ -48,7 +48,7 @@ const AboutSection = () => {
           className="md:w-1/2"
         >
           <img
-            src="/about_img2.png"
+            src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037883/about_img2_b9ye8u.png"
             alt="What We Do"
             className="rounded-2xl shadow-lg object-cover w-full h-80 md:h-[320px]"
           />

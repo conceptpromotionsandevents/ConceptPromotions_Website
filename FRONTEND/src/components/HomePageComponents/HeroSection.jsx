@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 
 const HeroSection = () => {
   const images = [
-    "/hero_img1.png",
-    "/hero_img2.png",
+    "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037883/hero_img1_ofscyg.png",
+    "https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037884/hero_img2_rdsfem.png",
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);

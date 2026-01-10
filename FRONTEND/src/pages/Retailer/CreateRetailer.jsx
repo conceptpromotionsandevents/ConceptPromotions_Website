@@ -109,8 +109,8 @@ const IconInput = ({ icon: Icon, label, placeholder, type = "text", value, onCha
                 onChange={onChange}
                 placeholder={placeholder}
                 className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-2 border rounded-lg outline-none focus:ring-2 text-sm ${error
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-[#E4002B]"
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-[#E4002B]"
                     }`}
                 {...rest}
             />
@@ -338,9 +338,9 @@ const CreateRetailer = () => {
                     </h1>
 
                     <div className="space-y-6">
-                        {/* Personal & Shop Details */}
+                        {/* Personal Details */}
                         <section className="space-y-4">
-                            <h3 className="text-lg font-medium text-[#E4002B]">Personal & Shop Details</h3>
+                            <h3 className="text-lg font-medium text-[#E4002B]">Personal Details</h3>
 
                             <IconInput
                                 icon={FaUser}
@@ -360,7 +360,11 @@ const CreateRetailer = () => {
                                 maxLength={10}
                                 required
                             />
+                        </section>
 
+                        {/* Shop Details */}
+                        <section className="space-y-4">
+                            <h3 className="text-lg font-medium text-[#E4002B]">Shop Details</h3>
                             <IconInput
                                 icon={FaBuilding}
                                 label={<>Shop Name <span className="text-red-500">*</span></>}
@@ -398,11 +402,6 @@ const CreateRetailer = () => {
                                 maxLength={10}
                                 required
                             />
-                        </section>
-
-                        {/* Address Details */}
-                        <section className="space-y-4">
-                            <h3 className="text-lg font-medium text-[#E4002B]">Address Details</h3>
 
                             <IconInput
                                 icon={FaMapMarkerAlt}
