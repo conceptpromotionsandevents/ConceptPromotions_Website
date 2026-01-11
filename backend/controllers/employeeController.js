@@ -1,37 +1,27 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import {
-    Campaign,
-    Employee,
-    EmployeeReport,
-    VisitSchedule,
-} from "../models/user.js";
-// import { Retailer } from "../models/user.js";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import XLSX from "xlsx";
 import { Retailer } from "../models/retailer.model.js";
-
+import {
+    Campaign,
+    Employee,
+  
+    VisitSchedule,
+} from "../models/user.js";
+// import { Retailer } from "../models/user.js";
+import {
+    deleteFromCloudinary,
+    uploadToCloudinary,
+} from "../utils/cloudinary.config.js";
+import { getResourceType } from "../utils/cloudinary.helper.js";
 //   GET LOGGED-IN EMPLOYEE PROFILE
 export const getEmployeeProfile = async (req, res) => {
     try {
-        const employeeId = req.user.id; // Extract employee ID from JWT
+        const employeeId = req.user.id;
 
         const employee = await Employee.findById(employeeId)
-            .select(
-                `
-        -password
-        -files.aadhaarFront.data
-        -files.aadhaarBack.data
-        -files.panCard.data
-        -files.personPhoto.data
-        -files.familyPhoto.data
-        -files.bankProof.data
-        -files.esiForm.data
-        -files.pfForm.data
-        -files.employmentForm.data
-        -files.cv.data
-        `
-            )
+            .select("-password")
             .lean();
 
         if (!employee) {
@@ -51,10 +41,10 @@ export const getEmployeeProfile = async (req, res) => {
     }
 };
 
-// CHECK WHICH EMPLOYEE DOCUMENTS EXIST
+// CHECK WHICH EMPLOYEE DOCUMENTS EXIST - UPDATED FOR CLOUDINARY
 export const getEmployeeDocumentStatus = async (req, res) => {
     try {
-        const employeeId = req.user.id; // From JWT via protect middleware
+        const employeeId = req.user.id;
 
         const employee = await Employee.findById(employeeId).select("files");
 
@@ -63,16 +53,16 @@ export const getEmployeeDocumentStatus = async (req, res) => {
         }
 
         res.status(200).json({
-            hasPersonPhoto: !!employee.files?.personPhoto?.data,
-            hasAadhaarFront: !!employee.files?.aadhaarFront?.data,
-            hasAadhaarBack: !!employee.files?.aadhaarBack?.data,
-            hasPanCard: !!employee.files?.panCard?.data,
-            hasFamilyPhoto: !!employee.files?.familyPhoto?.data,
-            hasBankProof: !!employee.files?.bankProof?.data,
-            hasEsiForm: !!employee.files?.esiForm?.data,
-            hasPfForm: !!employee.files?.pfForm?.data,
-            hasEmploymentForm: !!employee.files?.employmentForm?.data,
-            hasCv: !!employee.files?.cv?.data,
+            hasPersonPhoto: !!employee.files?.personPhoto?.url,
+            hasAadhaarFront: !!employee.files?.aadhaarFront?.url,
+            hasAadhaarBack: !!employee.files?.aadhaarBack?.url,
+            hasPanCard: !!employee.files?.panCard?.url,
+            hasFamilyPhoto: !!employee.files?.familyPhoto?.url,
+            hasBankProof: !!employee.files?.bankProof?.url,
+            hasEsiForm: !!employee.files?.esiForm?.url,
+            hasPfForm: !!employee.files?.pfForm?.url,
+            hasEmploymentForm: !!employee.files?.employmentForm?.url,
+            hasCv: !!employee.files?.cv?.url,
         });
     } catch (error) {
         console.error("❌ Get employee document status error:", error);
@@ -83,13 +73,12 @@ export const getEmployeeDocumentStatus = async (req, res) => {
     }
 };
 
-// GET EMPLOYEE DOCUMENT/IMAGE (ALIGNED WITH SCHEMA)
+// GET EMPLOYEE DOCUMENT/IMAGE - UPDATED FOR CLOUDINARY
 export const getEmployeeDocument = async (req, res) => {
     try {
         const employeeId = req.user.id;
         const { documentType } = req.params;
 
-        // ✅ Validate documentType
         const validDocumentTypes = [
             "personPhoto",
             "aadhaarFront",
@@ -113,18 +102,17 @@ export const getEmployeeDocument = async (req, res) => {
             return res.status(404).json({ message: "Employee not found" });
         }
 
-        // ✅ All documents are now inside employee.files (including personPhoto)
         const document = employee.files?.[documentType];
 
-        if (!document || !document.data) {
+        if (!document || !document.url) {
             return res.status(404).json({ message: "Document not found" });
         }
 
-        res.set(
-            "Content-Type",
-            document.contentType || "application/octet-stream"
-        );
-        res.send(document.data);
+        // Return Cloudinary URL instead of buffer
+        res.status(200).json({
+            url: document.url,
+            publicId: document.publicId,
+        });
     } catch (error) {
         console.error("❌ Get employee document error:", error);
         return res.status(500).json({
@@ -137,7 +125,7 @@ export const getEmployeeDocument = async (req, res) => {
 //  GET EMPLOYEE SINGLE CAMPAIGN STATUS
 export const getEmployeeCampaignStatus = async (req, res) => {
     try {
-        const employeeId = req.user.id; // Get from JWT middleware
+        const employeeId = req.user.id;
         const { campaignId } = req.params;
 
         const campaign = await Campaign.findById(campaignId)
@@ -148,7 +136,6 @@ export const getEmployeeCampaignStatus = async (req, res) => {
             return res.status(404).json({ message: "Campaign not found" });
         }
 
-        // Find the employee entry in assignedEmployees
         const employeeEntry = campaign.assignedEmployees.find(
             (e) => e.employeeId?.toString() === employeeId.toString()
         );
@@ -159,7 +146,6 @@ export const getEmployeeCampaignStatus = async (req, res) => {
             });
         }
 
-        // Return campaign with employee-specific status
         res.status(200).json({
             campaignId: campaign._id,
             name: campaign.name,
@@ -186,10 +172,10 @@ export const getEmployeeCampaignStatus = async (req, res) => {
     }
 };
 
-// UPDATE EMPLOYEE PROFILE (ALIGNED WITH SCHEMA)
+// UPDATE EMPLOYEE PROFILE - UPDATED FOR CLOUDINARY
 export const updateEmployeeProfile = async (req, res) => {
     try {
-        const { id } = req.user; // From JWT
+        const { id } = req.user;
         const employee = await Employee.findById(id);
         if (!employee)
             return res.status(404).json({ message: "Employee not found" });
@@ -311,11 +297,10 @@ export const updateEmployeeProfile = async (req, res) => {
         });
 
         /* --------------------------------------------------
-       🔥 Step 5: Handle File Uploads (ALL inside employee.files)
+       🔥 Step 5: Handle File Uploads - UPDATED FOR CLOUDINARY
     -------------------------------------------------- */
         const files = req.files || {};
 
-        // ✅ Initialize files object if it doesn't exist
         if (!employee.files) employee.files = {};
 
         // ✅ Handle T&C
@@ -328,28 +313,43 @@ export const updateEmployeeProfile = async (req, res) => {
             employee.pennyCheck = true;
         }
 
-        // ✅ All file fields are now inside employee.files (including personPhoto)
+        // ✅ All file fields - CLOUDINARY UPLOAD
         const fileFields = [
-            "aadhaarFront",
-            "aadhaarBack",
-            "panCard",
-            "personPhoto", // ✅ Now inside files
-            "familyPhoto",
-            "bankProof",
-            "esiForm",
-            "pfForm",
-            "employmentForm",
-            "cv",
+            { key: "aadhaarFront", folder: "employees/aadhaar" },
+            { key: "aadhaarBack", folder: "employees/aadhaar" },
+            { key: "panCard", folder: "employees/pan_card" },
+            { key: "personPhoto", folder: "employees/person_photos" },
+            { key: "familyPhoto", folder: "employees/family_photos" },
+            { key: "bankProof", folder: "employees/bank_proof" },
+            { key: "esiForm", folder: "employees/forms" },
+            { key: "pfForm", folder: "employees/forms" },
+            { key: "employmentForm", folder: "employees/forms" },
+            { key: "cv", folder: "employees/cv" },
         ];
 
-        fileFields.forEach((field) => {
-            if (files[field]) {
-                employee.files[field] = {
-                    data: files[field][0].buffer,
-                    contentType: files[field][0].mimetype,
+        for (const { key, folder } of fileFields) {
+            if (files[key]) {
+                // Delete old file from Cloudinary if exists
+                if (employee.files[key]?.publicId) {
+                    await deleteFromCloudinary(
+                        employee.files[key].publicId,
+                        getResourceType(files[key][0].mimetype)
+                    );
+                }
+
+                // Upload new file to Cloudinary
+                const result = await uploadToCloudinary(
+                    files[key][0].buffer,
+                    folder,
+                    getResourceType(files[key][0].mimetype)
+                );
+
+                employee.files[key] = {
+                    url: result.secure_url,
+                    publicId: result.public_id,
                 };
             }
-        });
+        }
 
         /* --------------------------------------------------
        🔥 Step 6: Password Change
@@ -380,7 +380,7 @@ export const updateEmployeeProfile = async (req, res) => {
                     ? {
                           bankName: employee.bankDetails.bankName,
                           accountNumber: employee.bankDetails.accountNumber,
-                          ifsc: employee.bankDetails.ifsc, // ✅ Lowercase for consistency
+                          ifsc: employee.bankDetails.ifsc,
                           branchName: employee.bankDetails.branchName,
                       }
                     : null,
@@ -418,7 +418,6 @@ export const loginEmployee = async (req, res) => {
             return res.status(404).json({ message: "Employee not found" });
         }
 
-        // Compare password
         const isMatch = await bcrypt.compare(password, employee.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid credentials" });
@@ -450,13 +449,32 @@ export const loginEmployee = async (req, res) => {
 //GET EMPLOYEE CAMPAIGNS
 export const getEmployeeCampaigns = async (req, res) => {
     try {
-        const employeeId = req.user.id; // Get from JWT token
-        const employee = await Employee.findById(employeeId);
-
-        if (!employee) {
-            return res.status(404).json({ message: "Employee not found" });
+        /* =========================
+           AUTH CHECK (EMPLOYEE)
+        ========================== */
+        if (!req.user || req.user.role !== "employee") {
+            return res.status(403).json({
+                success: false,
+                message: "Only employees can access campaigns",
+            });
         }
 
+        const employeeId = req.user.id;
+
+        /* =========================
+           VALIDATE EMPLOYEE
+        ========================== */
+        const employee = await Employee.findById(employeeId).select("name email");
+        if (!employee) {
+            return res.status(404).json({
+                success: false,
+                message: "Employee not found",
+            });
+        }
+
+        /* =========================
+           FETCH CAMPAIGNS
+        ========================== */
         const campaigns = await Campaign.find({
             "assignedEmployees.employeeId": employeeId,
         })
@@ -465,29 +483,63 @@ export const getEmployeeCampaigns = async (req, res) => {
             .populate("assignedRetailers.retailerId", "name contactNo")
             .sort({ createdAt: -1 });
 
-        // Add employeeStatus to each campaign for easier frontend access
-        const campaignsWithStatus = campaigns.map((campaign) => {
-            const campaignObj = campaign.toObject();
+        /* =========================
+           MAP EMPLOYEE-SPECIFIC VIEW
+        ========================== */
+        const campaignsWithStatus = campaigns.map((c) => {
+            const campaign = c.toObject();
 
-            // Find current employee's status from assignedEmployees array
-            const employeeEntry = campaignObj.assignedEmployees.find(
-                (emp) => emp.employeeId._id.toString() === employeeId.toString()
+            /* ---- Ensure sub-documents ---- */
+            campaign.info ??= { description: "", tnc: "", banners: [] };
+            campaign.info.banners ??= [];
+
+            campaign.gratification ??= {
+                type: "",
+                description: "",
+                images: [],
+            };
+            campaign.gratification.images ??= [];
+
+            /* ---- Remove orphan refs ---- */
+            campaign.assignedEmployees =
+                campaign.assignedEmployees?.filter(
+                    (e) => e.employeeId !== null
+                ) || [];
+
+            campaign.assignedRetailers =
+                campaign.assignedRetailers?.filter(
+                    (r) => r.retailerId !== null
+                ) || [];
+
+            /* ---- Employee-specific status ---- */
+            const employeeEntry = campaign.assignedEmployees.find(
+                (emp) =>
+                    emp.employeeId &&
+                    emp.employeeId._id.toString() === employeeId.toString()
             );
 
-            // Add a top-level employeeStatus field for this specific employee
-            campaignObj.employeeStatus = {
-                status: employeeEntry?.status || "pending",
-                startDate:
-                    employeeEntry?.startDate || campaignObj.campaignStartDate,
-                endDate: employeeEntry?.endDate || campaignObj.campaignEndDate,
-                assignedAt: employeeEntry?.assignedAt,
-                updatedAt: employeeEntry?.updatedAt,
-            };
+            return {
+                ...campaign,
 
-            return campaignObj;
+                employeeStatus: {
+                    status: employeeEntry?.status ?? "pending",
+                    startDate:
+                        employeeEntry?.startDate ??
+                        campaign.campaignStartDate,
+                    endDate:
+                        employeeEntry?.endDate ??
+                        campaign.campaignEndDate,
+                    assignedAt: employeeEntry?.assignedAt ?? null,
+                    updatedAt: employeeEntry?.updatedAt ?? null,
+                },
+            };
         });
 
+        /* =========================
+           RESPONSE
+        ========================== */
         res.status(200).json({
+            success: true,
             message: "Campaigns fetched successfully",
             employee: {
                 id: employee._id,
@@ -498,11 +550,14 @@ export const getEmployeeCampaigns = async (req, res) => {
         });
     } catch (error) {
         console.error("Get employee campaigns error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
 
-//UPDATE CAMPAIGN STATUS
 export const updateCampaignStatus = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -550,577 +605,12 @@ export const updateCampaignStatus = async (req, res) => {
     }
 };
 
-//CLIENT PAYMENT PLAN
-export const clientSetPaymentPlan = async (req, res) => {
-    try {
-        const { campaignId, retailerId, totalAmount, notes, dueDate } =
-            req.body;
 
-        if (
-            !req.user ||
-            !["client-admin", "client-user"].includes(req.user.role)
-        ) {
-            return res.status(403).json({
-                message: "Only client admins or users can set payment plans",
-            });
-        }
 
-        if (!campaignId || !retailerId || !totalAmount) {
-            return res.status(400).json({
-                message: "campaignId, retailerId, and totalAmount are required",
-            });
-        }
 
-        const campaign = await Campaign.findById(campaignId);
-        if (!campaign)
-            return res.status(404).json({ message: "Campaign not found" });
-
-        const retailer = await Retailer.findById(retailerId);
-        if (!retailer)
-            return res.status(404).json({ message: "Retailer not found" });
-
-        const assignedRetailer = campaign.assignedRetailers.find(
-            (r) =>
-                r.retailerId.toString() === retailerId.toString() &&
-                r.status === "accepted"
-        );
-
-        if (!assignedRetailer) {
-            return res.status(400).json({
-                message: "Retailer must be assigned and accepted the campaign",
-            });
-        }
-
-        const existingPayment = await Payment.findOne({
-            campaign: campaignId,
-            retailer: retailerId,
-        });
-        if (existingPayment) {
-            return res.status(400).json({
-                message: "Payment plan already exists for this retailer",
-            });
-        }
-
-        const payment = new Payment({
-            campaign: campaignId,
-            retailer: retailerId,
-            totalAmount,
-            amountPaid: 0,
-            remainingAmount: totalAmount,
-            paymentStatus: "Pending",
-            lastUpdatedBy: req.user.id,
-            notes,
-            dueDate,
-        });
-
-        await payment.save();
-
-        res.status(201).json({
-            message: "Payment plan created successfully",
-            payment,
-        });
-    } catch (error) {
-        console.error("Client set payment plan error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-export const submitEmployeeReport = async (req, res) => {
-    try {
-        const employeeId = req.user.id;
-
-        const {
-            campaignId,
-            retailerId,
-            visitScheduleId,
-            visitType,
-            attended,
-            notVisitedReason,
-            otherReasonText,
-            reportType,
-            frequency,
-            fromDate,
-            toDate,
-            extraField,
-            stockType,
-            brand,
-            product,
-            sku,
-            productType,
-            quantity,
-            latitude,
-            longitude,
-        } = req.body;
-
-        if (!campaignId || !retailerId) {
-            return res
-                .status(400)
-                .json({ message: "campaignId and retailerId are required" });
-        }
-
-        // ⭐ REQUIRED VALIDATION (Only this is added)
-        if (visitType === "scheduled" && !visitScheduleId) {
-            return res.status(400).json({
-                message: "visitScheduleId is required for scheduled visits",
-            });
-        }
-
-        //  🔥 1. AUTO-FIND VISIT SCHEDULE IF NOT PROVIDED
-
-        let schedule = null;
-
-        if (visitScheduleId) {
-            schedule = await VisitSchedule.findById(visitScheduleId);
-        } else {
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-
-            const todayEnd = new Date();
-            todayEnd.setHours(23, 59, 59, 999);
-
-            schedule = await VisitSchedule.findOne({
-                campaignId,
-                employeeId,
-                retailerId,
-                visitDate: { $gte: todayStart, $lte: todayEnd },
-                status: "Scheduled",
-            });
-        }
-
-        // 🔥 2. UPDATE SCHEDULE STATUS
-
-        let updatedStatus = "No Schedule Found";
-
-        if (schedule) {
-            if (attended === "Yes") {
-                schedule.status = "Completed";
-            } else {
-                const cancellationReasons = [
-                    "Closed",
-                    "Out of Stock",
-                    "Owner Not Available",
-                ];
-                schedule.status = cancellationReasons.includes(notVisitedReason)
-                    ? "Cancelled"
-                    : "Missed";
-            }
-
-            schedule.notes = `Status auto-updated from report on ${new Date().toLocaleString()}`;
-            await schedule.save();
-            updatedStatus = schedule.status;
-        }
-
-        //🔥 3. CREATE REPORT DOCUMENT
-
-        const report = new EmployeeReport({
-            employeeId,
-            campaignId,
-            retailerId,
-            visitScheduleId: schedule?._id || null,
-            visitType,
-            attended,
-            notVisitedReason,
-            otherReasonText,
-            reportType,
-            frequency,
-            fromDate,
-            toDate,
-            extraField,
-            stockType,
-            brand,
-            product,
-            sku,
-            productType,
-            quantity,
-            location: {
-                latitude: Number(latitude) || null,
-                longitude: Number(longitude) || null,
-            },
-
-            // set role for now (if employee always submitting)
-            submittedByRole: "Employee",
-            submittedByEmployee: employeeId,
-        });
-
-        //🔥 4. HANDLE IMAGES + MULTIPLE BILL COPIES
-
-        const files = req.files || {};
-
-        // MULTIPLE IMAGES
-        if (files.images) {
-            report.images = files.images.map((file) => ({
-                data: file.buffer,
-                contentType: file.mimetype,
-                fileName: file.originalname,
-            }));
-        }
-
-        // MULTIPLE BILL COPIES
-        if (files.billCopy) {
-            report.billCopies = files.billCopy.map((file) => ({
-                data: file.buffer,
-                contentType: file.mimetype,
-                fileName: file.originalname,
-            }));
-        }
-
-        await report.save();
-
-        // 🔥 5. RESPONSE
-
-        res.status(201).json({
-            message: "Report submitted successfully",
-            visitScheduleStatusUpdated: updatedStatus,
-            linkedVisitScheduleId: schedule?._id || "None",
-            report,
-        });
-    } catch (error) {
-        console.error("Submit report error:", error);
-        res.status(500).json({
-            message: "Server error",
-            error: error.message,
-        });
-    }
-};
-
-export const getEmployeeReports = async (req, res) => {
-    try {
-        const employeeId = req.user.id;
-
-        const reports = await EmployeeReport.find({ employeeId })
-            .populate("retailerId", "name shopDetails")
-            .populate("campaignId", "name type")
-            .sort({ createdAt: -1 });
-
-        const formattedReports = reports.map((report) => ({
-            ...report._doc,
-
-            // Convert images array
-            images:
-                report.images?.map((img) => ({
-                    fileName: img.fileName,
-                    contentType: img.contentType,
-                    base64: img.data.toString("base64"),
-                })) || [],
-
-            // Convert MULTIPLE bill copies
-            billCopies:
-                report.billCopies?.map((bill) => ({
-                    fileName: bill.fileName,
-                    contentType: bill.contentType,
-                    base64: bill.data.toString("base64"),
-                })) || [],
-        }));
-
-        res.status(200).json({
-            message: "Reports fetched successfully",
-            reports: formattedReports,
-        });
-    } catch (error) {
-        console.error("Get reports error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-export const downloadEmployeeReport = async (req, res) => {
-    try {
-        const employeeId = req.user.id;
-        const { reportId } = req.body;
-
-        if (!reportId) {
-            return res.status(400).json({ message: "reportId is required" });
-        }
-
-        // Fetch EXACT report of logged-in employee
-        const report = await EmployeeReport.findOne({
-            _id: reportId,
-            employeeId,
-        })
-            .populate("employeeId", "name email phone")
-            .populate("campaignId", "name type")
-            .populate("retailerId", "name contactNo shopDetails");
-
-        if (!report) {
-            return res.status(404).json({ message: "Report not found" });
-        }
-
-        // ---------------------------
-        // CREATE PDF DOCUMENT
-        // ---------------------------
-        const pdfDoc = await PDFDocument.create();
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        let page = pdfDoc.addPage();
-        const { width, height } = page.getSize();
-        let y = height - 40;
-
-        const write = (text, size = 12) => {
-            if (y < 60) {
-                page = pdfDoc.addPage();
-                y = page.getSize().height - 40;
-            }
-            page.drawText(String(text), {
-                x: 40,
-                y,
-                size,
-                font,
-                color: rgb(0, 0, 0),
-            });
-            y -= size + 6;
-        };
-
-        // ---------------------------
-        // HEADER
-        // ---------------------------
-        write("Employee Visit Report", 22);
-        y -= 10;
-
-        // ---------------------------
-        // EMPLOYEE DETAILS
-        // ---------------------------
-        write("Employee Details", 16);
-        write(`Name: ${report.employeeId?.name || "N/A"}`);
-        write(`Email: ${report.employeeId?.email || "N/A"}`);
-        write(`Phone: ${report.employeeId?.phone || "N/A"}`);
-        y -= 10;
-
-        // ---------------------------
-        // CAMPAIGN DETAILS
-        // ---------------------------
-        write("Campaign Details", 16);
-        write(`Campaign Name: ${report.campaignId?.name || "N/A"}`);
-        write(`Campaign Type: ${report.campaignId?.type || "N/A"}`);
-        y -= 10;
-
-        // ---------------------------
-        // RETAILER DETAILS
-        // ---------------------------
-        write("Retailer Details", 16);
-        write(`Retailer Name: ${report.retailerId?.name || "N/A"}`);
-        write(`Contact: ${report.retailerId?.contactNo || "N/A"}`);
-
-        const addr = report.retailerId?.shopDetails?.shopAddress;
-
-        const addressText = addr
-            ? `${addr.address || ""}, ${addr.city || ""}, ${
-                  addr.state || ""
-              }, ${addr.pincode || ""}`
-            : "N/A";
-
-        write(`Address: ${addressText}`);
-        y -= 10;
-
-        // ---------------------------
-        // REPORT DETAILS
-        // ---------------------------
-        write("Report Details", 16);
-        write(`Visit Type: ${report.visitType || "N/A"}`);
-        write(`Attended: ${report.attended ? "Yes" : "No"}`);
-        write(`Reason: ${report.notVisitedReason || "N/A"}`);
-        write(`Report Type: ${report.reportType || "N/A"}`);
-        write(`Frequency: ${report.frequency || "N/A"}`);
-
-        const from = report.fromDate
-            ? new Date(report.fromDate).toLocaleDateString()
-            : "N/A";
-        const to = report.toDate
-            ? new Date(report.toDate).toLocaleDateString()
-            : "N/A";
-
-        write(`Date Range: ${from} to ${to}`);
-        y -= 10;
-
-        // ---------------------------
-        // LOCATION
-        // ---------------------------
-        write("Location", 16);
-        write(`Latitude: ${report.location?.latitude || "N/A"}`);
-        write(`Longitude: ${report.location?.longitude || "N/A"}`);
-        y -= 10;
-
-        // ========================================================
-        // ATTACHED IMAGES
-        // ========================================================
-        if (report.images?.length) {
-            for (let img of report.images) {
-                if (!img?.data) continue;
-
-                const imgPage = pdfDoc.addPage();
-                let embeddedImage;
-
-                try {
-                    if (img.contentType === "image/png") {
-                        embeddedImage = await pdfDoc.embedPng(img.data);
-                    } else if (
-                        img.contentType === "image/jpeg" ||
-                        img.contentType === "image/jpg"
-                    ) {
-                        embeddedImage = await pdfDoc.embedJpg(img.data);
-                    } else {
-                        console.log("Unsupported image type:", img.contentType);
-                        continue;
-                    }
-                } catch (e) {
-                    console.log("Image embed failed:", e.message);
-                    continue;
-                }
-
-                const dims = embeddedImage.scale(0.5);
-
-                imgPage.drawImage(embeddedImage, {
-                    x: 50,
-                    y: 150,
-                    width: dims.width,
-                    height: dims.height,
-                });
-            }
-        }
-
-        // ========================================================
-        // BILL COPY
-        // ========================================================
-        if (report.billCopy?.data) {
-            const billPage = pdfDoc.addPage();
-            let embeddedBill;
-
-            try {
-                if (report.billCopy.contentType === "image/png") {
-                    embeddedBill = await pdfDoc.embedPng(report.billCopy.data);
-                } else {
-                    embeddedBill = await pdfDoc.embedJpg(report.billCopy.data);
-                }
-            } catch (e) {
-                console.log("Bill copy embed failed:", e.message);
-            }
-
-            if (embeddedBill) {
-                const dims = embeddedBill.scale(0.5);
-                billPage.drawImage(embeddedBill, {
-                    x: 50,
-                    y: 150,
-                    width: dims.width,
-                    height: dims.height,
-                });
-            }
-        }
-
-        // ---------------------------
-        // SEND PDF
-        // ---------------------------
-        const pdfBytes = await pdfDoc.save();
-
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-            "Content-Disposition",
-            `attachment; filename=report_${reportId}.pdf`
-        );
-
-        return res.end(Buffer.from(pdfBytes));
-    } catch (error) {
-        console.error("PDF Download Error:", error);
-        return res.status(500).json({
-            message: "Failed generating report PDF",
-            error: error.message,
-        });
-    }
-};
-export const downloadEmployeeReportsExcel = async (req, res) => {
-    try {
-        const employeeId = req.user.id;
-
-        // Fetch all reports for employee
-        const reports = await EmployeeReport.find({ employeeId })
-            .populate("campaignId", "name type")
-            .populate("retailerId", "name contactNo shopDetails")
-            .sort({ createdAt: -1 });
-
-        if (!reports.length) {
-            return res
-                .status(404)
-                .json({ message: "No reports found for this employee" });
-        }
-
-        // Convert reports to Excel rows
-        const data = reports.map((report) => ({
-            ReportID: report._id.toString(),
-            CampaignName: report.campaignId?.name || "N/A",
-            CampaignType: report.campaignId?.type || "N/A",
-
-            RetailerName: report.retailerId?.name || "N/A",
-            RetailerContact: report.retailerId?.contactNo || "N/A",
-
-            RetailerAddress: report.retailerId?.shopDetails?.shopAddress
-                ? `${
-                      report.retailerId.shopDetails.shopAddress.address || ""
-                  }, ${report.retailerId.shopDetails.shopAddress.city || ""}, ${
-                      report.retailerId.shopDetails.shopAddress.state || ""
-                  }, ${report.retailerId.shopDetails.shopAddress.pincode || ""}`
-                : "N/A",
-
-            VisitType: report.visitType || "N/A",
-            Attended: report.attended ? "Yes" : "No",
-            NotVisitedReason: report.notVisitedReason || "N/A",
-
-            ReportType: report.reportType || "N/A",
-            Frequency: report.frequency || "N/A",
-
-            FromDate: report.fromDate
-                ? new Date(report.fromDate).toLocaleDateString()
-                : "N/A",
-            ToDate: report.toDate
-                ? new Date(report.toDate).toLocaleDateString()
-                : "N/A",
-
-            StockType: report.stockType || "N/A",
-            Brand: report.brand || "N/A",
-            Product: report.product || "N/A",
-            SKU: report.sku || "N/A",
-            ProductType: report.productType || "N/A",
-            Quantity: report.quantity || "N/A",
-
-            Latitude: report.location?.latitude || "N/A",
-            Longitude: report.location?.longitude || "N/A",
-
-            CreatedAt: new Date(report.createdAt).toLocaleString(),
-        }));
-
-        // Convert JSON → Sheet → Workbook
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Reports");
-
-        // Generate Excel buffer
-        const excelBuffer = XLSX.write(workbook, {
-            type: "buffer",
-            bookType: "xlsx",
-        });
-
-        // Required headers for file download
-        res.setHeader(
-            "Content-Type",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        );
-        res.setHeader(
-            "Content-Disposition",
-            "attachment; filename=employee_reports.xlsx"
-        );
-        res.setHeader("Content-Length", excelBuffer.length);
-
-        // MUST use res.end() for Hoppscotch/Postman downloads
-        return res.end(excelBuffer);
-    } catch (error) {
-        console.error("Excel Download Error:", error);
-        return res.status(500).json({
-            message: "Failed to generate Excel file",
-            error: error.message,
-        });
-    }
-};
 export const getEmployeeVisitProgress = async (req, res) => {
     try {
         const employeeId = req.user.id;
-
-        // Optional campaign filter
         const { campaignId } = req.query;
 
         const filter = { employeeId };
@@ -1144,10 +634,6 @@ export const getEmployeeVisitProgress = async (req, res) => {
             });
         }
 
-        /* ===========================
-       🔥 Calculate progress
-    =========================== */
-
         const total = visits.length;
         const completed = visits.filter((v) => v.status === "Completed").length;
         const missed = visits.filter((v) => v.status === "Missed").length;
@@ -1156,10 +642,6 @@ export const getEmployeeVisitProgress = async (req, res) => {
 
         const progressPercent =
             total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        /* ===========================
-       🔥 Send response
-    =========================== */
 
         res.status(200).json({
             message: "Visit progress fetched successfully",
@@ -1185,9 +667,8 @@ export const getEmployeeVisitProgress = async (req, res) => {
 export const getAssignedRetailersForEmployee = async (req, res) => {
     try {
         const employeeId = req.user.id;
-        const { campaignId } = req.query; // optional filter
+        const { campaignId } = req.query;
 
-        // Build query
         const query = {
             "assignedEmployeeRetailers.employeeId": employeeId,
         };
@@ -1196,7 +677,6 @@ export const getAssignedRetailersForEmployee = async (req, res) => {
             query._id = campaignId;
         }
 
-        // Fetch campaigns and populate retailers
         const campaigns = await Campaign.find(query)
             .populate(
                 "assignedEmployeeRetailers.retailerId",
@@ -1212,7 +692,6 @@ export const getAssignedRetailersForEmployee = async (req, res) => {
             });
         }
 
-        // Format response
         const result = campaigns.map((camp) => {
             const retailers = camp.assignedEmployeeRetailers
                 .filter((r) => r.employeeId.toString() === employeeId)
@@ -1245,7 +724,7 @@ export const getAssignedRetailersForEmployee = async (req, res) => {
         });
     }
 };
-// GET VISIT SCHEDULES FOR EMPLOYEE (Corrected Position)
+
 export const getAllVisitSchedulesForEmployee = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -1269,7 +748,8 @@ export const getAllVisitSchedulesForEmployee = async (req, res) => {
     }
 };
 
-// GET LAST VISIT DETAILS
+
+
 export const getLastVisitDetails = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -1281,7 +761,6 @@ export const getLastVisitDetails = async (req, res) => {
             });
         }
 
-        // Find most recent completed visit
         const lastVisit = await VisitSchedule.findOne({
             employeeId,
             retailerId,
@@ -1292,7 +771,6 @@ export const getLastVisitDetails = async (req, res) => {
             .populate("retailerId", "name contactNo shopDetails")
             .lean();
 
-        // Next upcoming schedule
         const upcomingVisit = await VisitSchedule.findOne({
             employeeId,
             retailerId,
@@ -1303,7 +781,6 @@ export const getLastVisitDetails = async (req, res) => {
             .sort({ visitDate: 1 })
             .lean();
 
-        // Last report
         const lastReport = await EmployeeReport.findOne({
             employeeId,
             retailerId,
@@ -1338,6 +815,7 @@ export const getLastVisitDetails = async (req, res) => {
         });
     }
 };
+
 export const getScheduleReportMapping = async (req, res) => {
     try {
         const employeeId = req.user.id;
@@ -1349,7 +827,6 @@ export const getScheduleReportMapping = async (req, res) => {
             });
         }
 
-        // 1️⃣ Get all schedules for this employee & campaign
         const schedules = await VisitSchedule.find({
             employeeId,
             campaignId,
@@ -1357,7 +834,6 @@ export const getScheduleReportMapping = async (req, res) => {
             .populate("retailerId", "name shopDetails")
             .lean();
 
-        // 2️⃣ Get all reports for this employee & campaign
         const reports = await EmployeeReport.find({
             employeeId,
             campaignId,
@@ -1365,20 +841,18 @@ export const getScheduleReportMapping = async (req, res) => {
             .populate("retailerId", "name")
             .lean();
 
-        // 3️⃣ Map reports by retailer (NOT by scheduleId!)
         const reportMap = {};
         reports.forEach((rep) => {
             const rid = rep.retailerId?._id?.toString();
-            if (rid) reportMap[rid] = rep; // latest report per retailer
+            if (rid) reportMap[rid] = rep;
         });
 
-        // 4️⃣ Build final mapping
         const mapping = schedules.map((schedule) => {
             const rid = schedule.retailerId?._id?.toString();
 
             return {
                 schedule,
-                report: reportMap[rid] || null, // match by retailer now
+                report: reportMap[rid] || null,
             };
         });
 

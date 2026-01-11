@@ -1,8 +1,7 @@
 import express from "express";
 import {
-    clientSetPaymentPlan,
-    downloadEmployeeReport,
-    downloadEmployeeReportsExcel,
+  
+  
     getAllVisitSchedulesForEmployee,
     getAssignedRetailersForEmployee,
     getEmployeeCampaigns,
@@ -10,12 +9,12 @@ import {
     getEmployeeDocument,
     getEmployeeDocumentStatus,
     getEmployeeProfile,
-    getEmployeeReports,
+  
     getEmployeeVisitProgress,
     getLastVisitDetails,
     getScheduleReportMapping,
     loginEmployee,
-    submitEmployeeReport,
+  
     updateCampaignStatus,
     updateEmployeeProfile,
 } from "../controllers/employeeController.js";
@@ -60,28 +59,12 @@ router.put(
     updateCampaignStatus
 );
 
-// 🔹 Client sets payment plan
-router.post("/client/campaigns/payment", protect, clientSetPaymentPlan);
-router.post(
-    "/reports/submit",
-    protect,
-    upload.fields([
-        { name: "images", maxCount: 20 },
-        { name: "billCopy", maxCount: 5 },
-    ]),
-    submitEmployeeReport
-);
-
-router.get("/reports", protect, getEmployeeReports);
-router.post("/report/download", protect, downloadEmployeeReport);
-router.get("/reports/download/excel", protect, downloadEmployeeReportsExcel);
-// 🔹 Get employee visit progress (Scheduled / Completed / Missed / Cancelled)
 router.get("/employee/visit-progress", protect, getEmployeeVisitProgress);
 
 router.get("/profile", protect, getEmployeeProfile);
-// 🔹 Check which documents exist
+
 router.get("/employee/documents/status", protect, getEmployeeDocumentStatus);
-// 🔹 Get employee document/image
+
 router.get("/employee/document/:documentType", protect, getEmployeeDocument);
 
 router.get("/last-visit-details", protect, getLastVisitDetails);

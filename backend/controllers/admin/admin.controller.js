@@ -1,8 +1,14 @@
 // admin/admin.controller.js
 import bcrypt from "bcryptjs";
-import { Admin, ClientAdmin, ClientUser } from "../../models/user.js";
+import * as XLSX from "xlsx";
 import { Retailer } from "../../models/retailer.model.js";
-
+import {
+    Admin,
+    Campaign,
+    ClientAdmin,
+    ClientUser,
+    Employee,
+} from "../../models/user.js";
 // ====== ADD NEW ADMIN ======
 export const addAdmin = async (req, res) => {
     try {
@@ -64,8 +70,8 @@ const normalizeRow = (row) => {
 export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
     try {
         /* --------------------------------
-       ADMIN CHECK
-    ---------------------------------*/
+           ADMIN CHECK
+        ---------------------------------*/
         if (!req.user || req.user.role !== "admin") {
             return res.status(403).json({
                 success: false,
@@ -74,8 +80,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
         }
 
         /* --------------------------------
-       FILE CHECK (upload.fields)
-    ---------------------------------*/
+           FILE CHECK
+        ---------------------------------*/
         const file = req.files?.file?.[0];
         if (!file) {
             return res.status(400).json({
@@ -85,8 +91,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
         }
 
         /* --------------------------------
-       READ EXCEL
-    ---------------------------------*/
+           READ EXCEL
+        ---------------------------------*/
         const workbook = XLSX.read(file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json(sheet);
@@ -95,29 +101,36 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
         let successCount = 0;
 
         /* --------------------------------
-       PROCESS EACH ROW
-    ---------------------------------*/
+           PROCESS EACH ROW
+        ---------------------------------*/
         for (let i = 0; i < rawRows.length; i++) {
             const row = normalizeRow(rawRows[i]);
             const { sno, campaignName, employeeId, outletCode } = row;
 
             /* --------------------------------
-         BASIC VALIDATION
-      ---------------------------------*/
+               BASIC VALIDATION
+            ---------------------------------*/
             if (!campaignName || (!employeeId && !outletCode)) {
                 failedRows.push({
                     sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "campaignName and at least one of employeeId or outletCode is required",
+                    reason:
+                        "campaignName and at least one of employeeId or outletCode is required",
                     data: row,
                 });
                 continue;
             }
 
             /* --------------------------------
-         FETCH CAMPAIGN (BY NAME)
-      ---------------------------------*/
-            const campaign = await Campaign.findOne({ name: campaignName });
+               FETCH CAMPAIGN (CASE-INSENSITIVE)
+            ---------------------------------*/
+            const campaign = await Campaign.findOne({
+                name: {
+                    $regex: `^${campaignName.trim()}$`,
+                    $options: "i",
+                },
+            });
+
             if (!campaign) {
                 failedRows.push({
                     sno: sno || i + 1,
@@ -132,8 +145,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             let retailer = null;
 
             /* --------------------------------
-         FETCH EMPLOYEE (OPTIONAL)
-      ---------------------------------*/
+               FETCH EMPLOYEE (OPTIONAL)
+            ---------------------------------*/
             if (employeeId) {
                 employee = await Employee.findOne({ employeeId });
                 if (!employee) {
@@ -148,15 +161,21 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             }
 
             /* --------------------------------
-         FETCH RETAILER (OPTIONAL)
-      ---------------------------------*/
+               FETCH RETAILER (outletCode = uniqueId)
+            ---------------------------------*/
             if (outletCode) {
-                retailer = await Retailer.findOne({ retailerCode: outletCode });
+                retailer = await Retailer.findOne({
+                    uniqueId: {
+                        $regex: `^${outletCode.trim()}$`,
+                        $options: "i",
+                    },
+                });
+
                 if (!retailer) {
                     failedRows.push({
                         sno: sno || i + 1,
                         rowNumber: i + 2,
-                        reason: `Retailer not found: ${outletCode}`,
+                        reason: `Retailer not found with uniqueId: ${outletCode}`,
                         data: row,
                     });
                     continue;
@@ -164,8 +183,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             }
 
             /* --------------------------------
-         DUPLICATE CHECKS (FAST)
-      ---------------------------------*/
+               DUPLICATE CHECKS
+            ---------------------------------*/
             const employeeAlreadyAssigned =
                 employee &&
                 campaign.assignedEmployees.some((e) =>
@@ -188,8 +207,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
                 );
 
             /* --------------------------------
-         BLOCK DUPLICATE CASES
-      ---------------------------------*/
+               BLOCK DUPLICATES
+            ---------------------------------*/
             if (
                 (employee && !retailer && employeeAlreadyAssigned) ||
                 (retailer && !employee && retailerAlreadyAssigned) ||
@@ -210,8 +229,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             }
 
             /* --------------------------------
-         ASSIGN EMPLOYEE
-      ---------------------------------*/
+               ASSIGN EMPLOYEE
+            ---------------------------------*/
             if (employee && !employeeAlreadyAssigned) {
                 campaign.assignedEmployees.push({
                     employeeId: employee._id,
@@ -219,7 +238,6 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
                     assignedAt: new Date(),
                 });
 
-                // Sync employee side
                 if (
                     !employee.assignedCampaigns.some((c) =>
                         c.equals(campaign._id)
@@ -231,8 +249,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             }
 
             /* --------------------------------
-         ASSIGN RETAILER
-      ---------------------------------*/
+               ASSIGN RETAILER
+            ---------------------------------*/
             if (retailer && !retailerAlreadyAssigned) {
                 campaign.assignedRetailers.push({
                     retailerId: retailer._id,
@@ -242,8 +260,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             }
 
             /* --------------------------------
-         ASSIGN EMPLOYEE–RETAILER MAPPING
-      ---------------------------------*/
+               ASSIGN EMPLOYEE–RETAILER MAPPING
+            ---------------------------------*/
             if (employee && retailer && !mappingAlreadyExists) {
                 campaign.assignedEmployeeRetailers.push({
                     employeeId: employee._id,
@@ -257,8 +275,8 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
         }
 
         /* --------------------------------
-       FINAL RESPONSE
-    ---------------------------------*/
+           FINAL RESPONSE
+        ---------------------------------*/
         return res.status(failedRows.length ? 207 : 201).json({
             success: true,
             message: failedRows.length
@@ -280,7 +298,6 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
         });
     }
 };
-
 export const bulkAssignEmployeeToRetailer = async (req, res) => {
     try {
         /* ---------------- ADMIN CHECK ---------------- */
@@ -310,21 +327,27 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
         /* ---------------- PROCESS EACH ROW ---------------- */
         for (let i = 0; i < rawRows.length; i++) {
             const row = normalizeRow(rawRows[i]);
-            const { sno, campaignName, employeeId, retailerCode } = row;
+            const { sno, campaignName, employeeId, uniqueId } = row;
 
             /* -------- BASIC VALIDATION -------- */
-            if (!campaignName || !employeeId || !retailerCode) {
+            if (!campaignName || !employeeId || !uniqueId) {
                 failedRows.push({
                     sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "campaignName, employeeId and retailerCode are required",
+                    reason: "campaignName, employeeId and uniqueId are required",
                     data: row,
                 });
                 continue;
             }
 
-            /* -------- FETCH CAMPAIGN -------- */
-            const campaign = await Campaign.findOne({ name: campaignName });
+            /* -------- FETCH CAMPAIGN (CASE-INSENSITIVE) -------- */
+            const campaign = await Campaign.findOne({
+                name: {
+                    $regex: `^${campaignName.trim()}$`,
+                    $options: "i",
+                },
+            });
+
             if (!campaign) {
                 failedRows.push({
                     sno: sno || i + 1,
@@ -347,26 +370,108 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
                 continue;
             }
 
-            /* -------- FETCH RETAILER -------- */
-            const retailer = await Retailer.findOne({ retailerCode });
+            /* -------- FETCH RETAILER (uniqueId) -------- */
+            const retailer = await Retailer.findOne({
+                uniqueId: {
+                    $regex: `^${uniqueId.trim()}$`,
+                    $options: "i",
+                },
+            });
+
             if (!retailer) {
                 failedRows.push({
                     sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: `Retailer not found: ${retailerCode}`,
+                    reason: `Retailer not found with uniqueId: ${uniqueId}`,
                     data: row,
                 });
                 continue;
             }
 
             /* =================================================
-         🔒 CRITICAL CHECK:
-         BOTH must already be assigned to THIS campaign
-      ================================================== */
+               🔒 STATE VALIDATIONS (CRITICAL)
+            ================================================= */
 
-            const employeeAssignedToCampaign = campaign.assignedEmployees.some(
-                (e) => e.employeeId.equals(employee._id)
+            // Employee state (correspondence → permanent)
+            const employeeState =
+                employee.correspondenceAddress?.state ||
+                employee.permanentAddress?.state;
+
+            if (!employeeState) {
+                failedRows.push({
+                    sno: sno || i + 1,
+                    rowNumber: i + 2,
+                    reason: "Employee state is not filled",
+                    data: row,
+                });
+                continue;
+            }
+
+            // Retailer state
+            const retailerState =
+                retailer.shopDetails?.shopAddress?.state;
+
+            if (!retailerState) {
+                failedRows.push({
+                    sno: sno || i + 1,
+                    rowNumber: i + 2,
+                    reason: "Retailer state is missing",
+                    data: row,
+                });
+                continue;
+            }
+
+            // Normalize for comparison
+            const empState = employeeState.trim().toLowerCase();
+            const retState = retailerState.trim().toLowerCase();
+            const campaignStates = campaign.states.map((s) =>
+                s.trim().toLowerCase()
             );
+
+            // Employee state must be part of campaign
+            if (!campaignStates.includes(empState)) {
+                failedRows.push({
+                    sno: sno || i + 1,
+                    rowNumber: i + 2,
+                    reason:
+                        "Employee state is not allowed for this campaign",
+                    data: row,
+                });
+                continue;
+            }
+
+            // Retailer state must be part of campaign
+            if (!campaignStates.includes(retState)) {
+                failedRows.push({
+                    sno: sno || i + 1,
+                    rowNumber: i + 2,
+                    reason:
+                        "Retailer state is not allowed for this campaign",
+                    data: row,
+                });
+                continue;
+            }
+
+            // Employee & Retailer must be same state
+            if (empState !== retState) {
+                failedRows.push({
+                    sno: sno || i + 1,
+                    rowNumber: i + 2,
+                    reason:
+                        "Employee and Retailer do not belong to the same state",
+                    data: row,
+                });
+                continue;
+            }
+
+            /* =================================================
+               🔒 BOTH MUST ALREADY BE ASSIGNED TO CAMPAIGN
+            ================================================= */
+
+            const employeeAssignedToCampaign =
+                campaign.assignedEmployees.some((e) =>
+                    e.employeeId.equals(employee._id)
+                );
 
             if (!employeeAssignedToCampaign) {
                 failedRows.push({
@@ -378,9 +483,10 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
                 continue;
             }
 
-            const retailerAssignedToCampaign = campaign.assignedRetailers.some(
-                (r) => r.retailerId.equals(retailer._id)
-            );
+            const retailerAssignedToCampaign =
+                campaign.assignedRetailers.some((r) =>
+                    r.retailerId.equals(retailer._id)
+                );
 
             if (!retailerAssignedToCampaign) {
                 failedRows.push({
@@ -393,17 +499,19 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
             }
 
             /* -------- PREVENT DUPLICATE MAPPING -------- */
-            const mappingExists = campaign.assignedEmployeeRetailers.some(
-                (m) =>
-                    m.employeeId.equals(employee._id) &&
-                    m.retailerId.equals(retailer._id)
-            );
+            const mappingExists =
+                campaign.assignedEmployeeRetailers.some(
+                    (m) =>
+                        m.employeeId.equals(employee._id) &&
+                        m.retailerId.equals(retailer._id)
+                );
 
             if (mappingExists) {
                 failedRows.push({
                     sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "Employee–Retailer mapping already exists in this campaign",
+                    reason:
+                        "Employee–Retailer mapping already exists in this campaign",
                     data: row,
                 });
                 continue;

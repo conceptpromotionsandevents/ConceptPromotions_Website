@@ -1,6 +1,7 @@
 // admin/career.controller.js
 import mongoose from "mongoose";
 import { Job, JobApplication, CareerApplication } from "../../models/user.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary.config.js";
 
 // ====== CREATE JOB POSTING ======
 export const createJobPosting = async (req, res) => {
@@ -272,58 +273,64 @@ export const getSingleAdminJob = async (req, res) => {
 };
 
 // ====== GET CANDIDATE RESUME ======
+// ====== GET CANDIDATE RESUME ======
 export const getCandidateResume = async (req, res) => {
     try {
         if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can access resumes" });
+            return res.status(403).json({ 
+                success: false,
+                message: "Only admins can access resumes" 
+            });
         }
 
         const { id } = req.params;
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ message: "Invalid application ID" });
+            return res.status(400).json({ 
+                success: false,
+                message: "Invalid application ID" 
+            });
         }
 
         const application = await JobApplication.findById(id);
         if (!application) {
-            return res.status(404).json({ message: "Application not found" });
+            return res.status(404).json({ 
+                success: false,
+                message: "Application not found" 
+            });
         }
 
         const candidateId = application.candidate;
         if (!candidateId) {
-            return res
-                .status(404)
-                .json({ message: "Candidate not linked to this application" });
+            return res.status(404).json({
+                success: false,
+                message: "Candidate not linked to this application",
+            });
         }
 
         const candidate = await CareerApplication.findById(candidateId);
         if (!candidate) {
-            return res
-                .status(404)
-                .json({ message: "Candidate record not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Candidate record not found",
+            });
         }
 
         const resume = candidate.resume;
-        if (!resume?.data || !resume?.contentType) {
-            return res
-                .status(404)
-                .json({ message: "Resume not uploaded or unavailable" });
+        if (!resume?.url) {
+            return res.status(404).json({
+                success: false,
+                message: "Resume not uploaded or unavailable",
+            });
         }
 
-        const ext = resume.contentType.split("/")[1] || "pdf";
-        const filename = resume.fileName
-            ? resume.fileName
-            : `${candidate.fullName.replace(/\s+/g, "_")}_Resume.${ext}`;
-
-        res.set({
-            "Content-Type": resume.contentType,
-            "Content-Disposition": `attachment; filename="${filename}"`,
-        });
-
-        return res.send(resume.data);
+        // Redirect to Cloudinary URL for download
+        return res.redirect(resume.url);
     } catch (error) {
         console.error("Error fetching candidate resume:", error);
-        return res.status(500).json({ message: "Server error" });
+        return res.status(500).json({ 
+            success: false,
+            message: "Server error",
+            error: error.message 
+        });
     }
 };

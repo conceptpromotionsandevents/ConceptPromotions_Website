@@ -5,7 +5,7 @@ import {
     Employee,
     Campaign,
     VisitSchedule,
-    EmployeeReport,
+  
 } from "../../models/user.js";
 
 // ====== ADD EMPLOYEE ======
@@ -142,20 +142,18 @@ export const bulkAddEmployees = async (req, res) => {
         const rows = XLSX.utils.sheet_to_json(sheet);
 
         const employeesToInsert = [];
-        const failedRows = []; // ✅ Track failed rows
+        const failedRows = [];
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
 
             const {
-                sno, // ✅ Serial number from Excel
+                sno,
                 name,
                 email,
                 contactNo,
                 employeeType,
                 position,
-                gender,
-                organization, // Optional: organizationName for linking
             } = row;
 
             // ✅ VALIDATION - Check required fields
@@ -169,9 +167,7 @@ export const bulkAddEmployees = async (req, res) => {
                 failedRows.push({
                     sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: `Missing required fields: ${missingFields.join(
-                        ", "
-                    )}`,
+                    reason: `Missing required fields: ${missingFields.join(", ")}`,
                     data: row,
                 });
                 continue;
@@ -249,7 +245,6 @@ export const bulkAddEmployees = async (req, res) => {
                     password: hashedPassword,
                     employeeType,
                     position: position || "",
-                    gender: gender || "",
                     isActive: true,
                     createdByAdmin: req.user.id,
                     isFirstLogin: true,
@@ -303,7 +298,7 @@ export const bulkAddEmployees = async (req, res) => {
                 position: emp.position,
                 isActive: emp.isActive,
             })),
-            failedRows: failedRows, // ✅ Complete failed row data with S.No
+            failedRows: failedRows,
         };
 
         // ✅ DETERMINE STATUS CODE
@@ -317,7 +312,6 @@ export const bulkAddEmployees = async (req, res) => {
 
         if (failedRows.length > 0) {
             return res.status(207).json({
-                // 207 = Multi-Status
                 success: true,
                 message: `${insertedEmployees.length} employees added, ${failedRows.length} rows failed`,
                 ...response,

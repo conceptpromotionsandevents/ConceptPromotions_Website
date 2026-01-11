@@ -13,14 +13,14 @@ import {
 } from "../controllers/admin/auth.controller.js";
 import {
     addCampaign,
-    adminGetRetailerReportsInCampaign,
+
     assignCampaign,
     getAllCampaigns,
     getCampaignById,
     getCampaignRetailersWithEmployees,
     getCampaignVisitSchedules,
     updateCampaign,
-    updateCampaignPayment,
+  
 } from "../controllers/admin/campaign.controller.js";
 import {
     createJobPosting,
@@ -46,7 +46,7 @@ import {
 } from "../controllers/admin/report.controller.js";
 import {
     assignEmployeeToRetailer,
-    bulkRegisterRetailers,
+   
     getAllRetailers,
     getAssignedEmployeeForRetailer,
     getEmployeeRetailerMapping,
@@ -58,14 +58,13 @@ import {
     updateVisitScheduleDetails,
     updateVisitScheduleStatus,
 } from "../controllers/admin/visitSchedule.controller.js";
+import{ bulkRegisterRetailers} from "../controllers/retailerController.js"
 import {
-    adminGetReportsByRetailer,
-    adminSetPaymentPlan,
-    adminUpdatePaymentPlan,
-    deleteEmployeeReport,
-    getAllEmployeeReports,
-    updateEmployeeReport,
-} from "../controllers/adminController.js";
+  
+    getAllClientAdmins,
+    getClientAdminById,
+} from "../controllers/admin/clientAdmin.controller.js";
+
 import { loginClientAdmin } from "../controllers/clientController.js";
 import { getEmployeeVisitProgress } from "../controllers/employeeController.js";
 import { deleteCampaign } from "../controllers/payment.controller.js";
@@ -85,7 +84,22 @@ router.get(
     downloadEmployeeRetailerMappingReport
 );
 
-router.put("/campaigns/:id", protect, updateCampaign);
+router.put(
+  "/campaigns/:id",
+  protect,
+  upload.fields([
+    { name: "banners", maxCount: 5 },
+    { name: "gratificationImages", maxCount: 5 }
+  ]),
+  updateCampaign
+);
+// Get all client admins (with optional filters)
+router.get("/client-admins", protect, getAllClientAdmins);
+
+// Get single client admin by ID
+router.get("/client-admins/:id", protect, getClientAdminById);
+
+
 router.get("/campaigns/:id", protect, getCampaignById);
 router.post("/login", loginAdmin);
 router.post("/add-admin", addAdmin);
@@ -104,17 +118,6 @@ router.post(
     ]),
     createAdminReport
 );
-router.post("/campaigns/payment", protect, updateCampaignPayment);
-router.put(
-    "/reports/:reportId",
-    protect,
-    upload.fields([
-        { name: "images", maxCount: 20 },
-        { name: "billCopy", maxCount: 20 }, // <-- MULTIPLE BILL COPIES ALLOWED
-    ]),
-    updateEmployeeReport
-);
-
 router.post("/employees", protect, addEmployee);
 router.post(
     "/employees/bulk",
@@ -134,6 +137,7 @@ router.post(
     upload.single("file"),
     bulkRegisterRetailers
 );
+
 router.get(
     "/campaign/:campaignId/employee-retailer-mapping",
     protect,
@@ -166,11 +170,21 @@ router.get(
     getCampaignRetailersWithEmployees
 );
 
-router.post("/campaigns", protect, addCampaign);
+router.post(
+  "/campaigns",
+  protect,
+  upload.fields([
+    { name: "banners", maxCount: 5 },
+    { name: "gratificationImages", maxCount: 5 },
+  ]),
+  addCampaign
+);
+
+
 router.get("/campaigns", protect, getAllCampaigns);
 router.delete("/campaigns/:id", protect, deleteCampaign);
 router.post("/campaigns/assign", protect, assignCampaign);
-router.post("/campaigns/payment", protect, updateCampaignPayment);
+
 router.get("/admin/career/jobs/:id", protect, getSingleAdminJob);
 router.patch("/campaigns/:id/status", protect, updateCampaignStatus);
 
@@ -215,8 +229,7 @@ router.get(
     getCampaignVisitSchedules
 );
 
-// ===========================================
-router.get("/employee/reports", protect, getAllEmployeeReports);
+
 router.put(
     "/visit-schedule/update/:scheduleId",
     protect, // if employee or admin protected route
@@ -227,25 +240,11 @@ router.delete(
     protect, // optional: admin-only middleware
     deleteVisitSchedule
 );
-
-router.delete("/reports/:reportId", protect, deleteEmployeeReport);
 // ===============================
 // ADMIN REPORT ROUTES
 // ===============================
 
-// 1️⃣ All retailer reports in a selected campaign
-router.get(
-    "/reports/campaign-retailers",
-    protect,
-    adminGetRetailerReportsInCampaign
-);
 
-// 2️⃣ All reports submitted by one retailer
-router.get("/reports/retailer/:retailerId", protect, adminGetReportsByRetailer);
-router.post("/payments/set-plan", protect, adminSetPaymentPlan);
-router.put("/payments/update", protect, adminUpdatePaymentPlan);
-
-// BULK ASSIGN
 router.post(
     "/campaigns/bulk-assign-employee-retailer",
     protect,

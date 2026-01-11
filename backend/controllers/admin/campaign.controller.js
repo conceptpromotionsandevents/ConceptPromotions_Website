@@ -4,22 +4,55 @@ import {
     Campaign,
     ClientAdmin,
     Employee,
-    EmployeeReport,
-    Payment,
+    VisitSchedule
+  
+   
 } from "../../models/user.js";
+import {
+    deleteFromCloudinary,
+    uploadToCloudinary,
+} from "../../utils/cloudinary.config.js";
 
 // ====== GET ALL CAMPAIGNS ======
 export const getAllCampaigns = async (req, res) => {
     try {
-        const campaigns = await Campaign.find()
+        /* =========================
+           QUERY FILTERS (optional)
+        ========================== */
+        const { isActive, client, type } = req.query;
+
+        const filter = {};
+        if (isActive !== undefined) {
+            filter.isActive = isActive === "true";
+        }
+        if (client) {
+            filter.client = client;
+        }
+        if (type) {
+            filter.type = type;
+        }
+
+        /* =========================
+           FETCH CAMPAIGNS
+        ========================== */
+        const campaigns = await Campaign.find(filter)
             .populate("createdBy", "name email")
             .populate("assignedEmployees.employeeId", "name email")
-            .populate("assignedRetailers.retailerId", "name contactNo");
+            .populate("assignedRetailers.retailerId", "name contactNo")
+            .sort({ createdAt: -1 }); // Most recent first
 
-        res.status(200).json({ campaigns });
+        res.status(200).json({
+            success: true,
+            count: campaigns.length,
+            campaigns,
+        });
     } catch (error) {
         console.error("Get campaigns error:", error);
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
 
@@ -27,8 +60,8 @@ export const getAllCampaigns = async (req, res) => {
 export const addCampaign = async (req, res) => {
     try {
         /* =========================
-       AUTH CHECK
-    ========================== */
+           AUTH CHECK
+        ========================== */
         if (!req.user || req.user.role !== "admin") {
             return res.status(403).json({
                 success: false,
@@ -37,8 +70,10 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       EXTRACT BODY
-    ========================== */
+           SAFE BODY EXTRACT
+        ========================== */
+        const body = req.body || {};
+
         let {
             name,
             client,
@@ -48,19 +83,18 @@ export const addCampaign = async (req, res) => {
             campaignStartDate,
             campaignEndDate,
 
-            // TEXT T&C
+            // INFO
+            description,
             termsAndConditions,
 
             // GRATIFICATION
             gratificationType,
-            gratificationAmount,
             gratificationDescription,
-            gratificationConditions,
-        } = req.body;
+        } = body;
 
         /* =========================
-       REQUIRED FIELD VALIDATION
-    ========================== */
+           REQUIRED FIELDS
+        ========================== */
         if (
             !name ||
             !client ||
@@ -78,26 +112,26 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       PARSE ARRAYS (MULTIPART SAFE)
-    ========================== */
+           PARSE ARRAYS (multipart-safe)
+        ========================== */
         try {
             if (typeof regions === "string") regions = JSON.parse(regions);
             if (typeof states === "string") states = JSON.parse(states);
-        } catch (err) {
+        } catch {
             return res.status(400).json({
                 success: false,
                 message: "regions and states must be valid JSON arrays",
             });
         }
 
-        if (!Array.isArray(regions) || regions.length === 0) {
+        if (!Array.isArray(regions) || !regions.length) {
             return res.status(400).json({
                 success: false,
                 message: "At least one region is required",
             });
         }
 
-        if (!Array.isArray(states) || states.length === 0) {
+        if (!Array.isArray(states) || !states.length) {
             return res.status(400).json({
                 success: false,
                 message: "At least one state is required",
@@ -105,8 +139,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       VALIDATE CLIENT
-    ========================== */
+           CLIENT VALIDATION
+        ========================== */
         const clientOrg = await ClientAdmin.findOne({
             organizationName: client,
         }).select("_id");
@@ -119,8 +153,8 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       DATE VALIDATION
-    ========================== */
+           DATE VALIDATION
+        ========================== */
         const startDate = new Date(campaignStartDate);
         const endDate = new Date(campaignEndDate);
 
@@ -139,9 +173,9 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       UPLOAD BANNERS (IMAGES)
-    ========================== */
-        const banners = [];
+           UPLOAD INFO BANNERS
+        ========================== */
+        const infoBanners = [];
 
         if (req.files?.banners?.length) {
             for (const file of req.files.banners) {
@@ -151,7 +185,7 @@ export const addCampaign = async (req, res) => {
                     "image"
                 );
 
-                banners.push({
+                infoBanners.push({
                     url: result.secure_url,
                     publicId: result.public_id,
                 });
@@ -159,8 +193,28 @@ export const addCampaign = async (req, res) => {
         }
 
         /* =========================
-       CREATE CAMPAIGN
-    ========================== */
+           UPLOAD GRATIFICATION IMAGES
+        ========================== */
+        const gratificationImages = [];
+
+        if (req.files?.gratificationImages?.length) {
+            for (const file of req.files.gratificationImages) {
+                const result = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/gratification",
+                    "image"
+                );
+
+                gratificationImages.push({
+                    url: result.secure_url,
+                    publicId: result.public_id,
+                });
+            }
+        }
+
+        /* =========================
+           CREATE CAMPAIGN (SCHEMA SAFE)
+        ========================== */
         const campaign = new Campaign({
             name,
             client,
@@ -171,15 +225,16 @@ export const addCampaign = async (req, res) => {
             campaignStartDate: startDate,
             campaignEndDate: endDate,
 
-            banners,
-
-            termsAndConditions,
+            info: {
+                description: description || "",
+                tnc: termsAndConditions,
+                banners: infoBanners,
+            },
 
             gratification: {
                 type: gratificationType || "",
-                amount: gratificationAmount || null,
                 description: gratificationDescription || "",
-                conditions: gratificationConditions || "",
+                images: gratificationImages,
             },
         });
 
@@ -199,6 +254,7 @@ export const addCampaign = async (req, res) => {
         });
     }
 };
+
 
 // ====== UPDATE CAMPAIGN STATUS ======
 export const updateCampaignStatus = async (req, res) => {
@@ -243,25 +299,75 @@ export const updateCampaignStatus = async (req, res) => {
 // ====== GET CAMPAIGN BY ID ======
 export const getCampaignById = async (req, res) => {
     try {
+        /* =========================
+           AUTH CHECK
+        ========================== */
         if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can view campaign details" });
+            return res.status(403).json({
+                success: false,
+                message: "Only admins can view campaign details",
+            });
         }
 
+        /* =========================
+           FETCH CAMPAIGN
+        ========================== */
         const { id } = req.params;
 
-        const campaign = await Campaign.findById(id);
+        const campaign = await Campaign.findById(id)
+            .populate("createdBy", "name email")
+            .populate("assignedEmployees.employeeId", "name email phone")
+            .populate("assignedRetailers.retailerId", "name contactNo address");
+
         if (!campaign) {
-            return res.status(404).json({ message: "Campaign not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found",
+            });
         }
 
-        res.status(200).json({ campaign });
+        const campaignObj = campaign.toObject();
+
+        /* =========================
+           ENSURE SUB-DOCUMENTS
+        ========================== */
+        campaignObj.info ??= { description: "", tnc: "", banners: [] };
+        campaignObj.info.banners ??= [];
+
+        campaignObj.gratification ??= {
+            type: "",
+            description: "",
+            images: [],
+        };
+        campaignObj.gratification.images ??= [];
+
+        /* =========================
+           REMOVE ORPHAN REFERENCES
+        ========================== */
+        campaignObj.assignedEmployees =
+            campaignObj.assignedEmployees?.filter(
+                (emp) => emp.employeeId !== null
+            ) || [];
+
+        campaignObj.assignedRetailers =
+            campaignObj.assignedRetailers?.filter(
+                (ret) => ret.retailerId !== null
+            ) || [];
+
+        res.status(200).json({
+            success: true,
+            campaign: campaignObj,
+        });
     } catch (error) {
         console.error("Get campaign by ID error:", error);
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
+
 
 // ====== GET EMPLOYEE CAMPAIGNS ======
 export const getEmployeeCampaigns = async (req, res) => {
@@ -294,31 +400,84 @@ export const getEmployeeCampaigns = async (req, res) => {
     }
 };
 
+
 // ====== DELETE CAMPAIGN ======
 export const deleteCampaign = async (req, res) => {
     try {
         const { id } = req.params;
 
         if (!req.user || req.user.role !== "admin")
-            return res
-                .status(403)
-                .json({ message: "Only admins can delete campaigns" });
+            return res.status(403).json({
+                success: false,
+                message: "Only admins can delete campaigns",
+            });
 
-        const campaign = await Campaign.findByIdAndDelete(id);
+        const campaign = await Campaign.findById(id);
         if (!campaign)
-            return res.status(404).json({ message: "Campaign not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found",
+            });
 
-        res.status(200).json({ message: "Campaign deleted successfully" });
+        /* =========================
+           ✅ DELETE INFO BANNERS FROM CLOUDINARY
+        ========================== */
+        if (campaign.info?.banners && campaign.info.banners.length > 0) {
+            for (const banner of campaign.info.banners) {
+                try {
+                    await deleteFromCloudinary(banner.publicId, "image");
+                } catch (err) {
+                    console.error(
+                        `Failed to delete banner ${banner.publicId}:`,
+                        err
+                    );
+                    // Continue with deletion even if Cloudinary cleanup fails
+                }
+            }
+        }
+
+        /* =========================
+           ✅ DELETE GRATIFICATION IMAGES FROM CLOUDINARY
+        ========================== */
+        if (campaign.gratification?.images && campaign.gratification.images.length > 0) {
+            for (const image of campaign.gratification.images) {
+                try {
+                    await deleteFromCloudinary(image.publicId, "image");
+                } catch (err) {
+                    console.error(
+                        `Failed to delete gratification image ${image.publicId}:`,
+                        err
+                    );
+                    // Continue with deletion even if Cloudinary cleanup fails
+                }
+            }
+        }
+
+        /* =========================
+           DELETE CAMPAIGN FROM DATABASE
+        ========================== */
+        await Campaign.findByIdAndDelete(id);
+
+        res.status(200).json({
+            success: true,
+            message: "Campaign and associated images deleted successfully",
+        });
     } catch (error) {
         console.error("Delete campaign error:", error);
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
+
 
 // ====== ASSIGN CAMPAIGN (employees + retailers) ======
 export const assignCampaign = async (req, res) => {
     try {
         const { campaignId, employeeIds = [], retailerIds = [] } = req.body;
+
 
         // -------------------------------
         // Admin check
@@ -329,15 +488,19 @@ export const assignCampaign = async (req, res) => {
                 .json({ message: "Only admins can assign campaigns" });
         }
 
+
         if (!campaignId) {
             return res.status(400).json({ message: "Campaign ID is required" });
         }
 
+
         const campaign = await Campaign.findById(campaignId);
+
 
         if (!campaign) {
             return res.status(404).json({ message: "Campaign not found" });
         }
+
 
         // -------------------------------
         // FIX: Use campaign.states (correct field)
@@ -346,12 +509,15 @@ export const assignCampaign = async (req, res) => {
             ? campaign.states
             : [campaign.states];
 
+
         const startDate = campaign.campaignStartDate;
         const endDate = campaign.campaignEndDate;
+
 
         // Ensure arrays exist
         campaign.assignedEmployees ||= [];
         campaign.assignedRetailers ||= [];
+
 
         /* =========================================================================
        ASSIGN EMPLOYEES
@@ -359,14 +525,18 @@ export const assignCampaign = async (req, res) => {
         for (const empId of employeeIds) {
             if (!empId) continue;
 
+
             const employee = await Employee.findById(empId);
             if (!employee) continue;
 
+
             const employeeState = employee?.correspondenceAddress?.state;
+
 
             const isAllowed =
                 allowedStates.includes("All") ||
                 (employeeState && allowedStates.includes(employeeState));
+
 
             if (!isAllowed) {
                 return res.status(400).json({
@@ -374,10 +544,12 @@ export const assignCampaign = async (req, res) => {
                 });
             }
 
+
             // Check duplication
             const exists = campaign.assignedEmployees.some(
                 (e) => e.employeeId.toString() === empId.toString()
             );
+
 
             if (!exists) {
                 campaign.assignedEmployees.push({
@@ -390,11 +562,13 @@ export const assignCampaign = async (req, res) => {
                 });
             }
 
+
             // Update employee's assigned campaigns list
             await Employee.findByIdAndUpdate(empId, {
                 $addToSet: { assignedCampaigns: campaign._id },
             });
         }
+
 
         /* =========================================================================
        ASSIGN RETAILERS
@@ -402,14 +576,18 @@ export const assignCampaign = async (req, res) => {
         for (const retId of retailerIds) {
             if (!retId) continue;
 
+
             const retailer = await Retailer.findById(retId);
             if (!retailer) continue;
 
+
             const retailerState = retailer?.shopDetails?.shopAddress?.state;
+
 
             const isAllowed =
                 allowedStates.includes("All") ||
                 (retailerState && allowedStates.includes(retailerState));
+
 
             if (!isAllowed) {
                 return res.status(400).json({
@@ -417,10 +595,12 @@ export const assignCampaign = async (req, res) => {
                 });
             }
 
+
             // Check duplicate assignment
             const exists = campaign.assignedRetailers.some(
                 (r) => r.retailerId.toString() === retId.toString()
             );
+
 
             if (!exists) {
                 campaign.assignedRetailers.push({
@@ -433,30 +613,17 @@ export const assignCampaign = async (req, res) => {
                 });
             }
 
+
             // Update retailer's assigned campaigns
             await Retailer.findByIdAndUpdate(retId, {
                 $addToSet: { assignedCampaigns: campaign._id },
             });
-
-            // Create default payment record only once
-            const existingPayment = await Payment.findOne({
-                campaign: campaign._id,
-                retailer: retId,
-            });
-
-            if (!existingPayment) {
-                await Payment.create({
-                    campaign: campaign._id,
-                    retailer: retId,
-                    totalAmount: 0,
-                    amountPaid: 0,
-                    paymentStatus: "Pending",
-                });
-            }
         }
+
 
         // Save updated campaign
         await campaign.save();
+
 
         res.status(200).json({
             message: "Campaign assigned successfully",
@@ -468,23 +635,48 @@ export const assignCampaign = async (req, res) => {
     }
 };
 
+
 // ====== UPDATE CAMPAIGN DETAILS ======
 export const updateCampaign = async (req, res) => {
     try {
         const { id } = req.params;
 
+        /* =========================
+           AUTH CHECK
+        ========================== */
         if (!req.user || req.user.role !== "admin") {
-            return res
-                .status(403)
-                .json({ message: "Only admins can edit campaigns" });
+            return res.status(403).json({
+                success: false,
+                message: "Only admins can edit campaigns",
+            });
         }
 
+        /* =========================
+           FIND CAMPAIGN
+        ========================== */
         const campaign = await Campaign.findById(id);
         if (!campaign) {
-            return res.status(404).json({ message: "Campaign not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Campaign not found",
+            });
         }
 
-        const {
+        /* =========================
+           ENSURE SUB-DOCUMENTS EXIST
+        ========================== */
+        campaign.info ??= { description: "", tnc: "", banners: [] };
+        campaign.info.banners ??= [];
+
+        campaign.gratification ??= { type: "", description: "", images: [] };
+        campaign.gratification.images ??= [];
+
+        /* =========================
+           SAFE BODY EXTRACT
+        ========================== */
+        const body = req.body || {};
+
+        let {
             name,
             client,
             type,
@@ -494,99 +686,177 @@ export const updateCampaign = async (req, res) => {
             campaignEndDate,
             isActive,
 
-            assignedRetailers,
-            assignedEmployees,
-        } = req.body;
+            // INFO
+            description,
+            termsAndConditions,
 
-        /* -----------------------------------------------------
-       UPDATE BASIC FIELDS (only if provided)
-    ------------------------------------------------------ */
+            // GRATIFICATION
+            gratificationType,
+            gratificationDescription,
+
+            removeBanners,
+            removeGratificationImages,
+        } = body;
+
+        /* =========================
+           PARSE ARRAYS
+        ========================== */
+        try {
+            if (typeof regions === "string") regions = JSON.parse(regions);
+            if (typeof states === "string") states = JSON.parse(states);
+            if (typeof removeBanners === "string")
+                removeBanners = JSON.parse(removeBanners);
+            if (typeof removeGratificationImages === "string")
+                removeGratificationImages = JSON.parse(removeGratificationImages);
+        } catch {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid JSON format in request",
+            });
+        }
+
+        /* =========================
+           UPDATE BASIC FIELDS
+        ========================== */
         if (name) campaign.name = name;
         if (client) campaign.client = client;
         if (type) campaign.type = type;
         if (regions) campaign.regions = regions;
         if (states) campaign.states = states;
-
-        if (campaignStartDate)
-            campaign.campaignStartDate = new Date(campaignStartDate);
-        if (campaignEndDate)
-            campaign.campaignEndDate = new Date(campaignEndDate);
-
         if (isActive !== undefined) campaign.isActive = isActive;
 
-        /* -----------------------------------------------------
-       UPDATE ASSIGNED RETAILERS (add / update / remove)
-    ------------------------------------------------------ */
-        if (assignedRetailers) {
-            assignedRetailers.forEach((item) => {
-                const existing = campaign.assignedRetailers.find(
-                    (r) => r.retailerId.toString() === item.retailerId
-                );
+        if (description !== undefined)
+            campaign.info.description = description;
+        if (termsAndConditions !== undefined)
+            campaign.info.tnc = termsAndConditions;
 
-                if (existing) {
-                    // update retailer record
-                    if (item.status) existing.status = item.status;
-                    if (item.startDate)
-                        existing.startDate = new Date(item.startDate);
-                    if (item.endDate) existing.endDate = new Date(item.endDate);
-                    existing.updatedAt = new Date();
-                } else {
-                    // add new retailer
-                    campaign.assignedRetailers.push({
-                        retailerId: item.retailerId,
-                        status: item.status || "pending",
-                        startDate: item.startDate
-                            ? new Date(item.startDate)
-                            : null,
-                        endDate: item.endDate ? new Date(item.endDate) : null,
-                        assignedAt: new Date(),
-                        updatedAt: new Date(),
-                    });
-                }
+        /* =========================
+           DATE VALIDATION
+        ========================== */
+        let startDate = campaign.campaignStartDate;
+        let endDate = campaign.campaignEndDate;
+
+        if (campaignStartDate) {
+            const d = new Date(campaignStartDate);
+            if (isNaN(d)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid campaign start date format",
+                });
+            }
+            startDate = d;
+        }
+
+        if (campaignEndDate) {
+            const d = new Date(campaignEndDate);
+            if (isNaN(d)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid campaign end date format",
+                });
+            }
+            endDate = d;
+        }
+
+        if (startDate > endDate) {
+            return res.status(400).json({
+                success: false,
+                message: "Campaign start date cannot be after end date",
             });
         }
 
-        /* -----------------------------------------------------
-       UPDATE ASSIGNED EMPLOYEES (add / update / remove)
-    ------------------------------------------------------ */
-        if (assignedEmployees) {
-            assignedEmployees.forEach((item) => {
-                const existing = campaign.assignedEmployees.find(
-                    (e) => e.employeeId.toString() === item.employeeId
-                );
+        campaign.campaignStartDate = startDate;
+        campaign.campaignEndDate = endDate;
 
-                if (existing) {
-                    if (item.status) existing.status = item.status;
-                    if (item.startDate)
-                        existing.startDate = new Date(item.startDate);
-                    if (item.endDate) existing.endDate = new Date(item.endDate);
-                    existing.updatedAt = new Date();
-                } else {
-                    campaign.assignedEmployees.push({
-                        employeeId: item.employeeId,
-                        status: item.status || "pending",
-                        startDate: item.startDate
-                            ? new Date(item.startDate)
-                            : null,
-                        endDate: item.endDate ? new Date(item.endDate) : null,
-                        assignedAt: new Date(),
-                        updatedAt: new Date(),
-                    });
-                }
-            });
+        /* =========================
+           UPDATE GRATIFICATION
+        ========================== */
+        if (gratificationType !== undefined)
+            campaign.gratification.type = gratificationType;
+        if (gratificationDescription !== undefined)
+            campaign.gratification.description = gratificationDescription;
+
+        /* =========================
+           REMOVE INFO BANNERS
+        ========================== */
+        if (Array.isArray(removeBanners)) {
+            for (const publicId of removeBanners) {
+                await deleteFromCloudinary(publicId, "image");
+                campaign.info.banners = campaign.info.banners.filter(
+                    (b) => b.publicId !== publicId
+                );
+            }
         }
 
+        /* =========================
+           UPLOAD INFO BANNERS
+        ========================== */
+        if (req.files?.banners?.length) {
+            for (const file of req.files.banners) {
+                const uploaded = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/banners",
+                    "image"
+                );
+
+                campaign.info.banners.push({
+                    url: uploaded.secure_url,
+                    publicId: uploaded.public_id,
+                });
+            }
+        }
+
+        /* =========================
+           REMOVE GRATIFICATION IMAGES
+        ========================== */
+        if (Array.isArray(removeGratificationImages)) {
+            for (const publicId of removeGratificationImages) {
+                await deleteFromCloudinary(publicId, "image");
+                campaign.gratification.images =
+                    campaign.gratification.images.filter(
+                        (img) => img.publicId !== publicId
+                    );
+            }
+        }
+
+        /* =========================
+           UPLOAD GRATIFICATION IMAGES
+        ========================== */
+        if (req.files?.gratificationImages?.length) {
+            for (const file of req.files.gratificationImages) {
+                const uploaded = await uploadToCloudinary(
+                    file.buffer,
+                    "campaigns/gratification",
+                    "image"
+                );
+
+                campaign.gratification.images.push({
+                    url: uploaded.secure_url,
+                    publicId: uploaded.public_id,
+                });
+            }
+        }
+
+        /* =========================
+           SAVE
+        ========================== */
         await campaign.save();
 
-        res.status(200).json({
+        return res.status(200).json({
+            success: true,
             message: "Campaign updated successfully",
             campaign,
         });
     } catch (error) {
         console.error("Update campaign error:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
     }
 };
+
 
 // ====== CAMPAIGN RETAILERS WITH EMPLOYEES ======
 export const getCampaignRetailersWithEmployees = async (req, res) => {
@@ -692,230 +962,3 @@ export const getCampaignVisitSchedules = async (req, res) => {
     }
 };
 
-// ====== ADMIN GET RETAILER REPORTS IN CAMPAIGN ======
-export const adminGetRetailerReportsInCampaign = async (req, res) => {
-    try {
-        const { role } = req.user;
-
-        if (role !== "admin") {
-            return res.status(403).json({ message: "Access denied" });
-        }
-
-        const { campaignId, retailerId, fromDate, toDate } = req.query;
-
-        if (!campaignId) {
-            return res.status(400).json({ message: "campaignId is required" });
-        }
-
-        // -----------------------------------------------
-        // Build Filter
-        // -----------------------------------------------
-        const filter = { campaignId };
-
-        if (retailerId) filter.retailerId = retailerId;
-
-        if (fromDate || toDate) {
-            filter.createdAt = {};
-            if (fromDate) filter.createdAt.$gte = new Date(fromDate);
-            if (toDate) filter.createdAt.$lte = new Date(toDate);
-        }
-
-        // -----------------------------------------------
-        // Fetch Reports with Population
-        // -----------------------------------------------
-        const reports = await EmployeeReport.find(filter)
-            .populate(
-                "retailerId",
-                "name uniqueId retailerCode contactNo shopDetails"
-            )
-            .populate("employeeId", "name phone email position employeeId") // 👈 Added employeeId field
-            .populate("campaignId", "name type client")
-            .populate("visitScheduleId", "visitDate status visitType")
-            .sort({ createdAt: -1 });
-
-        if (!reports.length) {
-            return res.status(200).json({
-                message: "No retailer reports found for this campaign",
-                totalReports: 0,
-                reports: [],
-            });
-        }
-
-        // -----------------------------------------------
-        // Buffer → Base64 Helpers
-        // -----------------------------------------------
-        const convertImages = (imgs = []) =>
-            imgs.map((img) => ({
-                fileName: img.fileName || "",
-                contentType: img.contentType || "image/jpeg",
-                base64: `data:${img.contentType};base64,${img.data.toString(
-                    "base64"
-                )}`,
-            }));
-
-        const convertBillCopy = (bill) => {
-            if (!bill || !bill.data) return null;
-
-            return {
-                fileName: bill.fileName || "",
-                contentType: bill.contentType || "application/pdf",
-                base64: `data:${bill.contentType};base64,${bill.data.toString(
-                    "base64"
-                )}`,
-            };
-        };
-
-        // -----------------------------------------------
-        // Final Frontend-Aligned Response
-        // -----------------------------------------------
-        const finalReports = reports.map((r) => ({
-            ...r._doc,
-
-            // Correct images & bill copy formats
-            images: convertImages(r.images),
-            billCopy: convertBillCopy(r.billCopy),
-
-            // Employee info
-            employeeName: r.employeeId?.name || "",
-            employeePhone: r.employeeId?.phone || "",
-            employeeEmail: r.employeeId?.email || "",
-            employeePosition: r.employeeId?.position || "",
-
-            // 🔥 Added employee's unique auto-generated ID
-            employeeUniqueId: r.employeeId?.employeeId || "",
-
-            // Retailer info
-            retailerName: r.retailerId?.name || "",
-            retailerUniqueId: r.retailerId?.uniqueId || "",
-            retailerCode: r.retailerId?.retailerCode || "",
-            retailerContact: r.retailerId?.contactNo || "",
-
-            shopName: r.retailerId?.shopDetails?.shopName || "",
-            shopCity: r.retailerId?.shopDetails?.shopAddress?.city || "",
-            shopState: r.retailerId?.shopDetails?.shopAddress?.state || "",
-            shopPincode: r.retailerId?.shopDetails?.shopAddress?.pincode || "",
-
-            // Campaign info
-            campaignName: r.campaignId?.name || "",
-            campaignType: r.campaignId?.type || "",
-            clientName: r.campaignId?.client || "",
-
-            // Visit details
-            visitDate: r.visitScheduleId?.visitDate || "",
-            visitStatus: r.visitScheduleId?.status || "",
-            visitType: r.visitScheduleId?.visitType || "",
-
-            // Report fields
-            reportType: r.reportType || "",
-            frequency: r.frequency || "",
-            stockType: r.stockType || "",
-            productType: r.productType || "",
-            brand: r.brand || "",
-            product: r.product || "",
-            sku: r.sku || "",
-            quantity: r.quantity || "",
-            location: r.location || "",
-            attended: r.attended || "",
-            notVisitedReason: r.notVisitedReason || "",
-            otherReasonText: r.otherReasonText || "",
-            extraField: r.extraField || "",
-            submittedByRole: r.submittedByRole || "",
-        }));
-
-        return res.status(200).json({
-            message: "Retailer reports for campaign fetched successfully",
-            totalReports: finalReports.length,
-            reports: finalReports,
-        });
-    } catch (err) {
-        console.error("Admin retailer campaign reports error:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
-};
-
-// ====== UPDATE CAMPAIGN PAYMENT ======
-export const updateCampaignPayment = async (req, res) => {
-    try {
-        const { campaignId, retailerId, amountPaid, utrNumber } = req.body;
-
-        if (!req.user || req.user.role !== "admin")
-            return res
-                .status(403)
-                .json({ message: "Only admins can update payments" });
-
-        const campaign = await Campaign.findById(campaignId);
-        if (!campaign)
-            return res.status(404).json({ message: "Campaign not found" });
-
-        const assignedRetailer = campaign.assignedRetailers.find(
-            (r) => r.retailerId.toString() === retailerId.toString()
-        );
-
-        if (!assignedRetailer || assignedRetailer.status !== "accepted")
-            return res.status(400).json({
-                message: "Retailer has not accepted this campaign yet",
-            });
-
-        const payment = await Payment.findOne({
-            campaign: campaignId,
-            retailer: retailerId,
-        });
-        if (!payment)
-            return res.status(404).json({ message: "Payment plan not found" });
-
-        // Update amountPaid
-        if (amountPaid !== undefined) {
-            payment.amountPaid += amountPaid; // add the new payment
-        }
-
-        // Track UTR numbers as an array
-        if (utrNumber) {
-            payment.utrNumbers = payment.utrNumbers || [];
-            payment.utrNumbers.push({
-                utrNumber,
-                amount: amountPaid || 0,
-                date: new Date(),
-                updatedBy: req.user._id,
-            });
-        }
-
-        // Update remaining amount
-        payment.remainingAmount = payment.totalAmount - payment.amountPaid;
-        payment.lastUpdatedByAdmin = req.user._id;
-
-        // Update payment status
-        if (payment.amountPaid === 0) {
-            payment.paymentStatus = "Pending";
-        } else if (payment.amountPaid < payment.totalAmount) {
-            payment.paymentStatus = "Partially Paid";
-        } else {
-            payment.paymentStatus = "Completed";
-        }
-
-        await payment.save();
-
-        res.status(200).json({
-            message: "Payment updated successfully",
-            payment,
-        });
-    } catch (error) {
-        console.error("Error updating campaign payment:", error);
-        res.status(500).json({ message: error.message });
-    }
-};
-
-// ====== GET CAMPAIGN PAYMENTS ======
-export const getCampaignPayments = async (req, res) => {
-    try {
-        const { campaignId } = req.params;
-        const payments = await Payment.find({ campaign: campaignId })
-            .populate("retailer", "name email")
-            .populate("createdByClient", "name")
-            .populate("lastUpdatedByAdmin", "name")
-            .sort({ updatedAt: -1 });
-
-        res.status(200).json({ payments });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};

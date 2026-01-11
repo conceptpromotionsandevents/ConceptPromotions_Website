@@ -294,96 +294,7 @@ employeeSchema.pre("save", function (next) {
 /* ===============================
    EMPLOYEE REPORT SCHEMA - UPDATED FOR CLOUDINARY
 =============================== */
-const employeeReportSchema = new Schema(
-    {
-        employeeId: { type: Types.ObjectId, ref: "Employee" },
-        campaignId: { type: Types.ObjectId, ref: "Campaign", required: true },
-        retailerId: { type: Types.ObjectId, ref: "Retailer", required: true },
 
-        visitScheduleId: { type: Types.ObjectId, ref: "VisitSchedule" },
-
-        visitType: String,
-        attended: String,
-        notVisitedReason: String,
-        otherReasonText: String,
-
-        reportType: String,
-        frequency: String,
-        fromDate: Date,
-        toDate: Date,
-        extraField: String,
-
-        stockType: String,
-        brand: String,
-        product: String,
-        sku: String,
-        productType: String,
-        quantity: Number,
-
-        // 📍 Geo Tag
-        location: {
-            latitude: Number,
-            longitude: Number,
-        },
-
-        // 📸 Multiple images - UPDATED FOR CLOUDINARY
-        images: [
-            {
-                url: {
-                    type: String,
-                    required: true,
-                },
-                publicId: {
-                    type: String,
-                    required: true,
-                },
-                fileName: String,
-            },
-        ],
-
-        // 📄 MULTIPLE BILL COPIES - UPDATED FOR CLOUDINARY
-        billCopies: [
-            {
-                url: {
-                    type: String,
-                    required: true,
-                },
-                publicId: {
-                    type: String,
-                    required: true,
-                },
-                fileName: String,
-            },
-        ],
-
-        submittedByRole: {
-            type: String,
-            enum: ["Employee", "Admin", "Retailer"],
-            required: true,
-        },
-
-        submittedByEmployee: {
-            type: Types.ObjectId,
-            ref: "Employee",
-            default: null,
-        },
-
-        submittedByAdmin: {
-            type: Types.ObjectId,
-            ref: "Admin",
-            default: null,
-        },
-
-        submittedByRetailer: {
-            type: Types.ObjectId,
-            ref: "Retailer",
-            default: null,
-        },
-    },
-    { timestamps: true }
-);
-
-export const EmployeeReport = model("EmployeeReport", employeeReportSchema);
 
 /* ===========================
    PASSWORD HASH MIDDLEWARE
@@ -408,8 +319,8 @@ export const Employee = model("Employee", employeeSchema);
 const campaignSchema = new Schema(
     {
         /* =========================
-       BASIC DETAILS
-    ========================== */
+           BASIC DETAILS
+        ========================== */
         name: { type: String, required: true, trim: true },
 
         client: { type: String, required: true, trim: true },
@@ -426,8 +337,8 @@ const campaignSchema = new Schema(
         },
 
         /* =========================
-       REGION SELECTION
-    ========================== */
+           REGION SELECTION
+        ========================== */
         regions: [
             {
                 type: String,
@@ -437,8 +348,8 @@ const campaignSchema = new Schema(
         ],
 
         /* =========================
-       STATE SELECTION
-    ========================== */
+           STATE SELECTION
+        ========================== */
         states: [
             {
                 type: String,
@@ -447,8 +358,8 @@ const campaignSchema = new Schema(
         ],
 
         /* =========================
-       CREATED BY
-    ========================== */
+           CREATED BY
+        ========================== */
         createdBy: {
             type: Types.ObjectId,
             ref: "Admin",
@@ -456,8 +367,8 @@ const campaignSchema = new Schema(
         },
 
         /* =========================
-       CAMPAIGN DATE WINDOW
-    ========================== */
+           CAMPAIGN DATE WINDOW
+        ========================== */
         campaignStartDate: {
             type: Date,
             required: true,
@@ -469,53 +380,59 @@ const campaignSchema = new Schema(
         },
 
         /* =========================
-       STATUS
-    ========================== */
+           STATUS
+        ========================== */
         isActive: {
             type: Boolean,
             default: true,
         },
 
         /* =========================
-       🖼️ CAMPAIGN BANNERS (IMAGES)
-    ========================== */
-        banners: [
-            {
-                url: { type: String, required: true },
-                publicId: { type: String },
-                uploadedAt: { type: Date, default: Date.now },
+    ℹ️ INFO
+ ========================== */
+        info: {
+            description: {
+                type: String,
             },
-        ],
 
-        /* =========================
-       📜 TERMS & CONDITIONS (TEXT)
-    ========================== */
-        termsAndConditions: {
-            type: String,
-            required: true,
+            tnc: {
+                type: String,
+            },
+
+            banners: [
+                {
+                    url: { type: String, required: true },
+                    publicId: { type: String },
+                    uploadedAt: { type: Date, default: Date.now },
+                },
+            ],
         },
 
+
         /* =========================
-       💰 GRATIFICATION DETAILS
-    ========================== */
+           💰 GRATIFICATION DETAILS (WITH IMAGES) 🔥
+        ========================== */
         gratification: {
             type: {
                 type: String, // Cash | Gift | Points | Discount | Others
             },
-            amount: {
-                type: Number,
-            },
+
             description: {
                 type: String,
             },
-            conditions: {
-                type: String,
-            },
+
+            images: [
+                {
+                    url: { type: String, required: true },
+                    publicId: { type: String, required: true },
+                    uploadedAt: { type: Date, default: Date.now },
+                },
+            ],
         },
 
         /* =========================
-       ASSIGNED RETAILERS
-    ========================== */
+           ASSIGNED RETAILERS
+        ========================== */
         assignedRetailers: [
             {
                 retailerId: {
@@ -550,8 +467,8 @@ const campaignSchema = new Schema(
         ],
 
         /* =========================
-       ASSIGNED EMPLOYEES
-    ========================== */
+           ASSIGNED EMPLOYEES
+        ========================== */
         assignedEmployees: [
             {
                 employeeId: {
@@ -586,10 +503,10 @@ const campaignSchema = new Schema(
         ],
 
         /* ==================================================
-       EMPLOYEE ↔ RETAILER MAPPING (WITHIN CAMPAIGN)
-       ✔ One employee → multiple retailers
-       ✔ One retailer → multiple employees
-    =================================================== */
+           EMPLOYEE ↔ RETAILER MAPPING (WITHIN CAMPAIGN)
+           ✔ One employee → multiple retailers
+           ✔ One retailer → multiple employees
+        =================================================== */
         assignedEmployeeRetailers: [
             {
                 employeeId: {
@@ -613,6 +530,43 @@ const campaignSchema = new Schema(
     },
     { timestamps: true }
 );
+
+/* ---------------------------
+   ✅ PRE-DELETE HOOK: Clean up ALL Cloudinary files
+---------------------------- */
+campaignSchema.pre("remove", async function (next) {
+    try {
+        // Delete campaign documents (if any exist)
+        if (this.documents && this.documents.length > 0) {
+            for (const doc of this.documents) {
+                await deleteFromCloudinary(doc.publicId, "raw");
+            }
+        }
+
+        // Delete campaign banners
+        if (this.banners && this.banners.length > 0) {
+            for (const banner of this.banners) {
+                if (banner.publicId) {
+                    await deleteFromCloudinary(banner.publicId, "image");
+                }
+            }
+        }
+
+        // Delete gratification images ✅ NEW
+        if (this.gratification?.images && this.gratification.images.length > 0) {
+            for (const image of this.gratification.images) {
+                if (image.publicId) {
+                    await deleteFromCloudinary(image.publicId, "image");
+                }
+            }
+        }
+
+        next();
+    } catch (error) {
+        console.error("Campaign cleanup error:", error);
+        next(error);
+    }
+});
 
 /* ---------------------------
    ✅ PRE-DELETE HOOK: Clean up Cloudinary files
@@ -644,55 +598,7 @@ export const Campaign = mongoose.model("Campaign", campaignSchema);
 /* ===============================
    PAYMENT SCHEMA (NO CHANGES)
 =============================== */
-const paymentSchema = new mongoose.Schema(
-    {
-        retailer: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Retailer",
-            required: true,
-        },
-        campaign: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Campaign",
-            required: true,
-        },
-        totalAmount: {
-            type: Number,
-            required: true,
-        },
-        amountPaid: {
-            type: Number,
-            default: 0,
-        },
-        remainingAmount: {
-            type: Number,
-            default: function () {
-                return this.totalAmount - this.amountPaid;
-            },
-        },
-        utrNumbers: [
-            {
-                utrNumber: { type: String, required: true },
-                amount: { type: Number, required: true },
-                date: { type: Date, default: Date.now },
-                updatedBy: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: "Admin",
-                },
-            },
-        ],
-        paymentStatus: {
-            type: String,
-            enum: ["Pending", "Partially Paid", "Completed"],
-            default: "Pending",
-        },
-        lastUpdatedByAdmin: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Admin",
-        },
-    },
-    { timestamps: true }
-);
+
 
 /* ===============================
    CAREER APPLICATION SCHEMA - UPDATED FOR CLOUDINARY
@@ -787,9 +693,6 @@ export const JobApplication = mongoose.model(
     jobApplicationSchema
 );
 
-export default mongoose.model("Payment", paymentSchema);
-
-export const Payment = mongoose.model("Payment", paymentSchema);
 
 /* ===============================
    VISIT SCHEDULE SCHEMA (NO CHANGES)

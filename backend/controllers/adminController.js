@@ -12,97 +12,15 @@ import {
     ClientAdmin,
     ClientUser,
     Employee,
-    EmployeeReport,
+   
     Job,
     JobApplication,
-    Payment,
+   
     // Retailer,
     VisitSchedule,
 } from "../models/user.js";
 
-/* ======================================================
-   ADMIN LOGIN
-====================================================== */
 
-/* ======================================================
-   ADD NEW ADMIN
-====================================================== */
-
-/* ======================================================
-   ADD CLIENT ADMIN
-====================================================== */
-
-//
-
-// Utility to generate unique IDs (since insertMany doesn't run pre-save hooks)
-function generateUniqueId() {
-    const letters = Array.from({ length: 4 }, () =>
-        String.fromCharCode(65 + Math.floor(Math.random() * 26))
-    ).join("");
-    const numbers = Math.floor(1000 + Math.random() * 9000);
-    return `${letters}${numbers}`;
-}
-
-/* ======================================================
-   ADD CLIENT USER
-====================================================== */
-
-/* ======================================================
-   CLIENT ADMIN LOGIN
-====================================================== */
-
-//     const authHeader = req.headers.authorization;
-
-//     if (!authHeader || !authHeader.startsWith("Bearer "))
-//         return res.status(401).json({ message: "Not authorized" });
-
-//     const token = authHeader.split(" ")[1];
-//     try {
-//         const decoded = jwt.verify(
-//             token,
-//             process.env.JWT_SECRET || "supremeSecretKey"
-//         );
-//         req.user = decoded;
-//         next();
-//     } catch (error) {
-//         console.error("JWT verification error:", error);
-//         res.status(401).json({ message: "Invalid or expired token" });
-//     }
-// };
-
-/* ======================================================
-   CAMPAIGN MANAGEMENT
-====================================================== */
-
-/* ======================================================
-   UPDATE CAMPAIGN STATUS (Activate / Deactivate)
-   PATCH /admin/campaigns/:id/status
-====================================================== */
-
-/* ======================================================
-   GET SINGLE CAMPAIGN BY ID
-   GET /api/admin/campaigns/:id
-====================================================== */
-
-/* ======================================================
-   EMPLOYEE MANAGEMENT
-====================================================== */
-
-/* ======================================================
-   BULK ADD EMPLOYEES FROM EXCEL
-====================================================== */
-
-/* ======================================================
-   ASSIGN CAMPAIGN TO EMPLOYEES & RETAILERS
-====================================================== */
-
-/* ======================================================
-   FETCH ALL EMPLOYEES
-====================================================== */
-
-/* ======================================================
-   FETCH ALL RETAILERS
-====================================================== */
 
 export const updateEmployeeReport = async (req, res) => {
     try {
@@ -226,72 +144,6 @@ export const updateEmployeeReport = async (req, res) => {
             .json({ message: "Server error", error: error.message });
     }
 };
-
-/* ======================================================
-   CREATE JOB POSTING (admin)
-   POST /admin/career/jobs
-   body: { title, description, location, salaryRange?, experienceRequired?, employmentType?, totalRounds? }
-====================================================== */
-
-/* ======================================================
-   Get jobs created by admin
-   GET /admin/career/jobs
-====================================================== */
-
-/* ======================================================
-   Get applications for a specific job (admin)
-   GET /admin/career/jobs/:jobId/applications
-====================================================== */
-
-/* ======================================================
-   Update application status / round (admin)
-   PUT /admin/career/applications/:applicationId
-   body: { status?, currentRound? }
-====================================================== */
-
-/* ======================================================
-   UPDATE APPLICATION STATUS (ADMIN)
-   PATCH /api/admin/applications/:id/status
-====================================================== */
-/* ============================================================
-   UPDATE APPLICATION STATUS (Admin)
-============================================================ */
-
-/* ======================================================
-   Update or Change Status of a Job Posting
-   PUT /admin/career/jobs/:id
-   Body: { title?, description?, location?, salaryRange?, experienceRequired?, employmentType?, isActive? }
-====================================================== */
-/* ======================================================
-   Update or Change Status of a Job Posting
-   PUT /admin/career/jobs/:id
-   Body: { title?, description?, location?, salaryRange?, experienceRequired?, employmentType?, isActive? }
-====================================================== */
-
-/* ======================================================
-   Admin download candidate resume
-   GET /admin/career/applications/:applicationId/resume
-====================================================== */
-
-/* ======================================================
-   ADMIN FORGOT PASSWORD
-   POST /api/admin/forgot-password
-====================================================== */
-/* ======================================================
-   ADMIN FORGOT PASSWORD (OTP SEND)
-   POST /api/admin/forgot-password
-====================================================== */
-
-/* ======================================================
-   ADMIN RESET PASSWORD (OTP VERIFY)
-   POST /api/admin/reset-password
-====================================================== */
-
-/* ======================================================
-   EDIT / UPDATE EXISTING CAMPAIGN (FULL UPDATE)
-   PUT /admin/campaigns/:id
-====================================================== */
-
 /* ======================================================
    GET ALL REPORTS OF LOGGED-IN EMPLOYEE (WITH FILTERS)
 ====================================================== */
@@ -717,11 +569,3 @@ export const adminUpdatePaymentPlan = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
-
-/* ======================================================
-   ADMIN UPDATES PAYMENT PROGRESS & UTR
-====================================================== */
-
-/* ======================================================
-   ADMIN FETCHES ALL PAYMENTS FOR A CAMPAIGN
-====================================================== */
