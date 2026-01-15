@@ -1,0 +1,25 @@
+# docker-compose.prod.yml
+version: "3.8"
+
+services:
+    backend:
+        restart: always
+        deploy:
+            resources:
+                limits:
+                    cpus: "1.0"
+                    memory: 512M
+                reservations:
+                    cpus: "0.5"
+                    memory: 256M
+
+    frontend:
+        restart: always
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+                reservations:
+                    cpus: "0.25"
+                    memory: 128M

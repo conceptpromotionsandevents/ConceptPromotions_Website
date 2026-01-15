@@ -1,0 +1,57 @@
+# FRONTEND/.dockerignore
+
+# Dependencies
+node_modules
+package-lock.json
+
+# Build output
+dist
+build
+.output
+.next
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.sample
+.env.production
+.env.*.local
+
+# Testing
+coverage
+.nyc_output
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE and Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Misc
+.eslintcache
+.prettierrc
+.editorconfig
