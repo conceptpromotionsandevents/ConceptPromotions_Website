@@ -554,7 +554,7 @@ const ManageReports = () => {
                                             );
                                         }
                                     }}
-                                    className="bg-[#E4002B] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#C3002B] transition flex items-center gap-2"
+                                    className="bg-[#E4002B] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#C3002B] transition flex items-center gap-2 cursor-pointer"
                                 >
                                     <span>+</span> Add Report
                                 </button>
@@ -693,7 +693,7 @@ const ManageReports = () => {
                                 <button
                                     onClick={() => fetchReports(1)}
                                     disabled={loading}
-                                    className="bg-[#E4002B] text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-[#C3002B] transition disabled:bg-gray-400"
+                                    className="bg-[#E4002B] text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-[#C3002B] transition disabled:bg-gray-400 cursor-pointer"
                                 >
                                     {loading ? "Searching..." : "Search Reports"}
                                 </button>

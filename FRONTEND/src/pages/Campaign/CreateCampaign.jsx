@@ -364,7 +364,7 @@ const CreateCampaign = () => {
 
       <div className="w-full max-w-3xl bg-[#EDEDED] shadow-md rounded-xl p-8 mx-auto my-8">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-[#E4002B]">Create a Campaign</h1>
+          <h1 className="text-2xl font-bold text-[#E4002B]">Create Campaign</h1>
         </div>
 
         <div className="space-y-5">
@@ -486,13 +486,13 @@ const CreateCampaign = () => {
           {/* ✅ SECTION: INFO */}
           <div className="border-t pt-6 mt-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-4">
-              Campaign Information
+              Campaign Information <span className="text-red-500">(Optional)</span>
             </h2>
 
             {/* Description */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">
-                Description (Optional)
+                Description
               </label>
               <textarea
                 placeholder="Campaign description"
@@ -506,7 +506,7 @@ const CreateCampaign = () => {
             {/* Terms and Conditions */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">
-                Terms & Conditions <span className="text-red-500">*</span>
+                Terms & Conditions
               </label>
               <textarea
                 placeholder="Enter terms and conditions"
@@ -520,7 +520,7 @@ const CreateCampaign = () => {
             {/* ✅ Banners Upload - STYLED */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Campaign Banners (Optional, Max 5)
+                Campaign Banners <span className="text-red-500">(Max Limit: 5)</span>
               </label>
 
               <input
@@ -572,7 +572,7 @@ const CreateCampaign = () => {
           {/* ✅ SECTION: GRATIFICATION */}
           <div className="border-t pt-6 mt-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-4">
-              Gratification Details (Optional)
+              Gratification Details <span className="text-red-500">(Optional)</span>
             </h2>
 
             {/* Gratification Type */}
@@ -606,7 +606,7 @@ const CreateCampaign = () => {
             {/* ✅ Gratification Images Upload */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Gratification Images (Optional, Max 5)
+                Gratification Images <span className="text-red-500">(Max Limit: 5)</span>
               </label>
 
               <input
@@ -659,7 +659,7 @@ const CreateCampaign = () => {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-[#E4002B] text-white py-3 rounded-lg font-medium hover:bg-[#C3002B] transition mt-6 disabled:opacity-60"
+            className="w-full bg-[#E4002B] text-white py-3 rounded-lg font-medium hover:bg-[#C3002B] transition mt-6 disabled:opacity-60 cursor-pointer"
           >
             {loading ? "Creating..." : "Create Campaign"}
           </button>

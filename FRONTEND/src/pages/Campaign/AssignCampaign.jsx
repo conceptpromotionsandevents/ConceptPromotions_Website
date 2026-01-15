@@ -512,10 +512,10 @@ const AssignCampaign = () => {
 
     if (bulkPartyType === "employee") {
       fileName = "Employee_Campaign_Assignment_Template.xlsx";
-      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768044566/Employee_Campaign_Assignment_Template_vqrquz.xlsx";
+      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482373/Employee_Campaign_Assignment_Template_d6g498.xlsx";
     } else {
       fileName = "Retailer_Campaign_Assignment_Template.xlsx";
-      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768044566/Retailer_Campaign_Assignment_Template_g7p1xz.xlsx";
+      publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482373/Retailer_Campaign_Assignment_Template_gpjtkw.xlsx";
     }
 
     const link = document.createElement("a");
@@ -608,11 +608,8 @@ const AssignCampaign = () => {
       worksheet.columns = [
         { header: "Row Number", key: "rowNumber", width: 12 },
         { header: "Reason", key: "reason", width: 50 },
-        { header: "campaignName", key: "campaignName", width: 25 },
-        { header: "employeeId", key: "employeeId", width: 20 },
-        { header: "name", key: "name", width: 20 },
-        { header: "phone", key: "phone", width: 15 },
-        { header: "state", key: "state", width: 15 },
+        { header: "Campaign Name", key: "campaignName", width: 30 },
+        { header: "Employee ID", key: "employeeId", width: 20 },
       ];
 
       bulkResult.failedRows.forEach((row) => {
@@ -621,21 +618,14 @@ const AssignCampaign = () => {
           reason: row.reason,
           campaignName: row.data?.campaignName || "-",
           employeeId: row.data?.employeeId || "-",
-          name: row.data?.name || "-",
-          phone: row.data?.phone || "-",
-          state: row.data?.state || "-",
         });
       });
     } else {
       worksheet.columns = [
         { header: "Row Number", key: "rowNumber", width: 12 },
         { header: "Reason", key: "reason", width: 50 },
-        { header: "campaignName", key: "campaignName", width: 25 },
-        { header: "uniqueId", key: "uniqueId", width: 20 },
-        { header: "retailerName", key: "retailerName", width: 20 },
-        { header: "outletName", key: "outletName", width: 20 },
-        { header: "businessType", key: "businessType", width: 25 },
-        { header: "state", key: "state", width: 15 },
+        { header: "Campaign Name", key: "campaignName", width: 30 },
+        { header: "Outlet Code", key: "outletCode", width: 20 },
       ];
 
       bulkResult.failedRows.forEach((row) => {
@@ -643,16 +633,12 @@ const AssignCampaign = () => {
           rowNumber: row.rowNumber || "-",
           reason: row.reason,
           campaignName: row.data?.campaignName || "-",
-          uniqueId: row.data?.uniqueId || "-",
-          retailerName: row.data?.retailerName || "-",
-          outletName: row.data?.shopName || "-",
-          businessType: row.data?.businessType || "-",
-          state: row.data?.state || "-",
+          outletCode: row.data?.outletCode || "-",
         });
       });
     }
 
-    // Style the header row
+    // Style the header row (keep existing styling code)
     worksheet.getRow(1).eachCell((cell) => {
       cell.fill = {
         type: "pattern",
@@ -675,13 +661,11 @@ const AssignCampaign = () => {
       const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `Failed_${bulkPartyType}_Assignment_${new Date().toISOString().split("T")[0]}.xlsx`;
       link.click();
       URL.revokeObjectURL(link.href);
-
       toast.success("Failed rows downloaded", { theme: "dark" });
     } catch (error) {
       console.error("Error downloading failed rows:", error);
@@ -709,7 +693,7 @@ const AssignCampaign = () => {
 
             <button
               onClick={() => setShowBulkModal(true)}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition bg-[#E4002B] text-white hover:bg-[#c4001f]"
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition bg-[#E4002B] text-white hover:bg-[#c4001f] cursor-pointer"
             >
               <FaUpload />
               Bulk Upload
@@ -858,7 +842,7 @@ const AssignCampaign = () => {
                       placeholder="Search by Unique Code, Outlet Name, Retailer Name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full md:w-96 px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+                      className="w-full px-4 py-3 border border-gray-300 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
                     />
                     {(searchQuery || state || businessType) && (
                       <button
@@ -942,7 +926,7 @@ const AssignCampaign = () => {
                       placeholder="Search by Employee ID, Name..."
                       value={employeeSearchQuery}
                       onChange={(e) => setEmployeeSearchQuery(e.target.value)}
-                      className="w-full md:w-96 px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+                      className="w-full px-4 py-3 border border-gray-300 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
                     />
                     {(employeeSearchQuery || employeeState) && (
                       <button
@@ -1093,7 +1077,7 @@ const AssignCampaign = () => {
                     <button
                       onClick={handleAssign}
                       disabled={assigning || selectedRetailers.length === 0}
-                      className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${assigning || selectedRetailers.length === 0
+                      className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition cursor-pointer ${assigning || selectedRetailers.length === 0
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-red-600 hover:bg-red-700"
                         }`}
@@ -1235,7 +1219,7 @@ const AssignCampaign = () => {
                     <button
                       onClick={handleAssign}
                       disabled={assigning || selectedEmployees.length === 0}
-                      className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${assigning || selectedEmployees.length === 0
+                      className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition cursor-pointer ${assigning || selectedEmployees.length === 0
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-red-600 hover:bg-red-700"
                         }`}
@@ -1259,7 +1243,7 @@ const AssignCampaign = () => {
               <h2 className="text-2xl font-bold text-red-600">Bulk Campaign Assignment</h2>
               <button
                 onClick={closeBulkModal}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 cursor-pointer"
               >
                 <FaTimes size={24} />
               </button>
@@ -1323,7 +1307,7 @@ const AssignCampaign = () => {
                     </div>
                     <button
                       onClick={downloadBulkTemplate}
-                      className="flex items-center gap-2 bg-[#E4002B] text-white px-6 py-3 rounded-lg hover:bg-[#c4001f] transition"
+                      className="flex items-center gap-2 bg-[#E4002B] text-white px-6 py-3 rounded-lg hover:bg-[#c4001f] transition cursor-pointer"
                     >
                       <FaDownload />
                       Download {bulkPartyType === "employee" ? "Employee" : "Retailer"} Template
@@ -1366,7 +1350,7 @@ const AssignCampaign = () => {
                           setBulkFile(null);
                           document.getElementById("bulkFileUpload").value = "";
                         }}
-                        className="flex items-center gap-2 text-red-500 text-sm hover:underline mt-3"
+                        className="flex items-center gap-2 text-red-500 text-sm hover:underline mt-3 cursor-pointer"
                       >
                         <FaTimes /> Remove File
                       </button>
@@ -1377,7 +1361,7 @@ const AssignCampaign = () => {
                   <button
                     onClick={handleBulkUpload}
                     disabled={bulkUploading || !bulkFile}
-                    className={`w-full py-3 rounded-lg font-semibold transition ${bulkUploading || !bulkFile
+                    className={`w-full py-3 rounded-lg font-semibold transition cursor-pointer ${bulkUploading || !bulkFile
                       ? "bg-gray-400 cursor-not-allowed text-white"
                       : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
                       }`}
@@ -1392,36 +1376,46 @@ const AssignCampaign = () => {
 
                       {/* Summary */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+
+                        {/* ✅ ADD THIS HERE - Assignment Type Display */}
+                        {bulkResult.summary?.assignmentType && (
+                          <div className="col-span-2 md:col-span-4 bg-gray-100 p-3 rounded-lg text-center mb-2">
+                            <p className="text-sm text-gray-600 mb-1">Assignment Type</p>
+                            <p className="text-lg font-semibold text-gray-800">
+                              {bulkResult.summary.assignmentType}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Total Rows */}
                         <div className="bg-blue-50 p-4 rounded-lg text-center">
                           <p className="text-sm text-gray-600">Total Rows</p>
                           <p className="text-2xl font-bold text-blue-600">
                             {bulkResult.summary?.totalRows || 0}
                           </p>
                         </div>
+
+                        {/* Successful */}
                         <div className="bg-green-50 p-4 rounded-lg text-center">
                           <p className="text-sm text-gray-600">Successful</p>
                           <p className="text-2xl font-bold text-green-600">
                             {bulkResult.summary?.successful || 0}
                           </p>
                         </div>
+
+                        {/* Failed */}
                         <div className="bg-red-50 p-4 rounded-lg text-center">
                           <p className="text-sm text-gray-600">Failed</p>
                           <p className="text-2xl font-bold text-red-600">
                             {bulkResult.summary?.failed || 0}
                           </p>
                         </div>
+
+                        {/* Success Rate - ✅ ALSO UPDATE THIS */}
                         <div className="bg-purple-50 p-4 rounded-lg text-center">
                           <p className="text-sm text-gray-600">Success Rate</p>
                           <p className="text-2xl font-bold text-purple-600">
-                            {(() => {
-                              const total = bulkResult.summary?.totalRows || 0;
-                              const successful = bulkResult.summary?.successful || 0;
-
-                              if (total === 0) return '0%';
-
-                              const rate = (successful / total) * 100;
-                              return `${rate.toFixed(2)}%`;
-                            })()}
+                            {bulkResult.summary?.successRate || "0%"}
                           </p>
                         </div>
                       </div>
@@ -1459,9 +1453,6 @@ const AssignCampaign = () => {
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
                                         Employee ID
                                       </th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                        Name
-                                      </th>
                                     </>
                                   ) : (
                                     <>
@@ -1469,10 +1460,7 @@ const AssignCampaign = () => {
                                         Campaign
                                       </th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                        Retailer Code
-                                      </th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                        Retailer Name
+                                        Outlet Code
                                       </th>
                                     </>
                                   )}
@@ -1498,17 +1486,11 @@ const AssignCampaign = () => {
                                         <td className="px-4 py-2 text-sm">
                                           {row.data?.employeeId || "-"}
                                         </td>
-                                        <td className="px-4 py-2 text-sm">
-                                          {row.data?.name || "-"}
-                                        </td>
                                       </>
                                     ) : (
                                       <>
                                         <td className="px-4 py-2 text-sm">
-                                          {row.data?.outletCode || row.data?.uniqueId || "-"}
-                                        </td>
-                                        <td className="px-4 py-2 text-sm">
-                                          {row.data?.retailerName || "-"}
+                                          {row.data?.outletCode || "-"}
                                         </td>
                                       </>
                                     )}

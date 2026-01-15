@@ -378,7 +378,7 @@ const SubmitReport = ({ campaign }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Type of Report */}
         <div>
-          <label className="block font-medium mb-1">Type of Report *</label>
+          <label className="block font-medium mb-1">Type of Report <span className="text-red-500">*</span></label>
           <Select
             styles={customSelectStyles}
             options={reportTypes}
@@ -392,7 +392,7 @@ const SubmitReport = ({ campaign }) => {
 
         {/* Frequency */}
         <div>
-          <label className="block font-medium mb-1">Frequency *</label>
+          <label className="block font-medium mb-1">Frequency <span className="text-red-500">*</span></label>
           <Select
             styles={customSelectStyles}
             options={frequencyOptions}
@@ -406,10 +406,10 @@ const SubmitReport = ({ campaign }) => {
 
         {/* Date of Submission */}
         <div>
-          <label className="block font-medium mb-1">Date of Submission *</label>
+          <label className="block font-medium mb-1">Date of Submission <span className="text-red-500">*</span></label>
           <input
             type="date"
-            className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+            className="border border-gray-300 rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent bg-white"
             value={dateOfSubmission}
             onChange={(e) => setDateOfSubmission(e.target.value)}
             max={getTodayDate()}
@@ -420,9 +420,9 @@ const SubmitReport = ({ campaign }) => {
 
         {/* Remarks */}
         <div>
-          <label className="block font-medium mb-1">Remarks (Optional)</label>
+          <label className="block font-medium mb-1">Remarks <span className="text-red-500">(Optional)</span></label>
           <textarea
-            className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+            className="border border-gray-300 rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent bg-white"
             rows="3"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
@@ -437,7 +437,7 @@ const SubmitReport = ({ campaign }) => {
             <h4 className="font-semibold text-[#E4002B]">Stock Details</h4>
             
             <div>
-              <label className="block font-medium mb-1">Type of Stock *</label>
+              <label className="block font-medium mb-1">Type of Stock <span className="text-red-500">*</span></label>
               <Select
                 styles={customSelectStyles}
                 options={stockTypeOptions}
@@ -449,7 +449,7 @@ const SubmitReport = ({ campaign }) => {
             </div>
             
             <div>
-              <label className="block font-medium mb-1">Brand *</label>
+              <label className="block font-medium mb-1">Brand <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
@@ -460,7 +460,7 @@ const SubmitReport = ({ campaign }) => {
             </div>
             
             <div>
-              <label className="block font-medium mb-1">Product *</label>
+              <label className="block font-medium mb-1">Product <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
@@ -471,7 +471,7 @@ const SubmitReport = ({ campaign }) => {
             </div>
             
             <div>
-              <label className="block font-medium mb-1">SKU *</label>
+              <label className="block font-medium mb-1">SKU <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
@@ -482,7 +482,7 @@ const SubmitReport = ({ campaign }) => {
             </div>
             
             <div>
-              <label className="block font-medium mb-1">Product Type *</label>
+              <label className="block font-medium mb-1">Product Type <span className="text-red-500">*</span></label>
               <Select
                 styles={customSelectStyles}
                 options={productTypeOptions}
@@ -495,7 +495,7 @@ const SubmitReport = ({ campaign }) => {
 
 
             <div>
-              <label className="block font-medium mb-1">Quantity *</label>
+              <label className="block font-medium mb-1">Quantity <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
@@ -509,7 +509,7 @@ const SubmitReport = ({ campaign }) => {
 
             {/* Bill Copies with Image Preview */}
             <div>
-              <label className="block font-medium mb-1">Bill Copies (Images/PDF)</label>
+              <label className="block font-medium mb-1">Bill Copies (Images/PDF) <span className="text-red-500">*</span></label>
               <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
                 <FiPlus className="text-3xl text-gray-400" />
                 <span>Click or drop files here</span>
@@ -572,7 +572,7 @@ const SubmitReport = ({ campaign }) => {
         {/* WINDOW DISPLAY */}
         {reportType?.value === "Window Display" && (
           <div>
-            <label className="block font-medium mb-1">Upload Shop Display Images</label>
+            <label className="block font-medium mb-1">Upload Shop Display Images <span className="text-red-500">*</span></label>
             <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
               <FiPlus className="text-3xl text-gray-400" />
               <span>Click or drop images here</span>
@@ -615,7 +615,7 @@ const SubmitReport = ({ campaign }) => {
         {/* OTHERS - WITH IMAGE PREVIEW */}
         {reportType?.value === "Others" && (
           <div>
-            <label className="block font-medium mb-1">Upload Files</label>
+            <label className="block font-medium mb-1">Upload Files <span className="text-red-500">*</span></label>
             <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#E4002B] transition-colors">
               <FiPlus className="text-3xl text-gray-400" />
               <span>Click or drop files here</span>
@@ -676,7 +676,7 @@ const SubmitReport = ({ campaign }) => {
         <button
           type="submit"
           disabled={loading}
-          className="mt-3 px-6 py-2 bg-[#E4002B] text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-[#c60025] transition-colors font-medium"
+          className="w-full mt-6 px-6 py-3 bg-[#E4002B] text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-[#c60025] transition-colors font-medium cursor-pointer"
         >
           {loading ? "Submitting..." : "Submit Report"}
         </button>

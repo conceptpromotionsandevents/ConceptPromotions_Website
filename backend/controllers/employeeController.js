@@ -6,7 +6,7 @@ import { Retailer } from "../models/retailer.model.js";
 import {
     Campaign,
     Employee,
-  
+
     VisitSchedule,
 } from "../models/user.js";
 // import { Retailer } from "../models/user.js";
@@ -378,11 +378,11 @@ export const updateEmployeeProfile = async (req, res) => {
                 pennyCheck: employee.pennyCheck,
                 bankDetails: employee.bankDetails
                     ? {
-                          bankName: employee.bankDetails.bankName,
-                          accountNumber: employee.bankDetails.accountNumber,
-                          ifsc: employee.bankDetails.ifsc,
-                          branchName: employee.bankDetails.branchName,
-                      }
+                        bankName: employee.bankDetails.bankName,
+                        accountNumber: employee.bankDetails.accountNumber,
+                        ifsc: employee.bankDetails.ifsc,
+                        branchName: employee.bankDetails.branchName,
+                    }
                     : null,
             },
         });
@@ -605,7 +605,56 @@ export const updateCampaignStatus = async (req, res) => {
     }
 };
 
+// delete employee profile picture
+export const deleteEmployeeProfilePicture = async (req, res) => {
+    try {
+        const employeeId = req.user.id;
 
+        const employee = await Employee.findById(employeeId);
+        if (!employee) {
+            return res.status(404).json({
+                success: false,
+                message: "Employee not found"
+            });
+        }
+
+        // ✅ FIX: Access files.personPhoto instead of personPhoto
+        if (!employee.files?.personPhoto?.publicId) {
+            return res.status(400).json({
+                success: false,
+                message: "No profile picture to delete"
+            });
+        }
+
+        // Delete from Cloudinary
+        await deleteFromCloudinary(employee.files.personPhoto.publicId, "image");
+
+        // ✅ FIX: Remove from files.personPhoto
+        employee.files.personPhoto = {
+            url: null,
+            publicId: null
+        };
+
+        await employee.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Profile picture deleted successfully",
+            employee: {
+                ...employee.toObject(),
+                password: undefined
+            }
+        });
+
+    } catch (error) {
+        console.error("Delete profile picture error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete profile picture",
+            error: error.message
+        });
+    }
+};
 
 
 export const getEmployeeVisitProgress = async (req, res) => {

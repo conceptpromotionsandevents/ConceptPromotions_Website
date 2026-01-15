@@ -5,8 +5,8 @@ import {
     ClientAdmin,
     Employee,
     VisitSchedule
-  
-   
+
+
 } from "../../models/user.js";
 import {
     deleteFromCloudinary,
@@ -255,8 +255,6 @@ export const addCampaign = async (req, res) => {
     }
 };
 
-
-// ====== UPDATE CAMPAIGN STATUS ======
 export const updateCampaignStatus = async (req, res) => {
     try {
         if (!req.user || req.user.role !== "admin") {
@@ -266,33 +264,41 @@ export const updateCampaignStatus = async (req, res) => {
         }
 
         const { id } = req.params;
-        const { isActive } = req.body;
+        let { isActive } = req.body;
 
-        if (isActive === undefined) {
-            return res
-                .status(400)
-                .json({ message: "isActive field is required (true/false)" });
+        // 🔍 Check if isActive exists
+        if (isActive === undefined || isActive === null) {
+            return res.status(400).json({
+                message: "isActive is required"
+            });
         }
 
-        //  Find campaign
+        // 🔥 Force boolean conversion
+        if (typeof isActive === "string") {
+            isActive = isActive === "true";
+        }
+
+        if (typeof isActive !== "boolean") {
+            return res.status(400).json({
+                message: "isActive must be boolean"
+            });
+        }
+
         const campaign = await Campaign.findById(id);
         if (!campaign) {
             return res.status(404).json({ message: "Campaign not found" });
         }
 
-        //  Update status
         campaign.isActive = isActive;
         await campaign.save();
 
         res.status(200).json({
-            message: `Campaign ${
-                isActive ? "activated" : "deactivated"
-            } successfully`,
+            message: `Campaign ${isActive ? "activated" : "deactivated"} successfully`,
             campaign,
         });
     } catch (error) {
         console.error("Update campaign status error:", error);
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 

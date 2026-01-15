@@ -292,8 +292,8 @@ const EditCampaign = ({ campaignId, onBack }) => {
     <>
       <ToastContainer />
       <div className="min-h-screen bg-[#171717] pt-8 px-6 md:px-20 pb-10">
-        <button onClick={onBack} className="flex items-center gap-2 text-[#E4002B] mb-6 hover:underline font-medium">
-          <FaArrowLeft /> Back
+        <button onClick={onBack} className="flex items-center gap-2 text-[#E4002B] mb-6 hover:underline font-medium cursor-pointer">
+          <FaArrowLeft /> Back to Campaigns
         </button>
 
         <div className="bg-[#EDEDED] p-6 shadow-md rounded-xl border max-w-3xl mx-auto w-full">
@@ -306,7 +306,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
               
               {/* Campaign Name */}
               <div>
-                <label className="block text-sm font-medium mb-1">Campaign Name *</label>
+                <label className="block text-sm font-medium mb-1">Campaign Name <span className="text-red-500">*</span></label>
                 <input
                   placeholder="Campaign Name"
                   className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
@@ -317,7 +317,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* Client */}
               <div>
-                <label className="block text-sm font-medium mb-1">Client *</label>
+                <label className="block text-sm font-medium mb-1">Client <span className="text-red-500">*</span></label>
                 <input
                   placeholder="Client Organization"
                   className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
@@ -328,7 +328,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* Campaign Type */}
               <div>
-                <label className="block text-sm font-medium mb-1">Campaign Type *</label>
+                <label className="block text-sm font-medium mb-1">Campaign Type <span className="text-red-500">*</span></label>
                 <Select
                   styles={customSelectStyles}
                   value={formData.type}
@@ -340,7 +340,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* Region */}
               <div>
-                <label className="block text-sm font-medium mb-1">Region(s) *</label>
+                <label className="block text-sm font-medium mb-1">Region(s) <span className="text-red-500">*</span></label>
                 <Select
                   styles={customSelectStyles}
                   value={formData.regions}
@@ -353,7 +353,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* States */}
               <div>
-                <label className="block text-sm font-medium mb-1">State(s) *</label>
+                <label className="block text-sm font-medium mb-1">State(s) <span className="text-red-500">*</span></label>
                 <Select
                   styles={customSelectStyles}
                   value={formData.states}
@@ -367,7 +367,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* Start Date */}
               <div>
-                <label className="block text-sm font-medium mb-1">Start Date *</label>
+                <label className="block text-sm font-medium mb-1">Start Date <span className="text-red-500">*</span></label>
                 <input
                   type="date"
                   className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
@@ -378,7 +378,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* End Date */}
               <div>
-                <label className="block text-sm font-medium mb-1">End Date *</label>
+                <label className="block text-sm font-medium mb-1">End Date <span className="text-red-500">*</span></label>
                 <input
                   type="date"
                   className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
@@ -389,11 +389,11 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* ✅ INFO SECTION */}
               <div className="border-t pt-6 mt-6">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4">Campaign Information</h2>
+                <h2 className="text-lg font-semibold text-gray-700 mb-4">Campaign Information  <span className="text-red-500">(Optional)</span></h2>
 
                 {/* Description */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Description (Optional)</label>
+                  <label className="block text-sm font-medium mb-1">Description</label>
                   <textarea
                     placeholder="Campaign description"
                     value={description}
@@ -405,7 +405,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
                 {/* Terms and Conditions */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Terms & Conditions *</label>
+                  <label className="block text-sm font-medium mb-1">Terms & Conditions</label>
                   <textarea
                     placeholder="Enter terms and conditions"
                     value={termsAndConditions}
@@ -417,7 +417,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
                 {/* Banners */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Campaign Banners (Max 5)</label>
+                  <label className="block text-sm font-medium mb-2">Campaign Banners <span className="text-red-500">(Max Limit: 5)</span></label>
                   
                   {/* Existing banners */}
                   {existingBanners.length > 0 && (
@@ -488,7 +488,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
               {/* ✅ GRATIFICATION SECTION */}
               <div className="border-t pt-6 mt-6">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4">Gratification Details</h2>
+                <h2 className="text-lg font-semibold text-gray-700 mb-4">Gratification Details <span className="text-red-500">(Optional)</span></h2>
 
                 {/* Gratification Type */}
                 <div className="mb-4">
@@ -516,7 +516,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
 
                 {/* Gratification Images */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Gratification Images (Max 5)</label>
+                  <label className="block text-sm font-medium mb-2">Gratification Images <span className="text-red-500">(Max Limit: 5)</span></label>
                   
                   {/* Existing images */}
                   {existingGratificationImages.length > 0 && (
@@ -589,7 +589,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
               <button
                 disabled={saving}
                 onClick={handleSave}
-                className="w-full py-3 bg-[#E4002B] text-white rounded-lg hover:bg-[#C3002B] transition disabled:opacity-60 font-semibold mt-6"
+                className="w-full py-3 bg-[#E4002B] text-white rounded-lg hover:bg-[#C3002B] transition disabled:opacity-60 font-semibold mt-6 cursor-pointer"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>

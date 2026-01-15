@@ -317,11 +317,11 @@ const BulkUpload = () => {
         if (partyType === "Employee") {
             fileName = "Sample_Employees_Template.xlsx";
             publicPath =
-                "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768038331/Sample_Employees_Template_esdiac.xlsx";
+                "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482373/Sample_Employees_Template_2_fm9q0k.xlsx";
         } else {
             fileName = "Sample_Retailers_Template.xlsx";
             publicPath =
-                "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768043642/Sample_Retailers_Template_kgdh8b.xlsx";
+                "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482374/Sample_Retailers_Template_1_g3hlhn.xlsx";
         }
 
         // Create a temporary anchor element to trigger download
@@ -337,7 +337,7 @@ const BulkUpload = () => {
         <>
             <ToastContainer />
 
-            <div className="min-h-screen flex flex-col justify-start items-center bg-black px-4 py-8">
+            <div className="min-h-screen flex flex-col justify-start items-center bg-[#171717] px-4 py-8">
                 <div className="bg-gray-100 shadow-md rounded-xl p-8 w-full max-w-4xl">
                     <h1 className="text-3xl font-semibold mb-4 text-red-600 text-center">
                         Bulk Upload Data

@@ -1,5 +1,6 @@
 // admin/career.controller.js
 import mongoose from "mongoose";
+import nodemailer from "nodemailer";
 import { Job, JobApplication, CareerApplication } from "../../models/user.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary.config.js";
 
@@ -48,18 +49,14 @@ export const createJobPosting = async (req, res) => {
 // ====== GET ADMIN JOBS ======
 export const getAdminJobs = async (req, res) => {
     try {
-        if (!req.user || !req.user.id)
-            return res
-                .status(401)
-                .json({ message: "Not authorized, please log in" });
-
-        const admin = await Admin.findById(req.user.id);
-        if (!admin)
+        if (!req.user || req.user.role !== "admin") {
             return res
                 .status(403)
-                .json({ message: "Only registered admins can view jobs" });
+                .json({ message: "Only admins can view jobs" });
+        }
 
         const jobs = await Job.find().sort({ createdAt: -1 });
+
         res.status(200).json({ jobs });
     } catch (error) {
         console.error("Get admin jobs error:", error);
@@ -128,11 +125,10 @@ export const updateApplicationStatus = async (req, res) => {
       <p>Dear ${fullName},</p>
       <p>Your application status for the position of <strong>${title}</strong> has been updated.</p>
       <p><strong>Status:</strong> ${application.status}</p>
-      ${
-          application.currentRound
-              ? `<p><strong>Current Round:</strong> ${application.currentRound} / ${application.totalRounds}</p>`
-              : ""
-      }
+      ${application.currentRound
+                ? `<p><strong>Current Round:</strong> ${application.currentRound} / ${application.totalRounds}</p>`
+                : ""
+            }
       <br/>
       <p>Thank you for your continued interest.</p>
       <p>Best regards,<br/>HR Team</p>
@@ -248,22 +244,18 @@ export const updateJobPosting = async (req, res) => {
 // ====== GET SINGLE JOB ======
 export const getSingleAdminJob = async (req, res) => {
     try {
-        if (!req.user || !req.user.id)
+        if (!req.user || req.user.role !== "admin") {
             return res
-                .status(401)
-                .json({ message: "Not authorized, please log in" });
-
-        const admin = await Admin.findById(req.user.id);
-        if (!admin)
-            return res.status(403).json({
-                message: "Only registered admins can view job details",
-            });
+                .status(403)
+                .json({ message: "Only admins can view job details" });
+        }
 
         const { id } = req.params;
-
         const job = await Job.findById(id);
 
-        if (!job) return res.status(404).json({ message: "Job not found" });
+        if (!job) {
+            return res.status(404).json({ message: "Job not found" });
+        }
 
         res.status(200).json({ job });
     } catch (error) {
@@ -272,30 +264,31 @@ export const getSingleAdminJob = async (req, res) => {
     }
 };
 
+
 // ====== GET CANDIDATE RESUME ======
 // ====== GET CANDIDATE RESUME ======
 export const getCandidateResume = async (req, res) => {
     try {
         if (!req.user || req.user.role !== "admin") {
-            return res.status(403).json({ 
+            return res.status(403).json({
                 success: false,
-                message: "Only admins can access resumes" 
+                message: "Only admins can access resumes"
             });
         }
 
         const { id } = req.params;
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: "Invalid application ID" 
+                message: "Invalid application ID"
             });
         }
 
         const application = await JobApplication.findById(id);
         if (!application) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: "Application not found" 
+                message: "Application not found"
             });
         }
 
@@ -327,10 +320,10 @@ export const getCandidateResume = async (req, res) => {
         return res.redirect(resume.url);
     } catch (error) {
         console.error("Error fetching candidate resume:", error);
-        return res.status(500).json({ 
+        return res.status(500).json({
             success: false,
             message: "Server error",
-            error: error.message 
+            error: error.message
         });
     }
 };

@@ -24,7 +24,18 @@ import "react-toastify/dist/ReactToastify.css";
 const App = () => {
   return (
     <>
-      <ToastContainer />
+      <ToastContainer
+        position="top-right"
+        autoClose={1000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover={false}
+        theme="dark"
+      />
       <Router>
         <ScrollToTop />
         <Routes>

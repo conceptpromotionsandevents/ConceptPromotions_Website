@@ -64,7 +64,7 @@ const adminSchema = new Schema(
 export const Admin = model("Admin", adminSchema);
 
 /* ===============================
-   CLIENT ADMIN SCHEMA
+   CLIENT ADMIN SCHEMA - UPDATED FOR CLOUDINARY
 =============================== */
 const clientAdminSchema = new Schema(
     {
@@ -73,6 +73,12 @@ const clientAdminSchema = new Schema(
         contactNo: String,
         password: { type: String, required: true },
         organizationName: { type: String, required: true },
+
+        // Profile Picture - Cloudinary Format
+        profilePicture: {
+            url: String,
+            publicId: String,
+        },
 
         states: [
             {
@@ -99,6 +105,8 @@ const clientAdminSchema = new Schema(
     },
     { timestamps: true }
 );
+
+
 
 export const ClientAdmin = model("ClientAdmin", clientAdminSchema);
 

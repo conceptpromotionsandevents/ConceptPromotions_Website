@@ -3,284 +3,258 @@ import Select from "react-select";
 import { FaSearch } from "react-icons/fa";
 import { API_URL } from "../../url/base";
 
-const JobTracking = ( { onViewJob }) => {
-    const [allJobs, setAllJobs] = useState([]);
-    const [filteredJobs, setFilteredJobs] = useState([]); 
+/* ✅ Same styles as Passbook */
+const customSelectStyles = {
+  control: (provided, state) => ({
+    ...provided,
+    borderColor: state.isFocused ? "#E4002B" : "#d1d5db",
+    boxShadow: state.isFocused ? "0 0 0 1px #E4002B" : "none",
+    "&:hover": { borderColor: "#E4002B" },
+    minHeight: "42px",
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isFocused ? "#FEE2E2" : "white",
+    color: "#333",
+    "&:active": { backgroundColor: "#FECACA" },
+  }),
+  menu: (provided) => ({
+    ...provided,
+    zIndex: 20,
+  }),
+};
 
-    const [searchTerm, setSearchTerm] = useState("");
-    const [status, setStatus] = useState("active");
-    const [department, setDepartment] = useState(null);
-    const [state, setState] = useState(null);
-    const [dateRange, setDateRange] = useState(null);
-    const [customDate, setCustomDate] = useState({ from: "", to: "" });
+const JobTracking = ({ onViewJob }) => {
+  const [allJobs, setAllJobs] = useState([]);
+  const [filteredJobs, setFilteredJobs] = useState([]);
 
-    // Normalize date — removes time
-    const normalize = (dt) => {
-        const d = new Date(dt);
-        d.setHours(0, 0, 0, 0);
-        return d;
-    };
+  const [searchTerm, setSearchTerm] = useState("");
+  const [status, setStatus] = useState({ value: "active", label: "Active" });
+  const [department, setDepartment] = useState(null);
+  const [state, setState] = useState(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-    // Fetch jobs
-    const fetchJobs = async () => {
-        try {
-            const token = localStorage.getItem("token");
-            const res = await fetch(`${API_URL}/admin/jobs`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+  const normalize = (dt) => {
+    const d = new Date(dt);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
 
-            const data = await res.json();
-            if (res.ok) {
-                setAllJobs(data.jobs || []);
-                setFilteredJobs([]);
-            }
-        } catch (err) {
-            console.log("Error:", err);
-        }
-    };
+  // Fetch jobs
+  const fetchJobs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/jobs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    useEffect(() => {
-        fetchJobs();
-    }, []);
+      const data = await res.json();
+      if (res.ok) {
+        setAllJobs(data.jobs || []);
+        setFilteredJobs(
+          (data.jobs || []).filter((job) => job.isActive)
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching jobs:", err);
+    }
+  };
 
-    // Dropdown options
-    const departments = [...new Set(allJobs.map((j) => j.title))].map((d) => ({
-        label: d,
-        value: d,
-    }));
+  useEffect(() => {
+    fetchJobs();
+  }, []);
 
-    const states = [...new Set(allJobs.map((j) => j.location))].map((d) => ({
-        label: d,
-        value: d,
-    }));
+  const departments = [...new Set(allJobs.map((j) => j.title))].map((d) => ({
+    label: d,
+    value: d,
+  }));
 
-    // Apply filters only when Search clicked
-    const applyFilters = () => {
-        let filtered = [...allJobs];
+  const states = [...new Set(allJobs.map((j) => j.location))].map((d) => ({
+    label: d,
+    value: d,
+  }));
 
-        // Status filter
-        if (status !== "all") {
-            filtered = filtered.filter((job) =>
-                status === "active" ? job.isActive === true : job.isActive === false
-            );
-        }
+  const statusOptions = [
+    { label: "Active", value: "active" },
+    { label: "Inactive", value: "inactive" },
+    { label: "All", value: "all" },
+  ];
 
-        // Search filter
-        if (searchTerm.trim().length > 0) {
-            filtered = filtered.filter(
-                (job) =>
-                    job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    job.description?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
+  const applyFilters = () => {
+    let filtered = [...allJobs];
 
-        // Department
-        if (department) {
-            filtered = filtered.filter((job) => job.title === department.value);
-        }
+    if (status.value !== "all") {
+      filtered = filtered.filter((job) =>
+        status.value === "active" ? job.isActive : !job.isActive
+      );
+    }
 
-        // State
-        if (state) {
-            filtered = filtered.filter((job) => job.location === state.value);
-        }
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (job) =>
+          job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          job.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-        // Custom Date (highest priority)
-        if (customDate.from && customDate.to) {
-            const fromDate = normalize(customDate.from);
-            const toDate = normalize(customDate.to);
+    if (department) {
+      filtered = filtered.filter((job) => job.title === department.value);
+    }
 
-            filtered = filtered.filter((job) => {
-                const jobDate = normalize(job.createdAt);
-                return jobDate >= fromDate && jobDate <= toDate;
-            });
+    if (state) {
+      filtered = filtered.filter((job) => job.location === state.value);
+    }
 
-            setFilteredJobs(filtered);
-            return;
-        }
+    if (dateFrom || dateTo) {
+      const from = dateFrom ? normalize(dateFrom) : null;
+      const to = dateTo ? normalize(dateTo) : null;
 
-        // Date Range
-        if (dateRange && dateRange.value !== "custom") {
-            let months = 0;
-            if (dateRange.value === "3m") months = 3;
-            if (dateRange.value === "6m") months = 6;
-            if (dateRange.value === "1y") months = 12;
+      filtered = filtered.filter((job) => {
+        const jd = normalize(job.createdAt);
+        if (from && to) return jd >= from && jd <= to;
+        if (from) return jd >= from;
+        if (to) return jd <= to;
+        return true;
+      });
+    }
 
-            const cutoff = new Date();
-            cutoff.setMonth(cutoff.getMonth() - months);
-            const cutoffNormalized = normalize(cutoff);
+    setFilteredJobs(filtered);
+  };
 
-            filtered = filtered.filter(
-                (job) => normalize(job.createdAt) >= cutoffNormalized
-            );
-        }
+  const resetFilters = () => {
+    setSearchTerm("");
+    setStatus({ value: "active", label: "Active" });
+    setDepartment(null);
+    setState(null);
+    setDateFrom("");
+    setDateTo("");
+    setFilteredJobs(allJobs.filter((job) => job.isActive));
+  };
 
-        setFilteredJobs(filtered);
-    };
+  return (
+    <div className="p-6">
+      <h2 className="text-2xl font-bold text-[#E4002B] mb-6">
+        Job Tracking
+      </h2>
 
-    const resetFilters = () => {
-        setSearchTerm("");
-        setStatus("active");
-        setDepartment(null);
-        setState(null);
-        setDateRange(null);
-        setCustomDate({ from: "", to: "" });
-        setFilteredJobs([]);
-    };
+      {/* FILTER CARD */}
+      <div className="bg-[#EDEDED] rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Filter Jobs
+        </h3>
 
-    const dateOptions = [
-        { label: "Last 3 Months", value: "3m" },
-        { label: "Last 6 Months", value: "6m" },
-        { label: "Last 1 Year", value: "1y" },
-        { label: "Custom", value: "custom" },
-    ];
-
-    return (
-        <div className="p-6">
-            <h2 className="text-xl font-bold text-[#E4002B] mb-4">Job Tracking</h2>
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-5">
-
-                {/* Search */}
-                <div className="flex items-center w-full md:w-1/3 bg-white border rounded-lg px-3">
-                    <FaSearch className="text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by title or description..."
-                        className="w-full px-2 py-2 outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                {/* ✅ Status */}
-                <Select
-                    value={{
-                        label:
-                            status === "active"
-                                ? "Active"
-                                : status === "inactive"
-                                    ? "Inactive"
-                                    : "All",
-                        value: status,
-                    }}
-                    onChange={(e) => setStatus(e.value)}
-                    options={[
-                        { label: "All", value: "all" },
-                        { label: "Active", value: "active" },
-                        { label: "Inactive", value: "inactive" },
-                    ]}
-                    className="w-40"
-                    isSearchable
-                />
-
-                {/* Department */}
-                <Select
-                    value={department}
-                    onChange={setDepartment}
-                    options={departments}
-                    placeholder="Department"
-                    className="w-40"
-                    isSearchable
-                />
-
-                {/* Date Range */}
-                <Select
-                    value={dateRange}
-                    onChange={setDateRange}
-                    options={dateOptions}
-                    placeholder="Date Range"
-                    className="w-40"
-                    isSearchable
-                />
-
-                {/* Custom Dates */}
-                {dateRange?.value === "custom" && (
-                    <div className="flex gap-2">
-                        <input
-                            type="date"
-                            value={customDate.from}
-                            onChange={(e) =>
-                                setCustomDate({ ...customDate, from: e.target.value })
-                            }
-                            className="border rounded p-2"
-                        />
-                        <input
-                            type="date"
-                            value={customDate.to}
-                            onChange={(e) =>
-                                setCustomDate({ ...customDate, to: e.target.value })
-                            }
-                            className="border rounded p-2"
-                        />
-                    </div>
-                )}
-
-                {/* State */}
-                <Select
-                    value={state}
-                    onChange={setState}
-                    options={states}
-                    placeholder="State"
-                    className="w-40"
-                    isSearchable
-                />
-
-                {/* ✅ Search Button */}
-                <button
-                    onClick={applyFilters}
-                    className="bg-[#E4002B] text-white px-4 py-2 rounded-md"
-                >
-                    Search
-                </button>
-
-                {/* ✅ Reset */}
-                <button
-                    onClick={resetFilters}
-                    className="text-red-600 font-semibold"
-                >
-                    Reset
-                </button>
-            </div>
-
-            {/* ✅ Results */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredJobs.map((job) => (
-                    <div
-                        key={job._id}
-                        className="border border-gray-300 bg-white rounded-lg p-4 flex flex-col justify-between"
-                    >
-                        <div>
-                            <h3 className="font-semibold text-gray-800">{job.title}</h3>
-                            <p className="text-sm text-gray-600">{job.location}</p>
-                            <p className="text-sm text-gray-500">
-                                {new Date(job.createdAt).toLocaleDateString()}
-                            </p>
-                            <p className="mt-2 text-gray-700 text-sm">
-                                {job.description}
-                            </p>
-                        </div>
-
-                        {/* ✅ VIEW DETAILS BUTTON */}
-                        <button
-                            className="mt-4 w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition"
-                            onClick={() => onViewJob(job._id)}
-                        >
-                            View Details
-                        </button>
-                    </div>
-                ))}
-            </div>
-
-            {filteredJobs.length === 0 && (
-                <p className="text-gray-200 text-center mt-10">
-                    No jobs to display. Apply filters and search.
-                </p>
-            )}
+        {/* 🔍 SEARCH BAR (NORMAL, NOT CENTERED) */}
+        <div className="mb-4">
+          <div className="flex items-center bg-white rounded-lg px-3">
+            <FaSearch className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by title or description"
+              className="w-full px-2 py-2 outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
-    );
+
+        {/* FILTER ROW */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <Select
+            value={status}
+            onChange={setStatus}
+            options={statusOptions}
+            styles={customSelectStyles}
+          />
+
+          <Select
+            value={department}
+            onChange={setDepartment}
+            options={departments}
+            styles={customSelectStyles}
+            placeholder="Department"
+            isClearable
+          />
+
+          <Select
+            value={state}
+            onChange={setState}
+            options={states}
+            styles={customSelectStyles}
+            placeholder="State"
+            isClearable
+          />
+        </div>
+
+        {/* DATE RANGE */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="border rounded-md px-3 py-2"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="border rounded-md px-3 py-2"
+          />
+        </div>
+
+        {/* BUTTONS */}
+        <div className="flex gap-4">
+          <button
+            onClick={applyFilters}
+            className="bg-[#E4002B] text-white px-6 py-2 rounded-md hover:bg-[#C3002B] transition cursor-pointer"
+          >
+            Search
+          </button>
+
+          <button
+            onClick={resetFilters}
+            className="text-red-600 font-semibold hover:underline cursor-pointer"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* RESULTS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {filteredJobs.map((job) => (
+          <div
+            key={job._id}
+            className="bg-white border border-gray-300 rounded-lg p-4 flex flex-col justify-between"
+          >
+            <div>
+              <h3 className="font-semibold text-gray-800">{job.title}</h3>
+              <p className="text-sm text-gray-600">{job.location}</p>
+              <p className="text-xs text-gray-500">
+                {new Date(job.createdAt).toLocaleDateString()}
+              </p>
+              <p className="mt-2 text-sm text-gray-700">
+                {job.description}
+              </p>
+            </div>
+
+            <button
+              onClick={() => onViewJob(job._id)}
+              className="mt-4 w-full bg-[#E4002B] text-white py-2 rounded-md hover:bg-[#C3002B] cursor-pointer"
+            >
+              View Details
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {filteredJobs.length === 0 && (
+        <p className="text-gray-500 text-center mt-10">
+          No jobs found for the selected filters.
+        </p>
+      )}
+    </div>
+  );
 };
 
 export default JobTracking;

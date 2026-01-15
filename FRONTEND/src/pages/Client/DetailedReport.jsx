@@ -203,6 +203,17 @@ const DetailedReport = () => {
         setHasSearched(true);
 
         try {
+            // ✅ Get client's campaign IDs for filtering
+            const clientCampaignIds = allCampaigns.map(c => c._id);
+
+            if (clientCampaignIds.length === 0) {
+                toast.warning("No campaigns found for your account", { theme: "dark" });
+                setDisplayReports([]);
+                setLoading(false);
+                setHasSearched(true);
+                return;
+            }
+
             // Build query params
             const params = new URLSearchParams();
             params.append("page", page);
@@ -247,6 +258,12 @@ const DetailedReport = () => {
 
             let reports = data.reports || [];
 
+            // ✅ CRITICAL: Filter reports by client's campaigns ONLY
+            reports = reports.filter((report) => {
+                const reportCampaignId = report.campaignId?._id || report.campaignId;
+                return clientCampaignIds.includes(reportCampaignId);
+            });
+
             // Client-side filter by state if selected
             if (selectedState) {
                 reports = reports.filter(
@@ -256,9 +273,9 @@ const DetailedReport = () => {
             }
 
             setDisplayReports(reports);
-            setTotalReports(data.pagination?.total || reports.length);
-            setCurrentPage(data.pagination?.page || page);
-            setTotalPages(data.pagination?.pages || 1);
+            setTotalReports(reports.length); // ✅ Use filtered count
+            setCurrentPage(1); // ✅ Reset to page 1 after filtering
+            setTotalPages(Math.ceil(reports.length / limit));
 
             if (reports.length === 0) {
                 toast.info("No reports found for the selected filters", {
@@ -266,6 +283,7 @@ const DetailedReport = () => {
                 });
             }
         } catch (err) {
+            console.error("Fetch reports error:", err);
             toast.error("Failed to load reports", { theme: "dark" });
             setDisplayReports([]);
         } finally {
@@ -347,7 +365,6 @@ const DetailedReport = () => {
     const handlePageChange = (newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setCurrentPage(newPage);
-            fetchReports(newPage);
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
@@ -399,14 +416,14 @@ const DetailedReport = () => {
                     {/* Filters Section */}
                     <div className="bg-[#EDEDED] rounded-lg shadow-md p-6 mb-6">
                         <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                            Filter Reports (All Optional)
+                            Filter Reports <span className="text-red-500">(Optional)</span>
                         </h2>
 
                         {/* First Row - Campaign Status and Campaign */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Campaign Status (Optional)
+                                    Campaign Status
                                 </label>
                                 <Select
                                     value={selectedStatus}
@@ -421,7 +438,7 @@ const DetailedReport = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Campaign (Optional)
+                                    Campaign
                                 </label>
                                 <Select
                                     value={selectedCampaign}
@@ -440,7 +457,7 @@ const DetailedReport = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Report Type (Optional)
+                                    Report Type
                                 </label>
                                 <Select
                                     value={selectedReportType}
@@ -455,7 +472,7 @@ const DetailedReport = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    State (Optional)
+                                    State
                                 </label>
                                 <Select
                                     value={selectedState}
@@ -471,7 +488,7 @@ const DetailedReport = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Retailer (Optional)
+                                    Retailer
                                 </label>
                                 <Select
                                     value={selectedRetailer}
@@ -490,25 +507,25 @@ const DetailedReport = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    From Date (Optional)
+                                    From Date
                                 </label>
                                 <input
                                     type="date"
                                     value={fromDate}
                                     onChange={(e) => setFromDate(e.target.value)}
-                                    className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+                                    className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent bg-white"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    To Date (Optional)
+                                    To Date
                                 </label>
                                 <input
                                     type="date"
                                     value={toDate}
                                     onChange={(e) => setToDate(e.target.value)}
-                                    className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+                                    className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent bg-white"
                                 />
                             </div>
                         </div>
@@ -543,12 +560,12 @@ const DetailedReport = () => {
                         <div className="bg-[#EDEDED] rounded-lg shadow-md p-6">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
                                 <h2 className="text-lg font-semibold text-gray-700">
-                                    Reports ({totalReports} found)
+                                    Reports ({displayReports.length} found)
                                 </h2>
                                 <div className="text-sm text-gray-600">
                                     Showing {(currentPage - 1) * limit + 1} to{" "}
-                                    {Math.min(currentPage * limit, totalReports)} of{" "}
-                                    {totalReports} reports
+                                    {Math.min(currentPage * limit, displayReports.length)} of{" "}
+                                    {displayReports.length} reports
                                 </div>
                             </div>
 
@@ -580,49 +597,51 @@ const DetailedReport = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {displayReports.map((report, index) => (
-                                            <tr
-                                                key={report._id}
-                                                className={`${index % 2 === 0
-                                                    ? "bg-white"
-                                                    : "bg-gray-50"
-                                                    } hover:bg-gray-100 transition`}
-                                            >
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    {(currentPage - 1) * limit + index + 1}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    <span className="font-medium">
-                                                        {report.reportType || "N/A"}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    {report.campaignId?.name || "N/A"}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    <div>
-                                                        {report.retailer?.retailerName || "N/A"}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500">
-                                                        {report.retailer?.outletCode || "N/A"}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    {report.retailer?.outletName || "N/A"}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    {formatDate(report.dateOfSubmission || report.createdAt)}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-800 border-b">
-                                                    <button
-                                                        onClick={() => handleViewDetails(report)}
-                                                        className="text-[#E4002B] hover:underline font-medium cursor-pointer"
-                                                    >
-                                                        View Details
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {displayReports
+                                            .slice((currentPage - 1) * limit, currentPage * limit)
+                                            .map((report, index) => (
+                                                <tr
+                                                    key={report._id}
+                                                    className={`${index % 2 === 0
+                                                        ? "bg-white"
+                                                        : "bg-gray-50"
+                                                        } hover:bg-gray-100 transition`}
+                                                >
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        {(currentPage - 1) * limit + index + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        <span className="font-medium">
+                                                            {report.reportType || "N/A"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        {report.campaignId?.name || "N/A"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        <div>
+                                                            {report.retailer?.retailerName || "N/A"}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {report.retailer?.outletCode || "N/A"}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        {report.retailer?.outletName || "N/A"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        {formatDate(report.dateOfSubmission || report.createdAt)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-800 border-b">
+                                                        <button
+                                                            onClick={() => handleViewDetails(report)}
+                                                            className="text-[#E4002B] hover:underline font-medium cursor-pointer"
+                                                        >
+                                                            View Details
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
                                     </tbody>
                                 </table>
                             </div>

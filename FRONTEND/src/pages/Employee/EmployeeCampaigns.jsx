@@ -117,7 +117,7 @@ const EmployeeCampaign = () => {
 
   if (loading && campaigns.length === 0) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div className="flex justify-center items-center py-12 text-gray-200">
         Loading campaigns...
       </div>
     );
@@ -136,7 +136,7 @@ const EmployeeCampaign = () => {
           {/* Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-[#E4002B] mb-2">My Campaigns</h2>
-            <p className="text-gray-600 text-sm">View and manage your assigned campaigns</p>
+            <p className="text-white text-sm">View and manage your assigned campaigns</p>
           </div>
 
           {/* Filter Tabs */}
@@ -145,9 +145,9 @@ const EmployeeCampaign = () => {
               <button
                 key={tab}
                 onClick={() => setFilter(tab)}
-                className={`px-4 py-2 font-medium text-sm transition-colors capitalize ${filter === tab
+                className={`px-4 py-2 font-medium text-sm transition-colors capitalize cursor-pointer ${filter === tab
                     ? 'border-b-2 border-[#E4002B] text-[#E4002B]'
-                    : 'text-gray-600 hover:text-gray-900'
+                    : 'text-white hover:text-gray-400'
                   }`}
               >
                 {tab}
@@ -170,7 +170,7 @@ const EmployeeCampaign = () => {
 
           {/* Campaign Count */}
           <div className="mb-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-white">
               {campaigns.length} {campaigns.length === 1 ? 'campaign' : 'campaigns'} found
             </p>
           </div>
@@ -178,7 +178,7 @@ const EmployeeCampaign = () => {
           {/* Campaign Cards */}
           {campaigns.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">
+              <p className="text-gray-200">
                 {filter === 'all'
                   ? 'No campaigns assigned.'
                   : `No ${filter} campaigns found.`}
@@ -192,7 +192,7 @@ const EmployeeCampaign = () => {
                 return (
                   <div
                     key={campaign._id}
-                    className="border border-gray-300 rounded-lg shadow-sm hover:shadow-md transition overflow-hidden"
+                    className="border border-black rounded-lg shadow-sm hover:shadow-md transition overflow-hidden bg-[#EDEDED]"
                   >
                     {/* Card Header */}
                     <div className="bg-gradient-to-r from-[#E4002B] to-[#C00026] px-6 py-4">
@@ -263,7 +263,7 @@ const EmployeeCampaign = () => {
                       {/* VIEW DETAILS - ONLY FOR ACCEPTED */}
                       {status === 'accepted' && (
                         <button
-                          className="w-full bg-[#E4002B] text-white py-2 rounded-md hover:bg-[#C00026] transition font-medium text-sm"
+                          className="w-full bg-[#E4002B] text-white py-2 rounded-md hover:bg-[#C00026] transition font-medium text-sm cursor-pointer"
                           onClick={() => setSelectedCampaign(campaign)}
                         >
                           View Details
@@ -274,7 +274,7 @@ const EmployeeCampaign = () => {
                       {status === 'pending' && (
                         <div className="flex gap-2">
                           <button
-                            className={`flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-md text-sm hover:bg-green-700 transition ${updatingCampaign === campaign._id ? 'opacity-50 cursor-not-allowed' : ''
+                            className={`flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-md text-sm hover:bg-green-700 transition cursor-pointer ${updatingCampaign === campaign._id ? 'opacity-50 cursor-not-allowed' : ''
                               }`}
                             onClick={() => updateCampaignStatus(campaign._id, "accepted")}
                             disabled={updatingCampaign === campaign._id}
@@ -289,7 +289,7 @@ const EmployeeCampaign = () => {
                           </button>
 
                           <button
-                            className={`flex-1 flex items-center justify-center gap-1 bg-red-600 text-white py-2 rounded-md text-sm hover:bg-red-700 transition ${updatingCampaign === campaign._id ? 'opacity-50 cursor-not-allowed' : ''
+                            className={`flex-1 flex items-center justify-center gap-1 bg-red-600 text-white py-2 rounded-md text-sm hover:bg-red-700 transition cursor-pointer ${updatingCampaign === campaign._id ? 'opacity-50 cursor-not-allowed' : ''
                               }`}
                             onClick={() => updateCampaignStatus(campaign._id, "rejected")}
                             disabled={updatingCampaign === campaign._id}

@@ -167,7 +167,7 @@ const CreateEmployee = () => {
           setName("")
           setEmail("")
           setPhone("")
-        }, 1500)
+        }, 1000)
       } else {
         toast.error(result.message || "Failed to notify employee", { theme: "dark" })
       }
@@ -277,7 +277,7 @@ const CreateEmployee = () => {
                 type="button"
                 onClick={handleNotifyEmployee}
                 disabled={submitting}
-                className="w-full bg-[#E4002B] hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-[#E4002B] hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md disabled:opacity-60 cursor-pointer"
               >
                 {submitting ? "Notifying..." : "Notify Employee"}
               </button>

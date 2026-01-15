@@ -1,5 +1,8 @@
 // controllers/payment.controller.js
 import mongoose from "mongoose";
+import XLSX from "xlsx";
+import { Campaign } from "../models/user.js";
+import { Retailer } from "../models/retailer.model.js";
 import { RetailerBudget } from "../models/payments.model.js";
 
 // ✅ GET ALL BUDGETS with optional filters
@@ -655,13 +658,15 @@ export const getPassbookData = async (req, res) => {
         });
     }
 };
+
+// ✅ BULK ADD CAMPAIGN TCA (Set Budget)
 export const bulkAddCampaignTCA = async (req, res) => {
     try {
         // ADMIN CHECK
         if (!req.user || req.user.role !== "admin") {
             return res.status(403).json({
                 success: false,
-                message: "Only admins can upload campaign TCA",
+                message: "Only admins can upload campaign budget",
             });
         }
 
@@ -676,160 +681,222 @@ export const bulkAddCampaignTCA = async (req, res) => {
         // READ EXCEL
         const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        const rows = XLSX.utils.sheet_to_json(sheet, {
+            raw: false,
+            defval: ""
+        });
 
         const failedRows = [];
-        let successCount = 0;
+        const successfulRows = [];
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
 
-            const {
-                sno,
-                campaignName,
-                retailerCode,
-                tca,
-                retailerName,
-                state,
-                shopName,
-                outletCode,
-            } = row;
+            // Extract fields (case-insensitive normalization)
+            const campaignName = String(row.campaignName || "").trim();
+            const outletCode = String(row.outletCode || "").trim();
+            const budget = row.Budget || row.budget; // Handle both cases
+
+            // Display-only fields (not used in backend logic)
+            const outletName = row.outletName;
+            const retailerName = row.retailerName;
+            const state = row.State || row.state;
 
             // BASIC VALIDATION
-            if (!campaignName || !retailerCode || tca == null) {
+            const missingFields = [];
+            if (!campaignName) missingFields.push("campaignName");
+            if (!outletCode) missingFields.push("outletCode");
+            if (budget == null || budget === "") missingFields.push("Budget");
+
+            if (missingFields.length > 0) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "campaignName, retailerCode and tca are required",
-                    data: row,
+                    reason: `Missing required fields: ${missingFields.join(", ")}`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        budget,
+                    },
                 });
                 continue;
             }
 
-            if (Number(tca) <= 0) {
+            // Validate budget is a positive number
+            const budgetValue = Number(budget);
+            if (isNaN(budgetValue) || budgetValue <= 0) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "TCA must be greater than 0",
-                    data: row,
+                    reason: "Budget must be a positive number greater than 0",
+                    data: {
+                        campaignName,
+                        outletCode,
+                        budget,
+                    },
                 });
                 continue;
             }
 
-            // FETCH CAMPAIGN
-            const campaign = await Campaign.findOne({ name: campaignName });
+            // FETCH CAMPAIGN (case-insensitive)
+            const campaign = await Campaign.findOne({
+                name: {
+                    $regex: `^${campaignName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                    $options: "i",
+                },
+            });
+
             if (!campaign) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: `Campaign not found: ${campaignName}`,
-                    data: row,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        budget,
+                    },
                 });
                 continue;
             }
 
-            // FETCH RETAILER
-            const retailer = await Retailer.findOne({ retailerCode });
+            // FETCH RETAILER using uniqueId (outletCode)
+            const retailer = await Retailer.findOne({
+                uniqueId: {
+                    $regex: `^${outletCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                    $options: "i",
+                },
+            });
+
             if (!retailer) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: `Retailer not found: ${retailerCode}`,
-                    data: row,
+                    reason: `Retailer not found with outlet code: ${outletCode}`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        budget,
+                    },
+                });
+                continue;
+            }
+
+            // Check if retailer is assigned to this campaign
+            const isRetailerAssigned = campaign.assignedRetailers.some(
+                (r) => r.retailerId.equals(retailer._id)
+            );
+
+            if (!isRetailerAssigned) {
+                failedRows.push({
+                    rowNumber: i + 2,
+                    reason: `Retailer ${outletCode} is not assigned to campaign '${campaign.name}'`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        budget,
+                    },
                 });
                 continue;
             }
 
             // FIND / CREATE BUDGET
-            let budget = await RetailerBudget.findOne({
+            let budgetDoc = await RetailerBudget.findOne({
                 retailerId: retailer._id,
             });
 
             const campaignExists =
-                budget &&
-                budget.campaigns.some((c) =>
+                budgetDoc &&
+                budgetDoc.campaigns.some((c) =>
                     c.campaignId.equals(campaign._id)
                 );
 
             if (campaignExists) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Campaign TCA already exists for this retailer",
-                    data: row,
+                    reason: `Budget already set for this retailer in campaign '${campaign.name}'`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        budget,
+                    },
                 });
                 continue;
             }
 
-            if (!budget) {
-                budget = new RetailerBudget({
+            if (!budgetDoc) {
+                budgetDoc = new RetailerBudget({
                     retailerId: retailer._id,
-                    retailerName,
-                    state,
-                    shopName,
-                    outletCode,
+                    retailerName: retailer.name,
+                    state: retailer.shopDetails?.shopAddress?.state,
+                    shopName: retailer.shopDetails?.shopName,
+                    outletCode: retailer.uniqueId,
                     campaigns: [],
                 });
             }
 
-            budget.campaigns.push({
+            budgetDoc.campaigns.push({
                 campaignId: campaign._id,
                 campaignName: campaign.name,
-                tca: Number(tca),
+                tca: budgetValue, // Store as TCA in backend
                 installments: [],
             });
 
-            await budget.save(); // pre-save calculates totals
-            successCount++;
+            await budgetDoc.save(); // pre-save hook calculates totals
+
+            successfulRows.push({
+                campaignName: campaign.name,
+                outletCode: retailer.uniqueId,
+                outletName: retailer.shopDetails?.shopName,
+                retailerName: retailer.name,
+                budget: budgetValue,
+            });
         }
 
         // FINAL RESPONSE
-        if (successCount === 0) {
+        const response = {
+            success: true,
+            summary: {
+                totalRows: rows.length,
+                successful: successfulRows.length,
+                failed: failedRows.length,
+                successRate: rows.length > 0
+                    ? `${((successfulRows.length / rows.length) * 100).toFixed(2)}%`
+                    : "0%",
+            },
+            successfulRows,
+            failedRows,
+        };
+
+        if (successfulRows.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "No rows were added. All rows failed validation.",
-                summary: {
-                    totalRows: rows.length,
-                    successful: 0,
-                    failed: failedRows.length,
-                },
-                failedRows,
+                message: "No budgets were set. All rows failed validation.",
+                ...response,
             });
         }
 
         if (failedRows.length > 0) {
             return res.status(207).json({
                 success: true,
-                message:
-                    "Bulk TCA upload completed with partial success",
-                summary: {
-                    totalRows: rows.length,
-                    successful: successCount,
-                    failed: failedRows.length,
-                },
-                failedRows,
+                message: `${successfulRows.length} budgets set, ${failedRows.length} rows failed`,
+                ...response,
             });
         }
 
         return res.status(201).json({
             success: true,
-            message: "Bulk TCA upload completed successfully",
-            summary: {
-                totalRows: rows.length,
-                successful: successCount,
-                failed: 0,
-            },
+            message: `All ${successfulRows.length} budgets set successfully`,
+            ...response,
         });
     } catch (error) {
-        console.error("Bulk TCA error:", error);
+        console.error("❌ Bulk budget error:", error);
         return res.status(500).json({
             success: false,
             message: "Server error",
             error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         });
     }
 };
+
+// ✅ BULK ADD PAYMENTS (Add installments)
 export const bulkAddPayments = async (req, res) => {
     try {
         /* ---------------- ADMIN CHECK ---------------- */
@@ -851,51 +918,66 @@ export const bulkAddPayments = async (req, res) => {
         /* ---------------- READ EXCEL ---------------- */
         const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        const rows = XLSX.utils.sheet_to_json(sheet, {
+            raw: false,
+            defval: ""
+        });
 
         const failedRows = [];
-        let successCount = 0;
+        const successfulRows = [];
 
         /* ---------------- PROCESS EACH ROW ---------------- */
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
 
-            const {
-                sno,
-                retailerCode,
-                campaignName,
-                installmentNo,
-                installmentAmount,
-                dateOfInstallment,
-                utrNumber,
-                remarks,
-            } = row;
+            // Extract fields from template (case-insensitive)
+            const campaignName = String(row.campaignName || "").trim();
+            const outletCode = String(row.outletCode || "").trim();
+            const amount = row.Amount || row.amount;
+            const date = String(row.Date || row.date || "").trim();
+            const utrNumber = String(row["UTR Number"] || row.utrNumber || row.UTRNumber || "").trim();
+
+            // Display-only fields (not used in backend logic)
+            const outletName = row.OutletName || row.outletName;
+            const retailerName = row.RetailerName || row.retailerName;
+            const remarks = row.Remarks || row.remarks || "";
 
             /* -------- BASIC VALIDATION -------- */
-            if (
-                !retailerCode ||
-                !campaignName ||
-                !installmentNo ||
-                !installmentAmount ||
-                !dateOfInstallment ||
-                !utrNumber
-            ) {
+            const missingFields = [];
+            if (!campaignName) missingFields.push("campaignName");
+            if (!outletCode) missingFields.push("outletCode");
+            if (amount == null || amount === "") missingFields.push("Amount");
+            if (!date) missingFields.push("Date");
+            if (!utrNumber) missingFields.push("UTR Number");
+
+            if (missingFields.length > 0) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "retailerCode, campaignName, installmentNo, installmentAmount, dateOfInstallment and utrNumber are required",
-                    data: row,
+                    reason: `Missing required fields: ${missingFields.join(", ")}`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
                 });
                 continue;
             }
 
-            if (Number(installmentAmount) <= 0) {
+            // Validate amount is a positive number
+            const installmentAmount = Number(amount);
+            if (isNaN(installmentAmount) || installmentAmount <= 0) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "installmentAmount must be greater than 0",
-                    data: row,
+                    reason: "Amount must be a positive number greater than 0",
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
                 });
                 continue;
             }
@@ -907,34 +989,61 @@ export const bulkAddPayments = async (req, res) => {
 
             if (existingUTR) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: `UTR number already exists: ${utrNumber}`,
-                    data: row,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
                 });
                 continue;
             }
 
-            /* -------- FETCH RETAILER -------- */
-            const retailer = await Retailer.findOne({ retailerCode });
-            if (!retailer) {
-                failedRows.push({
-                    sno: sno || i + 1,
-                    rowNumber: i + 2,
-                    reason: `Retailer not found: ${retailerCode}`,
-                    data: row,
-                });
-                continue;
-            }
+            /* -------- FETCH CAMPAIGN (case-insensitive) -------- */
+            const campaign = await Campaign.findOne({
+                name: {
+                    $regex: `^${campaignName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                    $options: "i",
+                },
+            });
 
-            /* -------- FETCH CAMPAIGN -------- */
-            const campaign = await Campaign.findOne({ name: campaignName });
             if (!campaign) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: `Campaign not found: ${campaignName}`,
-                    data: row,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
+                });
+                continue;
+            }
+
+            /* -------- FETCH RETAILER using uniqueId (outletCode) -------- */
+            const retailer = await Retailer.findOne({
+                uniqueId: {
+                    $regex: `^${outletCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                    $options: "i",
+                },
+            });
+
+            if (!retailer) {
+                failedRows.push({
+                    rowNumber: i + 2,
+                    reason: `Retailer not found with outlet code: ${outletCode}`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
                 });
                 continue;
             }
@@ -946,11 +1055,15 @@ export const bulkAddPayments = async (req, res) => {
 
             if (!budget) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Retailer budget not found. Add TCA before adding payments.",
-                    data: row,
+                    reason: `No budget found for retailer ${outletCode}. Please set budget first.`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
                 });
                 continue;
             }
@@ -961,73 +1074,113 @@ export const bulkAddPayments = async (req, res) => {
 
             if (campaignIndex === -1) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Campaign not found in retailer budget. Add TCA first.",
-                    data: row,
+                    reason: `Budget not set for campaign '${campaignName}'. Please set budget first.`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
                 });
                 continue;
             }
 
+            /* -------- CHECK AVAILABLE BALANCE -------- */
+            const campaignBudget = budget.campaigns[campaignIndex];
+            const currentPaid = campaignBudget.cPaid || 0;
+            const totalBudget = campaignBudget.tca || 0;
+            const availableBalance = totalBudget - currentPaid;
+
+            if (installmentAmount > availableBalance) {
+                failedRows.push({
+                    rowNumber: i + 2,
+                    reason: `Amount ₹${installmentAmount} exceeds available balance ₹${availableBalance.toFixed(2)} (Total: ₹${totalBudget}, Paid: ₹${currentPaid})`,
+                    data: {
+                        campaignName,
+                        outletCode,
+                        amount,
+                        date,
+                        utrNumber,
+                    },
+                });
+                continue;
+            }
+
+            /* -------- AUTO-CALCULATE INSTALLMENT NUMBER -------- */
+            const existingInstallments = campaignBudget.installments || [];
+            const nextInstallmentNo = existingInstallments.length + 1;
+
             /* -------- ADD INSTALLMENT -------- */
             budget.campaigns[campaignIndex].installments.push({
-                installmentNo: Number(installmentNo),
-                installmentAmount: Number(installmentAmount),
-                dateOfInstallment,
-                utrNumber,
-                remarks: remarks || "",
+                installmentNo: nextInstallmentNo,
+                installmentAmount: installmentAmount,
+                dateOfInstallment: date,
+                utrNumber: utrNumber,
+                remarks: remarks,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });
 
-            await budget.save(); // pre-save recalculates totals
-            successCount++;
+            await budget.save(); // pre-save hook recalculates totals
+
+            successfulRows.push({
+                campaignName: campaign.name,
+                outletCode: retailer.uniqueId,
+                outletName: retailer.shopDetails?.shopName,
+                installmentNo: nextInstallmentNo,
+                amount: installmentAmount,
+                date: date,
+                utrNumber: utrNumber,
+                availableBalanceBefore: availableBalance,
+                availableBalanceAfter: availableBalance - installmentAmount,
+            });
         }
 
         /* ---------------- FINAL RESPONSE ---------------- */
-        if (successCount === 0) {
+        const response = {
+            success: true,
+            summary: {
+                totalRows: rows.length,
+                successful: successfulRows.length,
+                failed: failedRows.length,
+                successRate: rows.length > 0
+                    ? `${((successfulRows.length / rows.length) * 100).toFixed(2)}%`
+                    : "0%",
+            },
+            successfulRows,
+            failedRows,
+        };
+
+        if (successfulRows.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "No payments were added. All rows failed validation.",
-                summary: {
-                    totalRows: rows.length,
-                    successful: 0,
-                    failed: failedRows.length,
-                },
-                failedRows,
+                ...response,
             });
         }
 
         if (failedRows.length > 0) {
             return res.status(207).json({
                 success: true,
-                message:
-                    "Bulk payment upload completed with partial success",
-                summary: {
-                    totalRows: rows.length,
-                    successful: successCount,
-                    failed: failedRows.length,
-                },
-                failedRows,
+                message: `${successfulRows.length} payments added, ${failedRows.length} rows failed`,
+                ...response,
             });
         }
 
         return res.status(201).json({
             success: true,
-            message: "Bulk payment upload completed successfully",
-            summary: {
-                totalRows: rows.length,
-                successful: successCount,
-                failed: 0,
-            },
+            message: `All ${successfulRows.length} payments added successfully`,
+            ...response,
         });
     } catch (error) {
-        console.error("Bulk add payments error:", error);
+        console.error("❌ Bulk add payments error:", error);
         return res.status(500).json({
             success: false,
             message: "Server error",
             error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         });
     }
 };

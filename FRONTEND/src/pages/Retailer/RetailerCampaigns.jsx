@@ -94,7 +94,7 @@ const RetailerCampaigns = () => {
 
   if (loading && campaigns.length === 0) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div className="flex justify-center items-center py-12 text-gray-200">
         Loading campaigns...
       </div>
     )
@@ -113,7 +113,7 @@ const RetailerCampaigns = () => {
           {/* Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-[#E4002B] mb-2">My Campaigns</h2>
-            <p className="text-gray-600 text-sm">View and manage your assigned campaigns</p>
+            <p className="text-gray-200 text-sm">View and manage your assigned campaigns</p>
           </div>
 
           {/* Filter Tabs */}
@@ -122,10 +122,10 @@ const RetailerCampaigns = () => {
               <button
                 key={tab}
                 onClick={() => setFilter(tab)}
-                className={`px-4 py-2 font-medium text-sm transition-colors capitalize ${
+                className={`px-4 py-2 font-medium text-sm transition-colors capitalize cursor-pointer ${
                   filter === tab
                     ? 'border-b-2 border-[#E4002B] text-[#E4002B]'
-                    : 'text-gray-600 hover:text-gray-900'
+                    : 'text-gray-200 hover:text-gray-400'
                 }`}
               >
                 {tab}
@@ -148,7 +148,7 @@ const RetailerCampaigns = () => {
 
           {/* Campaign Count */}
           <div className="mb-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-200">
               {campaigns.length} {campaigns.length === 1 ? 'campaign' : 'campaigns'} found
             </p>
           </div>
@@ -156,7 +156,7 @@ const RetailerCampaigns = () => {
           {/* Campaign Cards */}
           {campaigns.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">No campaigns assigned.</p>
+              <p className="text-gray-200">No campaigns assigned.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
@@ -166,7 +166,7 @@ const RetailerCampaigns = () => {
                 return (
                   <div
                     key={campaign._id}
-                    className="border border-gray-300 rounded-lg shadow-sm hover:shadow-md transition overflow-hidden"
+                    className="border border-black bg-[#EDEDED] rounded-lg shadow-sm hover:shadow-md transition overflow-hidden"
                   >
                     {/* Card Header */}
                     <div className="bg-gradient-to-r from-[#E4002B] to-[#C00026] px-6 py-4">
@@ -237,7 +237,7 @@ const RetailerCampaigns = () => {
                       {/* VIEW DETAILS - ONLY FOR ACCEPTED */}
                       {status === 'accepted' && (
                         <button
-                          className="w-full bg-[#E4002B] text-white py-2 rounded-md hover:bg-[#C00026] transition font-medium text-sm"
+                          className="w-full bg-[#E4002B] text-white py-2 rounded-md hover:bg-[#C00026] transition font-medium text-sm cursor-pointer"
                           onClick={() => setSelectedCampaign(campaign)}
                         >
                           View Details
@@ -248,7 +248,7 @@ const RetailerCampaigns = () => {
                       {status === 'pending' && (
                         <div className="flex gap-2">
                           <button
-                            className={`flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-md text-sm hover:bg-green-700 transition ${
+                            className={`flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-md text-sm hover:bg-green-700 transition cursor-pointer ${
                               updatingCampaign === campaign._id ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
                             onClick={() => updateCampaignStatus(campaign._id, "accepted")}
@@ -264,7 +264,7 @@ const RetailerCampaigns = () => {
                           </button>
 
                           <button
-                            className={`flex-1 flex items-center justify-center gap-1 bg-red-600 text-white py-2 rounded-md text-sm hover:bg-red-700 transition ${
+                            className={`flex-1 flex items-center justify-center gap-1 bg-red-600 text-white py-2 rounded-md text-sm hover:bg-red-700 transition cursor-pointer ${
                               updatingCampaign === campaign._id ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
                             onClick={() => updateCampaignStatus(campaign._id, "rejected")}

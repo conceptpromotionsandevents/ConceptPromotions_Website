@@ -123,7 +123,7 @@ const EditJob = ({ jobId, onBack }) => {  // ✅ receive jobId and onBack as pro
       <div className="min-h-screen bg-[#171717] pt-10 px-6 md:px-20 pb-10">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-[#E4002B] mb-6 font-medium hover:underline"
+          className="flex items-center gap-2 text-[#E4002B] mb-6 font-medium hover:underline cursor-pointer"
         >
           <FaArrowLeft /> Back to Jobs
         </button>
@@ -205,14 +205,14 @@ const EditJob = ({ jobId, onBack }) => {  // ✅ receive jobId and onBack as pro
           <div className="flex justify-end gap-4 mt-8">
             <button
               onClick={onBack}
-              className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+              className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-3 bg-[#E4002B] text-white rounded-lg hover:bg-[#c10024] transition"
+              className="px-6 py-3 bg-[#E4002B] text-white rounded-lg hover:bg-[#c10024] transition cursor-pointer"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>

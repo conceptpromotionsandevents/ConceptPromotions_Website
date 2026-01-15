@@ -16,6 +16,7 @@ import {
     getRetailerImage,
     getRetailerCampaignStatus,
     getRetailersByCampaign,
+    deleteRetailerProfilePicture,
 } from "../controllers/retailerController.js";
 import multer from "multer";
 import { protect } from "../middleware/authMiddleware.js"; // JWT middleware
@@ -42,6 +43,9 @@ router.post("/login", loginRetailer);
 // -------------------------------
 // PROTECTED ROUTES
 router.get("/retailer/me", protect, getRetailerProfile);
+
+// Delete Profile Picture
+router.delete("/retailer/profile-picture", protect, deleteRetailerProfilePicture);
 
 // Fetch only campaigns assigned to this retailer
 router.get("/campaigns", protect, getRetailerCampaigns);

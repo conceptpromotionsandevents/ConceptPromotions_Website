@@ -72,7 +72,7 @@ const UpdateJob = ({ onEditJob }) => {
         ) : jobs.length === 0 ? (
           <p className="text-gray-200">No active jobs found.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {jobs.map((job) => (
               <div
                 key={job._id}
@@ -108,7 +108,7 @@ const UpdateJob = ({ onEditJob }) => {
                 {/* Edit Button */}
                 <button
                   onClick={() => onEditJob(job._id)}
-                  className="mt-5 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#E4002B] text-white font-medium hover:bg-[#C3002B] transition"
+                  className="mt-5 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#E4002B] text-white font-medium hover:bg-[#C3002B] transition cursor-pointer"
                 >
                   <FaPen /> Edit
                 </button>

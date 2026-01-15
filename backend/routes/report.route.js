@@ -1,7 +1,7 @@
 // routes/report.routes.js
 import express from "express";
 import multer from "multer";
-import {
+import { 
     createReport,
     createReportWithGeotags,
     deleteReport,

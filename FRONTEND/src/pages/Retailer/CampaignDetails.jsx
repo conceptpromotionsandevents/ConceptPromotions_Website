@@ -83,13 +83,13 @@ const CampaignDetails = ({ campaign, onBack }) => {
   };
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md">
+    <div className="p-6 bg-[#EDEDED] rounded-lg shadow-md">
       {/* Back Button */}
       <button
         onClick={onBack}
-        className="mb-4 text-[#E4002B] font-medium hover:underline flex items-center gap-2 transition-colors"
+        className="mb-4 text-[#E4002B] font-medium hover:underline flex items-center gap-2 transition-colors cursor-pointer"
       >
-        <span>←</span> Back
+        <span>←</span> Back to Campaigns
       </button>
 
       {/* Campaign Header */}
@@ -105,7 +105,7 @@ const CampaignDetails = ({ campaign, onBack }) => {
       {/* Submit Report Button */}
       <button
         onClick={() => setActiveTab("submitReport")}
-        className="px-6 py-2.5 rounded-lg bg-[#E4002B] text-white font-medium shadow-md hover:bg-[#c60025] transition-colors mb-4"
+        className="px-6 py-2.5 rounded-lg bg-[#E4002B] text-white font-medium shadow-md hover:bg-[#c60025] transition-colors mb-4 cursor-pointer"
       >
         Submit Report
       </button>
@@ -125,7 +125,7 @@ const CampaignDetails = ({ campaign, onBack }) => {
         ].map((item) => (
           <button
             key={item.key}
-            className={`p-4 border-2 rounded-lg text-center font-medium transition-all
+            className={`p-4 border-2 rounded-lg text-center font-medium transition-all cursor-pointer
               ${activeTab === item.key
                 ? "bg-[#E4002B] text-white border-[#E4002B] shadow-lg"
                 : "bg-white text-gray-700 border-gray-300 hover:border-[#E4002B] hover:shadow-md"

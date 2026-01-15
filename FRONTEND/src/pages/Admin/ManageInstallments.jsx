@@ -3,6 +3,8 @@ import Select from "react-select";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API_URL } from "../../url/base";
+import { FaUpload, FaDownload, FaTimes, FaFileExcel } from "react-icons/fa"; // ✅ ADD THIS
+import ExcelJS from "exceljs"; // ✅ ADD THIS
 
 const customSelectStyles = {
     control: (provided, state) => ({
@@ -52,7 +54,7 @@ const ManageInstallments = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingInstallment, setEditingInstallment] = useState(null);
 
-    // Form Data - ✅ Removed installmentNo from form
+    // Form Data
     const [formData, setFormData] = useState({
         installmentAmount: "",
         dateOfInstallment: "",
@@ -60,6 +62,13 @@ const ManageInstallments = () => {
         remarks: "",
     });
 
+    // ✅ BULK UPLOAD STATES (NEW)
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkFile, setBulkFile] = useState(null);
+    const [bulkUploading, setBulkUploading] = useState(false);
+    const [bulkResult, setBulkResult] = useState(null);
+
+    // ... Keep all your existing useEffects and functions exactly as they are ...
     // ===============================
     // FETCH ALL DATA ON MOUNT
     // ===============================
@@ -275,15 +284,14 @@ const ManageInstallments = () => {
                     filteredStates = [retailerState];
                 }
 
-                if (!selectedCampaign) {
-                    const retailerCampaignIds = (
-                        retailerData.assignedCampaigns || []
-                    ).map((ac) => (typeof ac === "string" ? ac : ac._id));
+                // ✅ FIX: Always filter campaigns by retailer's assigned campaigns
+                const retailerCampaignIds = (
+                    retailerData.assignedCampaigns || []
+                ).map((ac) => (typeof ac === "string" ? ac : ac._id));
 
-                    filteredCampaigns = filteredCampaigns.filter((c) =>
-                        retailerCampaignIds.includes(c._id)
-                    );
-                }
+                filteredCampaigns = filteredCampaigns.filter((c) =>
+                    retailerCampaignIds.includes(c._id)
+                );
             }
         }
 
@@ -581,15 +589,224 @@ const ManageInstallments = () => {
         setShowEditModal(true);
     };
 
+    // ✅ NEW BULK UPLOAD FUNCTIONS (ADD AFTER handleDeleteInstallment)
+
+    const downloadBulkTemplate = () => {
+        const fileName = "Installment_Payment_Template.xlsx";
+        const publicPath =
+            "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482375/Installment_Payment_Template_gqmbmy.xlsx";
+
+        const link = document.createElement("a");
+        link.href = publicPath;
+        link.download = fileName;
+        link.click();
+
+        toast.success("Installment template downloaded", { theme: "dark" });
+    };
+
+    const handleBulkFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const fileExtension = file.name.split(".").pop().toLowerCase();
+            if (fileExtension !== "xlsx" && fileExtension !== "xls") {
+                toast.error(
+                    "Please upload only Excel files (.xlsx or .xls)",
+                    {
+                        theme: "dark",
+                    }
+                );
+                return;
+            }
+            setBulkFile(file);
+            setBulkResult(null);
+        }
+    };
+
+    const handleBulkUpload = async () => {
+        if (!bulkFile) {
+            toast.error("Please select an Excel file to upload", {
+                theme: "dark",
+            });
+            return;
+        }
+
+        setBulkUploading(true);
+        setBulkResult(null);
+
+        try {
+            const token = localStorage.getItem("token");
+            const formData = new FormData();
+            formData.append("file", bulkFile);
+
+            const response = await fetch(
+                `${API_URL}/budgets/payments/bulk`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                }
+            );
+
+            const data = await response.json();
+
+            if (response.ok || response.status === 207) {
+                setBulkResult(data);
+
+                if (data.summary?.failed === 0) {
+                    toast.success(
+                        `All ${data.summary.successful} installments added successfully!`,
+                        { theme: "dark", autoClose: 3000 }
+                    );
+
+                    // Refresh budget data if a retailer is selected
+                    if (selectedRetailer && selectedCampaign) {
+                        await fetchBudgetData();
+                    }
+                } else {
+                    toast.warning(
+                        `${data.summary.successful} successful, ${data.summary.failed} failed. Check details below.`,
+                        { theme: "dark", autoClose: 5000 }
+                    );
+                }
+            } else if (response.status === 400) {
+                setBulkResult(data);
+                toast.error(
+                    data.message ||
+                    "Upload failed - All rows failed validation",
+                    { theme: "dark" }
+                );
+            } else {
+                toast.error(data.message || "Upload failed", {
+                    theme: "dark",
+                });
+                setBulkResult(data);
+            }
+        } catch (error) {
+            console.error("Bulk upload error:", error);
+            toast.error("Network error. Please try again.", {
+                theme: "dark",
+            });
+        } finally {
+            setBulkUploading(false);
+        }
+    };
+
+    const downloadFailedInstallmentRows = async () => {
+        if (
+            !bulkResult ||
+            !bulkResult.failedRows ||
+            bulkResult.failedRows.length === 0
+        ) {
+            toast.error("No failed rows to download", { theme: "dark" });
+            return;
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Failed Rows");
+
+        worksheet.columns = [
+            { header: "Row Number", key: "rowNumber", width: 12 },
+            { header: "Reason", key: "reason", width: 60 },
+            { header: "Campaign Name", key: "campaignName", width: 30 },
+            { header: "Outlet Code", key: "outletCode", width: 20 },
+            { header: "Amount", key: "amount", width: 15 },
+            { header: "Date", key: "date", width: 15 },
+            { header: "UTR Number", key: "utrNumber", width: 20 },
+        ];
+
+        bulkResult.failedRows.forEach((row) => {
+            worksheet.addRow({
+                rowNumber: row.rowNumber || "-",
+                reason: row.reason,
+                campaignName: row.data?.campaignName || "-",
+                outletCode: row.data?.outletCode || "-",
+                amount: row.data?.amount || "-",
+                date: row.data?.date || "-",
+                utrNumber: row.data?.utrNumber || "-",
+            });
+        });
+
+        // Style the header row
+        worksheet.getRow(1).eachCell((cell) => {
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFFF0000" },
+            };
+            cell.font = {
+                color: { argb: "FFFFFFFF" },
+                bold: true,
+                size: 12,
+            };
+            cell.alignment = {
+                horizontal: "center",
+                vertical: "middle",
+            };
+        });
+
+        try {
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Failed_Installments_${new Date().toISOString().split("T")[0]
+                }.xlsx`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            toast.success("Failed rows downloaded", { theme: "dark" });
+        } catch (error) {
+            console.error("Error downloading failed rows:", error);
+            toast.error("Failed to download file", { theme: "dark" });
+        }
+    };
+
+    const closeBulkModal = () => {
+        setShowBulkModal(false);
+        setBulkFile(null);
+        setBulkResult(null);
+        const fileInput = document.getElementById("bulkInstallmentFileUpload");
+        if (fileInput) {
+            fileInput.value = "";
+        }
+    };
+
+    // Prevent background scroll when modal is open
+    useEffect(() => {
+        if (showBulkModal) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [showBulkModal]);
+
     return (
         <>
             <ToastContainer position="top-right" autoClose={3000} />
             <div className="min-h-screen bg-[#171717] p-6">
                 <div className="max-w-7xl mx-auto">
-                    <h1 className="text-3xl font-bold text-[#E4002B] mb-8">
-                        Manage Installments
-                    </h1>
+                    {/* ✅ UPDATED HEADER WITH BULK UPLOAD BUTTON */}
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="text-3xl font-bold text-[#E4002B]">
+                            Manage Installments
+                        </h1>
+                        <button
+                            onClick={() => setShowBulkModal(true)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition bg-[#E4002B] text-white hover:bg-[#c4001f]"
+                        >
+                            <FaUpload />
+                            Bulk Installment Upload
+                        </button>
+                    </div>
 
+                    {/* ... Keep ALL your existing JSX code exactly as is ... */}
+                    {/* Filters, Budget Summary, Installments Table, Add/Edit Modals */}
                     {loading ? (
                         <div className="bg-[#EDEDED] rounded-lg shadow-md p-6">
                             <p className="text-gray-600">Loading data...</p>
@@ -785,9 +1002,366 @@ const ManageInstallments = () => {
                             )}
                         </>
                     )}
+
                 </div>
             </div>
 
+            {/* ✅ BULK UPLOAD MODAL (ADD AT THE END BEFORE </>) */}
+            {showBulkModal && (
+                <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full min-h-[50vh] max-h-[90vh] overflow-y-auto">
+                        {/* Header */}
+                        <div className="sticky top-0 bg-white z-50 border-b border-gray-200 p-6 flex justify-between items-center">
+                            <h2 className="text-2xl font-bold text-red-600">
+                                Bulk Installment Upload
+                            </h2>
+                            <button
+                                onClick={closeBulkModal}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <FaTimes size={24} />
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            {/* Step 1: Download Template */}
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-3 text-gray-700">
+                                    Download Installment Template
+                                </h3>
+                                <div className="mb-3 text-sm text-gray-600">
+                                    <p className="font-medium mb-2">
+                                        Template columns:
+                                    </p>
+                                    <p>
+                                        <strong>Sno</strong>,{" "}
+                                        <strong>campaignName</strong>,{" "}
+                                        <strong>outletCode</strong>,{" "}
+                                        <strong>Amount</strong>,{" "}
+                                        <strong>Date</strong>,{" "}
+                                        <strong>UTR Number</strong>,{" "}
+                                        <strong>OutletName</strong>,{" "}
+                                        <strong>RetailerName</strong>,{" "}
+                                        <strong>Remarks</strong>
+                                        <br />
+                                        <span className="text-xs text-red-600 mt-1 block">
+                                            Backend validation: campaignName,
+                                            outletCode, Amount, Date, UTR Number
+                                            only
+                                        </span>
+                                        <span className="text-xs text-blue-600 mt-1 block">
+                                            Installment numbers are auto-generated
+                                        </span>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={downloadBulkTemplate}
+                                    className="flex items-center gap-2 bg-[#E4002B] text-white px-6 py-3 rounded-lg hover:bg-[#c4001f] transition"
+                                >
+                                    <FaDownload />
+                                    Download Installment Template
+                                </button>
+                            </div>
+
+                            {/* Step 2: Upload File */}
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-3 text-gray-700">
+                                    Upload Filled Template
+                                </h3>
+                                <label
+                                    htmlFor="bulkInstallmentFileUpload"
+                                    className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg p-8 cursor-pointer hover:border-[#E4002B] transition"
+                                >
+                                    <FaFileExcel className="text-5xl text-green-600 mb-3" />
+                                    {!bulkFile ? (
+                                        <>
+                                            <p className="text-gray-600 mb-2 text-lg">
+                                                Click to choose Excel file
+                                            </p>
+                                            <FaUpload className="text-gray-500 text-2xl" />
+                                        </>
+                                    ) : (
+                                        <p className="text-gray-700 font-medium text-lg">
+                                            {bulkFile.name}
+                                        </p>
+                                    )}
+                                    <input
+                                        id="bulkInstallmentFileUpload"
+                                        type="file"
+                                        accept=".xlsx, .xls"
+                                        onChange={handleBulkFileChange}
+                                        className="hidden"
+                                    />
+                                </label>
+
+                                {bulkFile && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setBulkFile(null);
+                                            document.getElementById(
+                                                "bulkInstallmentFileUpload"
+                                            ).value = "";
+                                        }}
+                                        className="flex items-center gap-2 text-red-500 text-sm hover:underline mt-3"
+                                    >
+                                        <FaTimes /> Remove File
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={handleBulkUpload}
+                                    disabled={bulkUploading || !bulkFile}
+                                    className={`w-full py-3 rounded-lg font-semibold transition mt-4 ${bulkUploading || !bulkFile
+                                        ? "bg-gray-400 cursor-not-allowed text-white"
+                                        : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
+                                        }`}
+                                >
+                                    {bulkUploading
+                                        ? "Uploading..."
+                                        : "Upload & Add Installments"}
+                                </button>
+                            </div>
+
+                            {/* Upload Results */}
+                            {bulkResult && (
+                                <div className="mt-6 bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                    <h3 className="text-xl font-bold mb-4 text-gray-800">
+                                        Upload Results
+                                    </h3>
+
+                                    {/* Summary */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                        <div className="bg-blue-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-gray-600">
+                                                Total Rows
+                                            </p>
+                                            <p className="text-2xl font-bold text-blue-600">
+                                                {bulkResult.summary
+                                                    ?.totalRows || 0}
+                                            </p>
+                                        </div>
+                                        <div className="bg-green-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-gray-600">
+                                                Successful
+                                            </p>
+                                            <p className="text-2xl font-bold text-green-600">
+                                                {bulkResult.summary
+                                                    ?.successful || 0}
+                                            </p>
+                                        </div>
+                                        <div className="bg-red-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-gray-600">
+                                                Failed
+                                            </p>
+                                            <p className="text-2xl font-bold text-red-600">
+                                                {bulkResult.summary?.failed ||
+                                                    0}
+                                            </p>
+                                        </div>
+                                        <div className="bg-purple-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-gray-600">
+                                                Success Rate
+                                            </p>
+                                            <p className="text-2xl font-bold text-purple-600">
+                                                {bulkResult.summary
+                                                    ?.successRate || "0%"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Successful Installments */}
+                                    {bulkResult.successfulRows &&
+                                        bulkResult.successfulRows.length >
+                                        0 && (
+                                            <div className="mb-6">
+                                                <h4 className="font-semibold text-green-700 mb-3">
+                                                    Successfully Added Installments (
+                                                    {
+                                                        bulkResult
+                                                            .successfulRows
+                                                            .length
+                                                    }
+                                                    )
+                                                </h4>
+                                                <div className="max-h-60 overflow-y-auto border border-green-200 rounded-lg">
+                                                    <table className="min-w-full divide-y divide-gray-200">
+                                                        <thead className="bg-green-50">
+                                                            <tr>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Campaign
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Outlet
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Inst. #
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Amount
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    UTR
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Balance
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="bg-white divide-y divide-gray-200">
+                                                            {bulkResult.successfulRows.map(
+                                                                (
+                                                                    item,
+                                                                    index
+                                                                ) => (
+                                                                    <tr
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="hover:bg-gray-50"
+                                                                    >
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {
+                                                                                item.campaignName
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {
+                                                                                item.outletCode
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm font-semibold text-blue-600">
+                                                                            #
+                                                                            {
+                                                                                item.installmentNo
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm font-semibold text-green-600">
+                                                                            ₹
+                                                                            {
+                                                                                item.amount
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm text-gray-600">
+                                                                            {
+                                                                                item.utrNumber
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm text-gray-600">
+                                                                            ₹
+                                                                            {
+                                                                                item.availableBalanceAfter
+                                                                            }
+                                                                        </td>
+                                                                    </tr>
+                                                                )
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    {/* Failed Rows */}
+                                    {bulkResult.failedRows &&
+                                        bulkResult.failedRows.length > 0 && (
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <h4 className="font-semibold text-red-700">
+                                                        Failed Rows (
+                                                        {
+                                                            bulkResult.failedRows
+                                                                .length
+                                                        }
+                                                        )
+                                                    </h4>
+                                                    <button
+                                                        onClick={
+                                                            downloadFailedInstallmentRows
+                                                        }
+                                                        className="flex items-center gap-2 bg-[#E4002B] text-white px-4 py-2 rounded-lg hover:bg-[#c4001f] transition text-sm"
+                                                    >
+                                                        <FaDownload />
+                                                        Download Failed Rows
+                                                    </button>
+                                                </div>
+                                                <div className="max-h-60 overflow-y-auto border border-red-200 rounded-lg">
+                                                    <table className="min-w-full divide-y divide-gray-200">
+                                                        <thead className="bg-red-50">
+                                                            <tr>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Row #
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Reason
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Campaign
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Outlet
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Amount
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="bg-white divide-y divide-gray-200">
+                                                            {bulkResult.failedRows.map(
+                                                                (row, index) => (
+                                                                    <tr
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="hover:bg-gray-50"
+                                                                    >
+                                                                        <td className="px-4 py-2 text-sm font-medium">
+                                                                            {
+                                                                                row.rowNumber
+                                                                            }
+                                                                        </td>
+                                                                        <td
+                                                                            className="px-4 py-2 text-sm text-red-600 max-w-xs"
+                                                                            title={
+                                                                                row.reason
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                row.reason
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {row
+                                                                                .data
+                                                                                ?.campaignName ||
+                                                                                "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {row
+                                                                                .data
+                                                                                ?.outletCode ||
+                                                                                "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {row
+                                                                                .data
+                                                                                ?.amount ||
+                                                                                "-"}
+                                                                        </td>
+                                                                    </tr>
+                                                                )
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* ✅ Add Installment Modal - REMOVED Installment Number Input */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

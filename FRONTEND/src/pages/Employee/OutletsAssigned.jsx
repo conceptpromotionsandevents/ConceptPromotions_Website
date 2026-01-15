@@ -153,7 +153,7 @@ const OutletsAssigned = ({ campaign }) => {
   return (
     <div className="space-y-6">
       <h3 className="text-2xl font-bold text-[#E4002B] border-b-2 border-[#E4002B] pb-2">
-        Assigned Outlets
+        Outlets Assigned
       </h3>
 
       {/* Summary */}

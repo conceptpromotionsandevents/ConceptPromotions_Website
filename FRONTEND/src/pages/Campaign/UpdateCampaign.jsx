@@ -6,6 +6,8 @@ const UpdateCampaign = ({ onEdit }) => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredCampaigns, setFilteredCampaigns] = useState([]);
 
   const fetchCampaigns = async () => {
     try {
@@ -23,6 +25,7 @@ const UpdateCampaign = ({ onEdit }) => {
 
       if (res.ok && data.campaigns) {
         setCampaigns(data.campaigns);
+        setFilteredCampaigns(data.campaigns);
       } else {
         setError(data.message || "Failed to fetch campaigns.");
       }
@@ -33,6 +36,17 @@ const UpdateCampaign = ({ onEdit }) => {
       setLoading(false);
     }
   };
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredCampaigns(campaigns);
+    } else {
+      setFilteredCampaigns(
+        campaigns.filter((c) =>
+          c.name.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+    }
+  }, [searchTerm, campaigns]);
 
   useEffect(() => {
     fetchCampaigns();
@@ -55,6 +69,16 @@ const UpdateCampaign = ({ onEdit }) => {
         Edit Campaigns
       </h1>
 
+      <div className="w-full mb-6">
+        <input
+          type="text"
+          placeholder="Search campaign by name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+        />
+      </div>
+
       {loading ? (
         <p className="text-gray-200 text-center text-lg">Loading campaigns...</p>
       ) : error ? (
@@ -63,7 +87,7 @@ const UpdateCampaign = ({ onEdit }) => {
         <p className="text-gray-500 text-center text-lg">No campaigns found.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {campaigns.map((c) => (
+          {filteredCampaigns.map((c) => (
             <div
               key={c._id}
               className="bg-[#EDEDED] shadow-md rounded-xl border border-gray-200 p-6 hover:shadow-lg transition 
@@ -96,7 +120,7 @@ const UpdateCampaign = ({ onEdit }) => {
               <button
                 onClick={() => onEdit(c._id)}
                 className="mt-5 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#E4002B] 
-                text-white font-medium hover:bg-[#C3002B] transition"
+                text-white font-medium hover:bg-[#C3002B] transition cursor-pointer"
               >
                 <FaPen /> Edit
               </button>

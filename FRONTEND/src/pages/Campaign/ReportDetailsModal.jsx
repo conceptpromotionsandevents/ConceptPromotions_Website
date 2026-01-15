@@ -722,7 +722,7 @@ const ReportDetailsModal = ({ report, onClose, onUpdate, onDelete }) => {
                                     <>
                                         <button
                                             onClick={handleDownloadPDF}
-                                            className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2"
+                                            className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 cursor-pointer"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -731,13 +731,13 @@ const ReportDetailsModal = ({ report, onClose, onUpdate, onDelete }) => {
                                         </button>
                                         <button
                                             onClick={() => setIsEditing(true)}
-                                            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition"
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition cursor-pointer"
                                         >
                                             Edit
                                         </button>
                                         <button
                                             onClick={handleDelete}
-                                            className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition"
+                                            className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition cursor-pointer"
                                         >
                                             Delete
                                         </button>
@@ -747,7 +747,7 @@ const ReportDetailsModal = ({ report, onClose, onUpdate, onDelete }) => {
                                         <button
                                             onClick={handleSave}
                                             disabled={isSaving}
-                                            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition disabled:bg-gray-400"
+                                            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition disabled:bg-gray-400 cursor-pointer"
                                         >
                                             {isSaving ? "Saving..." : "Save Changes"}
                                         </button>
@@ -757,7 +757,7 @@ const ReportDetailsModal = ({ report, onClose, onUpdate, onDelete }) => {
                                                     setIsEditing(false);
                                                 }
                                             }}
-                                            className="bg-gray-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-600 transition"
+                                            className="bg-gray-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-600 transition cursor-pointer"
                                         >
                                             Cancel
                                         </button>
@@ -765,7 +765,7 @@ const ReportDetailsModal = ({ report, onClose, onUpdate, onDelete }) => {
                                 )}
                                 <button
                                     onClick={onClose}
-                                    className="text-gray-500 hover:text-gray-700 ml-2"
+                                    className="text-gray-500 hover:text-gray-700 ml-2 cursor-pointer"
                                 >
                                     <span className="text-2xl">&times;</span>
                                 </button>

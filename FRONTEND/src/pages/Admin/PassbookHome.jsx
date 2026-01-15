@@ -4,46 +4,12 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import * as XLSX from 'xlsx-js-style';
 import { API_URL } from "../../url/base";
-
-const customSelectStyles = {
-    control: (provided, state) => ({
-        ...provided,
-        borderColor: state.isFocused ? "#E4002B" : "#d1d5db",
-        boxShadow: state.isFocused ? "0 0 0 1px #E4002B" : "none",
-        "&:hover": { borderColor: "#E4002B" },
-        minHeight: "42px",
-    }),
-    option: (provided, state) => ({
-        ...provided,
-        backgroundColor: state.isFocused ? "#FEE2E2" : "white",
-        color: "#333",
-        "&:active": { backgroundColor: "#FECACA" },
-    }),
-    multiValue: (provided) => ({
-        ...provided,
-        backgroundColor: "#FEE2E2",
-    }),
-    multiValueLabel: (provided) => ({
-        ...provided,
-        color: "#E4002B",
-    }),
-    multiValueRemove: (provided) => ({
-        ...provided,
-        color: "#E4002B",
-        ":hover": {
-            backgroundColor: "#E4002B",
-            color: "white",
-        },
-    }),
-    menu: (provided) => ({
-        ...provided,
-        zIndex: 20,
-    }),
-};
+import customSelectStyles from "../../components/common/selectStyles";
 
 const PassbookHome = () => {
     const token = localStorage.getItem("token");
     const hasFetched = useRef(false);
+    const tableRef = useRef(null);
 
     // Campaign Status Filter
     const [campaignStatus, setCampaignStatus] = useState({
@@ -70,7 +36,7 @@ const PassbookHome = () => {
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit] = useState(7);
 
     // Campaign Status Options
     const statusOptions = [
@@ -558,7 +524,7 @@ const PassbookHome = () => {
 
         // Column widths
         ws["!cols"] = [
-            { wpx: 60 },   // A: S.No
+            { wpx: 100 },   // A: S.No
             { wpx: 120 },  // B: State
             { wpx: 180 },  // C: Outlet Name
             { wpx: 120 },  // D: Outlet Code
@@ -587,9 +553,16 @@ const PassbookHome = () => {
     const handlePageChange = (newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setCurrentPage(newPage);
-            window.scrollTo({ top: 0, behavior: "smooth" });
+
+            // Wait for state update and re-render before scrolling
+            setTimeout(() => {
+                if (tableRef.current) {
+                    tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
         }
     };
+
 
     const getPageNumbers = () => {
         const pageNumbers = [];
@@ -687,7 +660,7 @@ const PassbookHome = () => {
                             {/* Filters */}
                             <div className="bg-[#EDEDED] rounded-lg shadow-md p-6 mb-6">
                                 <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                                    Filter Options
+                                    Filter Options <span className="text-red-500">(Optional)</span>
                                 </h2>
 
                                 {/* Campaign Status Filter */}
@@ -715,7 +688,7 @@ const PassbookHome = () => {
                                     {/* State Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            State (Optional)
+                                            State
                                         </label>
                                         <Select
                                             isMulti
@@ -732,7 +705,7 @@ const PassbookHome = () => {
                                     {/* Client Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Client (Optional)
+                                            Client
                                         </label>
                                         <Select
                                             isMulti
@@ -749,7 +722,7 @@ const PassbookHome = () => {
                                     {/* Campaign Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Campaign (Optional)
+                                            Campaign
                                         </label>
                                         <Select
                                             isMulti
@@ -766,7 +739,7 @@ const PassbookHome = () => {
                                     {/* Retailer Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Retailer (Optional)
+                                            Retailer
                                         </label>
                                         <Select
                                             isMulti
@@ -785,24 +758,24 @@ const PassbookHome = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Start Date (Optional)
+                                            Start Date
                                         </label>
                                         <input
                                             type="date"
                                             value={startDate}
                                             onChange={(e) => setStartDate(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent bg-white"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            End Date (Optional)
+                                            End Date
                                         </label>
                                         <input
                                             type="date"
                                             value={endDate}
                                             onChange={(e) => setEndDate(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent bg-white"
                                         />
                                     </div>
                                 </div>
@@ -834,7 +807,7 @@ const PassbookHome = () => {
 
                                 {/* Total Paid Amount Card */}
                                 <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
-                                    <p className="text-sm font-medium opacity-90">Total Paid Amount</p>
+                                    <p className="text-sm font-medium opacity-90">Total Paid</p>
                                     <h3 className="text-3xl font-bold mt-2">
                                         ₹{cardTotals.totalSpending.toLocaleString()}
                                     </h3>
@@ -842,7 +815,7 @@ const PassbookHome = () => {
 
                                 {/* Total Pending Amount Card */}
                                 <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
-                                    <p className="text-sm font-medium opacity-90">Total Pending Amount</p>
+                                    <p className="text-sm font-medium opacity-90">Total Balance</p>
                                     <h3 className="text-3xl font-bold mt-2">
                                         ₹{cardTotals.totalPending.toLocaleString()}
                                     </h3>
@@ -850,7 +823,7 @@ const PassbookHome = () => {
                             </div>
 
                             {/* Passbook Table */}
-                            <div className="bg-[#EDEDED] rounded-lg shadow-md p-6">
+                            <div ref={tableRef} className="bg-[#EDEDED] rounded-lg shadow-md p-6">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
                                     <h2 className="text-lg font-semibold text-gray-700">
                                         Passbook Records ({totalRecords})
@@ -892,7 +865,7 @@ const PassbookHome = () => {
                                                             Paid
                                                         </th>
                                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                                            Pending
+                                                            Balance
                                                         </th>
                                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                                             Last Payment Date
@@ -953,7 +926,7 @@ const PassbookHome = () => {
                                                     <button
                                                         onClick={() => handlePageChange(1)}
                                                         disabled={currentPage === 1}
-                                                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
                                                     >
                                                         First
                                                     </button>
@@ -961,7 +934,7 @@ const PassbookHome = () => {
                                                     <button
                                                         onClick={() => handlePageChange(currentPage - 1)}
                                                         disabled={currentPage === 1}
-                                                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
                                                     >
                                                         Previous
                                                     </button>
@@ -979,7 +952,7 @@ const PassbookHome = () => {
                                                                 <button
                                                                     key={pageNum}
                                                                     onClick={() => handlePageChange(pageNum)}
-                                                                    className={`px-3 py-2 rounded text-sm ${currentPage === pageNum
+                                                                    className={`px-3 py-2 rounded text-sm cursor-pointer ${currentPage === pageNum
                                                                         ? "bg-[#E4002B] text-white"
                                                                         : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                                                                         }`}
@@ -993,7 +966,7 @@ const PassbookHome = () => {
                                                     <button
                                                         onClick={() => handlePageChange(currentPage + 1)}
                                                         disabled={currentPage === totalPages}
-                                                        className="px-3 py-2 bg-[#E4002B] text-white rounded hover:bg-[#C3002B] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                                        className="px-3 py-2 bg-[#E4002B] text-white rounded hover:bg-[#C3002B] disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
                                                     >
                                                         Next
                                                     </button>
@@ -1001,7 +974,7 @@ const PassbookHome = () => {
                                                     <button
                                                         onClick={() => handlePageChange(totalPages)}
                                                         disabled={currentPage === totalPages}
-                                                        className="px-3 py-2 bg-[#E4002B] text-white rounded hover:bg-[#C3002B] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                                        className="px-3 py-2 bg-[#E4002B] text-white rounded hover:bg-[#C3002B] disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
                                                     >
                                                         Last
                                                     </button>

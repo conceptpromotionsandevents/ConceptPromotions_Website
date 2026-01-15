@@ -39,7 +39,6 @@ const Dashboard = () => {
     const [selectedComponent, setSelectedComponent] = useState("welcome");
     const [selectedJobId, setSelectedJobId] = useState(null);
     const [selectedCampaignId, setSelectedCampaignId] = useState(null);
-    const [selectedPaymentId, setSelectedPaymentId] = useState(null);
 
     // Scroll to top whenever selectedComponent changes
     useEffect(() => {
@@ -268,7 +267,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("create")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaPlus className="text-[#E4002B]" />
@@ -327,7 +326,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("job")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaBriefcase className="text-[#E4002B]" />
@@ -359,7 +358,7 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("updateJob")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "updateJob"
+                                        className={`hover:text-[#E4002B] cursor-pointer ${["updateJob", "editJob"].includes(selectedComponent)
                                             ? "text-[#E4002B] font-semibold"
                                             : ""
                                             }`}
@@ -368,10 +367,8 @@ const Dashboard = () => {
                                     </li>
 
                                     <li
-                                        onClick={() =>
-                                            setSelectedComponent("jobTracking")
-                                        }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "jobTracking"
+                                        onClick={() => setSelectedComponent("jobTracking")}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${["jobTracking", "jobDetails"].includes(selectedComponent)
                                             ? "text-[#E4002B] font-semibold"
                                             : ""
                                             }`}
@@ -386,7 +383,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("campaignManagement")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaBullseye className="text-[#E4002B]" />
@@ -436,7 +433,7 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("editCampaign")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "editCampaign"
+                                        className={`hover:text-[#E4002B] cursor-pointer ${["editCampaign", "editCampaignDetails"].includes(selectedComponent)
                                             ? "text-[#E4002B] font-semibold"
                                             : ""
                                             }`}
@@ -450,8 +447,10 @@ const Dashboard = () => {
                                                 "activateDeactivateCampaign"
                                             )
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent ===
-                                            "activateDeactivateCampaign"
+                                        className={`hover:text-[#E4002B] cursor-pointer ${[
+                                            "activateDeactivateCampaign",
+                                            "activateDeactivateCampaignDetails",
+                                        ].includes(selectedComponent)
                                             ? "text-[#E4002B] font-semibold"
                                             : ""
                                             }`}
@@ -506,7 +505,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("passbook")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaWallet className="text-[#E4002B]" />

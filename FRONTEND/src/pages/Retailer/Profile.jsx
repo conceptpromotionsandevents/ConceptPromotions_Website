@@ -21,6 +21,8 @@ import {
   FaCode,
 } from "react-icons/fa";
 import { IoClose, IoChevronDown } from "react-icons/io5";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const SearchableSelect = ({ label, placeholder, options, value, onChange, leftIcon, disabled }) => {
   const [open, setOpen] = useState(false);
@@ -518,10 +520,20 @@ const RetailerProfile = () => {
         isUpdatingFromBackend.current = false;
       }, 100);
 
-      alert("Profile updated successfully");
+      toast.success("Profile updated successfully!", {
+        theme: "dark",
+        position: "top-right",
+        autoClose: 3000
+      });
+
     } catch (err) {
       isUpdatingFromBackend.current = false;
       setError(err.message || "Error updating profile");
+      toast.error(err.message || "Failed to update profile", {
+        theme: "dark",
+        position: "top-right",
+        autoClose: 3000
+      });
     } finally {
       setSubmitting(false);
     }
@@ -537,8 +549,9 @@ const RetailerProfile = () => {
 
   return (
     <>
-      <div className="flex justify-center items-center w-full">
-        <div className="w-full max-w-3xl bg-white shadow-md rounded-xl p-8">
+      <ToastContainer />
+      <div className="flex justify-center items-center w-full bg-[#171717]">
+        <div className="w-full max-w-3xl shadow-md rounded-xl p-8 bg-[#EDEDED]">
           <h1 className="text-2xl font-bold text-[#E4002B] text-center pb-8">
             Complete Your Profile
           </h1>
@@ -547,7 +560,7 @@ const RetailerProfile = () => {
             <p className="mb-4 text-sm text-red-600 text-center">{error}</p>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 ">
             {/* Personal Details */}
             <section className="space-y-4">
               <h3 className="text-lg font-medium text-[#E4002B]">
@@ -740,8 +753,8 @@ const RetailerProfile = () => {
                       }}
                       placeholder="29ABCDE1234F1Z5"
                       className={`w-full pl-10 px-4 py-2 border rounded-lg outline-none focus:ring-2 ${gstError
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:ring-[#E4002B]"
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-300 focus:ring-[#E4002B]"
                         }`}
                     />
                   </div>
@@ -911,8 +924,8 @@ const RetailerProfile = () => {
                     placeholder="HDFC0001234"
                     maxLength={11}
                     className={`w-full pl-10 pr-4 py-2 border rounded-lg outline-none focus:ring-2 ${ifscError
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-[#E4002B]"
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-[#E4002B]"
                       }`}
                     required
                   />
@@ -1046,10 +1059,79 @@ const RetailerProfile = () => {
             <button
               type="submit"
               disabled={submitting || gstError || ifscError}
-              className="w-full py-3 bg-[#E4002B] text-white rounded-lg font-medium hover:bg-[#c4001f] disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+              className="w-full py-3 bg-[#E4002B] text-white rounded-lg font-medium hover:bg-[#c4001f] disabled:bg-gray-400 disabled:cursor-not-allowed transition cursor-pointer"
             >
               {submitting ? "Updating..." : "Update Profile"}
             </button>
+
+            {/* ✅ ADD THIS SECTION HERE */}
+            {/* KYC Status Section */}
+            <div className="mt-8 p-6 bg-gray-50 border-2 border-gray-200 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">KYC Verification Status</h3>
+
+              {/* KYC Status Badge */}
+              <div className="mb-4">
+                {(
+                  panCard &&
+                  govtIdType &&
+                  govtIdNumber &&
+                  (govtIdPhoto || existingGovtIdPhoto) &&
+                  bankName &&
+                  accountNumber &&
+                  ifsc &&
+                  branchName &&
+                  pennyCheck
+                ) ? (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-500 rounded-lg px-4 py-3">
+                    <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-green-700 font-medium">Your KYC is Verified</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-500 rounded-lg px-4 py-3">
+                    <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-red-700 font-medium">KYC Not Verified - Complete Required Fields</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Required Fields List */}
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Required Fields for KYC:</p>
+                <ul className="space-y-1 text-sm">
+                  <li className={`flex items-center gap-2 ${panCard ? 'text-green-600' : 'text-red-600'}`}>
+                    {panCard ? '✓' : '✗'} PAN Card Number
+                  </li>
+                  <li className={`flex items-center gap-2 ${govtIdType ? 'text-green-600' : 'text-red-600'}`}>
+                    {govtIdType ? '✓' : '✗'} Government ID Type
+                  </li>
+                  <li className={`flex items-center gap-2 ${govtIdNumber ? 'text-green-600' : 'text-red-600'}`}>
+                    {govtIdNumber ? '✓' : '✗'} Government ID Number
+                  </li>
+                  <li className={`flex items-center gap-2 ${(govtIdPhoto || existingGovtIdPhoto) ? 'text-green-600' : 'text-red-600'}`}>
+                    {(govtIdPhoto || existingGovtIdPhoto) ? '✓' : '✗'} Government ID Photo
+                  </li>
+                  <li className={`flex items-center gap-2 ${bankName ? 'text-green-600' : 'text-red-600'}`}>
+                    {bankName ? '✓' : '✗'} Bank Name
+                  </li>
+                  <li className={`flex items-center gap-2 ${accountNumber ? 'text-green-600' : 'text-red-600'}`}>
+                    {accountNumber ? '✓' : '✗'} Account Number
+                  </li>
+                  <li className={`flex items-center gap-2 ${ifsc ? 'text-green-600' : 'text-red-600'}`}>
+                    {ifsc ? '✓' : '✗'} IFSC Code
+                  </li>
+                  <li className={`flex items-center gap-2 ${branchName ? 'text-green-600' : 'text-red-600'}`}>
+                    {branchName ? '✓' : '✗'} Branch Name
+                  </li>
+                  <li className={`flex items-center gap-2 ${pennyCheck ? 'text-green-600' : 'text-red-600'}`}>
+                    {pennyCheck ? '✓' : '✗'} Penny Transfer Verification
+                  </li>
+                </ul>
+              </div>
+            </div>
           </form>
 
 

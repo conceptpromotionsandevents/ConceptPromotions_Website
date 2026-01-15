@@ -93,7 +93,7 @@ const ClientSignIn = () => {
                 <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="email"
-                  placeholder="Example@gmail.com"
+                  placeholder="example@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-[#222] text-white border border-gray-600 rounded-lg 
@@ -136,7 +136,7 @@ const ClientSignIn = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60"
+              className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60 cursor-pointer"
             >
               {loading ? "Logging in..." : "Login"}
             </button>

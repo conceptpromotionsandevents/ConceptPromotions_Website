@@ -47,18 +47,17 @@ const customSelectStyles = {
 };
 
 const ClientHome = () => {
-
   // Filters
   const [campaignStatus, setCampaignStatus] = useState({ value: "active", label: "Active" });
   const [selectedCampaigns, setSelectedCampaigns] = useState([]);
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedRetailers, setSelectedRetailers] = useState([]);
   const [selectedPayments, setSelectedPayments] = useState([]);
+  const [selectedAcceptanceStatus, setSelectedAcceptanceStatus] = useState([]);
 
   // Data
   const [allCampaigns, setAllCampaigns] = useState([]);
   const [budgets, setBudgets] = useState([]);
-  const [reports, setReports] = useState([]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,6 +78,13 @@ const ClientHome = () => {
     { value: "Pending", label: "Pending" },
     { value: "Partially Paid", label: "Partially Paid" },
     { value: "Completed", label: "Completed" },
+  ];
+
+  // Acceptance Status Options
+  const acceptanceOptions = [
+    { value: "accepted", label: "Accepted" },
+    { value: "pending", label: "Pending" },
+    { value: "rejected", label: "Rejected" },
   ];
 
   // ===============================
@@ -107,13 +113,6 @@ const ClientHome = () => {
       const budgetsData = await budgetsRes.json();
       setBudgets(budgetsData.budgets || []);
 
-      // Fetch all reports
-      const reportsRes = await fetch(`${API_URL}/reports/client-reports`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const reportsData = await reportsRes.json();
-      setReports(reportsData.reports || []);
-
     } catch (err) {
       console.error("Error fetching data:", err);
       toast.error("Failed to load data", { theme: "dark", toastId: "data-error" });
@@ -141,7 +140,7 @@ const ClientHome = () => {
   }, [filteredCampaigns]);
 
   // ===============================
-  // BUILD OUTLETS TABLE DATA FROM CAMPAIGNS (WITH CAMPAIGN-SPECIFIC PAYMENT STATUS)
+  // BUILD OUTLETS TABLE DATA FROM CAMPAIGNS
   // ===============================
   const outletsData = useMemo(() => {
     const outletsArray = [];
@@ -158,7 +157,10 @@ const ClientHome = () => {
         const city = retailer.shopDetails?.shopAddress?.city || "N/A";
         const state = retailer.shopDetails?.shopAddress?.state || "N/A";
 
-        // ✅ Find payment info with null safety
+        // Get acceptance status from assignment
+        const acceptanceStatus = retailerAssignment.status || "pending";
+
+        // Find payment info with null safety
         const budget = budgets.find((b) => {
           if (!b.retailerId) return false;
           const budgetRetailerId = b.retailerId._id || b.retailerId;
@@ -171,7 +173,6 @@ const ClientHome = () => {
         let cPending = 0;
 
         if (budget) {
-          // ✅ Fixed: Add null check for c.campaignId
           const campaignBudget = budget.campaigns.find((c) => {
             if (!c.campaignId) return false;
             const budgetCampaignId = c.campaignId._id || c.campaignId;
@@ -193,14 +194,6 @@ const ClientHome = () => {
           }
         }
 
-        // ✅ Check if retailer has reported with null safety
-        const hasReported = reports.some((report) => {
-          if (!report.retailer?.retailerId || !report.campaignId) return false;
-          const reportRetailerId = report.retailer.retailerId._id || report.retailer.retailerId;
-          const reportCampaignId = report.campaignId._id || report.campaignId;
-          return reportRetailerId === retailerId && reportCampaignId === campaign._id;
-        });
-
         outletsArray.push({
           retailerId,
           campaignId: campaign._id,
@@ -209,8 +202,8 @@ const ClientHome = () => {
           city,
           state,
           campaignName: campaign.name,
+          acceptanceStatus,
           paymentStatus: campaignPaymentStatus,
-          hasReported,
           tca,
           cPaid,
           cPending,
@@ -241,8 +234,13 @@ const ClientHome = () => {
       data = data.filter((outlet) => selectedPaymentValues.includes(outlet.paymentStatus));
     }
 
+    if (selectedAcceptanceStatus.length > 0) {
+      const selectedAcceptanceValues = selectedAcceptanceStatus.map((a) => a.value);
+      data = data.filter((outlet) => selectedAcceptanceValues.includes(outlet.acceptanceStatus));
+    }
+
     return data;
-  }, [filteredCampaigns, budgets, reports, selectedCampaigns, selectedStates, selectedRetailers, selectedPayments]);
+  }, [filteredCampaigns, budgets, selectedCampaigns, selectedStates, selectedRetailers, selectedPayments, selectedAcceptanceStatus]);
 
   // ===============================
   // EXTRACT UNIQUE STATES FROM CAMPAIGNS
@@ -292,19 +290,27 @@ const ClientHome = () => {
   }, [filteredCampaigns]);
 
   // ===============================
-  // CALCULATE STATISTICS (CAMPAIGN-BASED)
+  // CALCULATE STATISTICS
   // ===============================
   const statistics = useMemo(() => {
-    const outletsEnrolled = outletsData.length;
-    const outletsActivated = outletsData.filter((o) => o.tca > 0).length;
-    const outletsReported = outletsData.filter((o) => o.hasReported).length;
-    const outletsPaid = outletsData.filter((o) => o.paymentStatus === "Completed").length;
+    // Card 1: Unique Outlets Enrolled (no duplicates across campaigns)
+    const uniqueOutlets = new Set(outletsData.map((o) => o.retailerId));
+    const uniqueOutletsCount = uniqueOutlets.size;
+
+    // Card 2: Campaign-wise Enrollments (1 outlet + 1 campaign = 1 count)
+    const campaignWiseEnrollments = outletsData.length;
+
+    // Card 3: Campaign-wise Outlets Activated (accepted status)
+    const campaignWiseActivated = outletsData.filter((o) => o.acceptanceStatus === "accepted").length;
+
+    // Card 4: Outlets with Completed Payments
+    const outletsFullyPaid = outletsData.filter((o) => o.paymentStatus === "Completed").length;
 
     return {
-      outletsEnrolled,
-      outletsActivated,
-      outletsReported,
-      outletsPaid,
+      uniqueOutletsCount,
+      campaignWiseEnrollments,
+      campaignWiseActivated,
+      outletsFullyPaid,
     };
   }, [outletsData]);
 
@@ -334,6 +340,7 @@ const ClientHome = () => {
     setSelectedStates([]);
     setSelectedRetailers([]);
     setSelectedPayments([]);
+    setSelectedAcceptanceStatus([]);
     setCurrentPage(1);
   };
 
@@ -382,6 +389,33 @@ const ClientHome = () => {
           backgroundColor: "rgba(59, 130, 246, 0.6)",
           borderColor: "rgba(59, 130, 246, 1)",
           borderWidth: 1,
+        },
+      ],
+    };
+  }, [outletsData]);
+
+  const acceptanceChartData = useMemo(() => {
+    const accepted = outletsData.filter((o) => o.acceptanceStatus === "accepted").length;
+    const pending = outletsData.filter((o) => o.acceptanceStatus === "pending").length;
+    const rejected = outletsData.filter((o) => o.acceptanceStatus === "rejected").length;
+
+    return {
+      labels: ["Accepted", "Pending", "Rejected"],
+      datasets: [
+        {
+          label: "Outlets",
+          data: [accepted, pending, rejected],
+          backgroundColor: [
+            "rgba(34, 197, 94, 0.8)",
+            "rgba(156, 163, 175, 0.8)",
+            "rgba(239, 68, 68, 0.8)",
+          ],
+          borderColor: [
+            "rgba(34, 197, 94, 1)",
+            "rgba(156, 163, 175, 1)",
+            "rgba(239, 68, 68, 1)",
+          ],
+          borderWidth: 2,
         },
       ],
     };
@@ -487,31 +521,55 @@ const ClientHome = () => {
             </div>
           </div>
 
-          {/* Row 3: Payment Status (Multi) */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1.5 text-gray-700">
-              Payment Status (Optional)
-            </label>
-            <Select
-              styles={customSelectStyles}
-              options={paymentOptions}
-              value={selectedPayments}
-              onChange={(selected) => {
-                setSelectedPayments(selected || []);
-                setCurrentPage(1);
-              }}
-              isSearchable
-              isMulti
-              isClearable
-              placeholder="Select payment status"
-            />
+          {/* Row 3: Payment Status (Multi) & Acceptance Status (Multi) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Payment Status */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                Payment Status (Optional)
+              </label>
+              <Select
+                styles={customSelectStyles}
+                options={paymentOptions}
+                value={selectedPayments}
+                onChange={(selected) => {
+                  setSelectedPayments(selected || []);
+                  setCurrentPage(1);
+                }}
+                isSearchable
+                isMulti
+                isClearable
+                placeholder="Select payment status"
+              />
+            </div>
+
+            {/* Acceptance Status Filter */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                Acceptance Status (Optional)
+              </label>
+              <Select
+                styles={customSelectStyles}
+                options={acceptanceOptions}
+                value={selectedAcceptanceStatus}
+                onChange={(selected) => {
+                  setSelectedAcceptanceStatus(selected || []);
+                  setCurrentPage(1);
+                }}
+                isSearchable
+                isMulti
+                isClearable
+                placeholder="Select acceptance status"
+              />
+            </div>
           </div>
 
           {/* Clear Filters Button */}
           {(selectedCampaigns.length > 0 ||
             selectedStates.length > 0 ||
             selectedRetailers.length > 0 ||
-            selectedPayments.length > 0) && (
+            selectedPayments.length > 0 ||
+            selectedAcceptanceStatus.length > 0) && (
               <button
                 onClick={handleClearFilters}
                 className="text-sm text-red-600 underline hover:text-red-800"
@@ -523,25 +581,44 @@ const ClientHome = () => {
 
         {/* STATISTICS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow">
-            <FaStore className="text-[#E4002B] text-3xl mx-auto mb-2" />
-            <h3 className="text-lg font-semibold">Outlets Enrolled</h3>
-            <p className="text-3xl font-bold">{statistics.outletsEnrolled}</p>
+          {/* Card 1: Unique Outlets */}
+          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow flex flex-col justify-between h-full">
+            <div>
+              <FaStore className="text-[#E4002B] text-3xl mx-auto mb-3" />
+              <h3 className="text-base font-semibold mb-2">Total Outlets</h3>
+              <p className="text-3xl font-bold mb-2">{statistics.uniqueOutletsCount}</p>
+            </div>
+            <p className="text-xs text-gray-500">Unique outlets enrolled</p>
           </div>
-          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow">
-            <FaCheckCircle className="text-[#E4002B] text-3xl mx-auto mb-2" />
-            <h3 className="text-lg font-semibold">Outlets Activated</h3>
-            <p className="text-3xl font-bold">{statistics.outletsActivated}</p>
+
+          {/* Card 2: Campaign-wise Enrollments */}
+          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow flex flex-col justify-between h-full">
+            <div>
+              <FaClipboardList className="text-[#E4002B] text-3xl mx-auto mb-3" />
+              <h3 className="text-base font-semibold mb-2">Campaign Enrollments</h3>
+              <p className="text-3xl font-bold mb-2">{statistics.campaignWiseEnrollments}</p>
+            </div>
+            <p className="text-xs text-gray-500">Outlet-campaign combinations</p>
           </div>
-          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow">
-            <FaClipboardList className="text-[#E4002B] text-3xl mx-auto mb-2" />
-            <h3 className="text-lg font-semibold">Outlets Reported</h3>
-            <p className="text-3xl font-bold">{statistics.outletsReported}</p>
+
+          {/* Card 3: Campaign-wise Activated */}
+          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow flex flex-col justify-between h-full">
+            <div>
+              <FaCheckCircle className="text-[#E4002B] text-3xl mx-auto mb-3" />
+              <h3 className="text-base font-semibold mb-2">Active Enrollments</h3>
+              <p className="text-3xl font-bold mb-2">{statistics.campaignWiseActivated}</p>
+            </div>
+            <p className="text-xs text-gray-500">Accepted by outlets</p>
           </div>
-          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow">
-            <FaMoneyBillWave className="text-[#E4002B] text-3xl mx-auto mb-2" />
-            <h3 className="text-lg font-semibold">Outlets Paid</h3>
-            <p className="text-3xl font-bold">{statistics.outletsPaid}</p>
+
+          {/* Card 4: Fully Paid Outlets */}
+          <div className="bg-[#EDEDED] p-6 rounded-xl shadow-md text-center hover:shadow-lg transition-shadow flex flex-col justify-between h-full">
+            <div>
+              <FaMoneyBillWave className="text-[#E4002B] text-3xl mx-auto mb-3" />
+              <h3 className="text-base font-semibold mb-2">Completed Payments</h3>
+              <p className="text-3xl font-bold mb-2">{statistics.outletsFullyPaid}</p>
+            </div>
+            <p className="text-xs text-gray-500">Fully paid enrollments</p>
           </div>
         </div>
 
@@ -574,7 +651,7 @@ const ClientHome = () => {
                         Campaign
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                        City
+                        Status
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                         State
@@ -604,15 +681,26 @@ const ClientHome = () => {
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {outlet.campaignName}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{outlet.city}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${outlet.acceptanceStatus === "accepted"
+                                ? "bg-green-100 text-green-800"
+                                : outlet.acceptanceStatus === "rejected"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                          >
+                            {outlet.acceptanceStatus.charAt(0).toUpperCase() + outlet.acceptanceStatus.slice(1)}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-700">{outlet.state}</td>
                         <td className="px-4 py-3 text-sm">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${outlet.paymentStatus === "Completed"
-                              ? "bg-green-100 text-green-800"
-                              : outlet.paymentStatus === "Partially Paid"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-green-100 text-green-800"
+                                : outlet.paymentStatus === "Partially Paid"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
                               }`}
                           >
                             {outlet.paymentStatus}
@@ -661,11 +749,39 @@ const ClientHome = () => {
         </div>
 
         {/* CHARTS */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Payment Status Chart */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4">Payment Status Distribution</h3>
-            <Pie data={paymentChartData} options={{ responsive: true, maintainAspectRatio: true }} />
+            <Pie
+              data={paymentChartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                  },
+                },
+              }}
+            />
+          </div>
+
+          {/* Acceptance Status Chart */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Campaign Acceptance Status</h3>
+            <Pie
+              data={acceptanceChartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                  },
+                },
+              }}
+            />
           </div>
 
           {/* State-wise Distribution */}

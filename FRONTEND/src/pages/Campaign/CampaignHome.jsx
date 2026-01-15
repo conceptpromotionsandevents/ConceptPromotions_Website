@@ -8,6 +8,8 @@ import { API_URL } from "../../url/base";
 const CampaignHome = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredCampaigns, setFilteredCampaigns] = useState([]);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,6 +23,16 @@ const CampaignHome = () => {
   const [allRetailers, setAllRetailers] = useState([]);
   const [employeeRetailerMapping, setEmployeeRetailerMapping] = useState([]);
 
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredCampaigns(campaigns);
+    } else {
+      const filtered = campaigns.filter((c) =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredCampaigns(filtered);
+    }
+  }, [searchTerm, campaigns]);
 
   const fetchCampaigns = async () => {
     try {
@@ -42,6 +54,7 @@ const CampaignHome = () => {
 
       const activeCampaigns = (data.campaigns || []).filter(c => c.isActive === true);
       setCampaigns(activeCampaigns);
+      setFilteredCampaigns(activeCampaigns);
     } catch (error) {
       console.error(error);
       toast.error("Server error", { theme: "dark" });
@@ -581,7 +594,7 @@ const CampaignHome = () => {
             <button
               onClick={handleDownloadEmployeeMaster}
               disabled={loading || campaigns.length === 0}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${loading || campaigns.length === 0
+              className={`px-4 py-2 rounded-lg font-semibold transition cursor-pointer ${loading || campaigns.length === 0
                 ? "bg-gray-400 cursor-not-allowed text-white"
                 : "bg-green-600 hover:bg-green-700 text-white"
                 }`}
@@ -592,7 +605,7 @@ const CampaignHome = () => {
             <button
               onClick={handleDownloadRetailerMaster}
               disabled={loading || campaigns.length === 0}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${loading || campaigns.length === 0
+              className={`px-4 py-2 rounded-lg font-semibold transition cursor-pointer ${loading || campaigns.length === 0
                 ? "bg-gray-400 cursor-not-allowed text-white"
                 : "bg-blue-600 hover:bg-blue-700 text-white"
                 }`}
@@ -600,6 +613,17 @@ const CampaignHome = () => {
               Download Retailer Master
             </button>
           </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="w-full mb-6">
+          <input
+            type="text"
+            placeholder="Search campaign by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 bg-white py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+          />
         </div>
 
         {/* Loading */}
@@ -610,10 +634,11 @@ const CampaignHome = () => {
           <p className="text-center text-gray-500 text-lg">No campaigns found.</p>
         )}
 
+
         {/* Card Layout */}
         {!loading && campaigns.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {campaigns.map((c) => (
+            {filteredCampaigns.map((c) => (
               <div
                 key={c._id}
                 className="bg-[#EDEDED] shadow-md rounded-xl border border-gray-200 p-6 hover:shadow-lg transition h-full flex flex-col justify-between"
@@ -658,7 +683,7 @@ const CampaignHome = () => {
 
                   <button
                     onClick={() => handleViewCampaign(c)}
-                    className="bg-[#E4002B] text-white px-4 py-1 rounded-md text-sm hover:bg-[#C3002B]"
+                    className="bg-[#E4002B] text-white px-4 py-1 rounded-md text-sm hover:bg-[#C3002B] cursor-pointer transition"
                   >
                     View
                   </button>
@@ -680,7 +705,7 @@ const CampaignHome = () => {
               </h2>
               <button
                 onClick={handleCloseModal}
-                className="text-white hover:text-gray-200 text-3xl font-bold"
+                className="text-white hover:text-gray-200 text-3xl font-bold cursor-pointer transition"
               >
                 &times;
               </button>
@@ -786,7 +811,7 @@ const CampaignHome = () => {
             <div className="bg-gray-50 p-4 flex justify-end border-t">
               <button
                 onClick={handleCloseModal}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition cursor-pointer"
               >
                 Close
               </button>

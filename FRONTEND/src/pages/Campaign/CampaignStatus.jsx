@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import { API_URL } from "../../url/base";
+import customSelectStyles from "../../components/common/selectStyles";
 
 const CampaignStatus = ({ onViewCampaign }) => {
   const [allCampaigns, setAllCampaigns] = useState([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [status, setStatus] = useState("active");
 
@@ -47,17 +49,49 @@ const CampaignStatus = ({ onViewCampaign }) => {
 
   const applyFilters = () => {
     let filtered = [...allCampaigns];
+
+    // status filter
     if (status !== "all") {
       filtered = filtered.filter((c) =>
         status === "active" ? c.isActive === true : c.isActive === false
       );
     }
+
+    // search filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter((c) =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
     setFilteredCampaigns(filtered);
   };
 
+  useEffect(() => {
+    let filtered = [...allCampaigns];
+
+    // status filter
+    if (status !== "all") {
+      filtered = filtered.filter((c) =>
+        status === "active" ? c.isActive === true : c.isActive === false
+      );
+    }
+
+    // search filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter((c) =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredCampaigns(filtered);
+  }, [searchTerm, status, allCampaigns]);
+
+
   const resetFilters = () => {
     setStatus("active");
-    setFilteredCampaigns([]);
+    setSearchTerm("");
+    setFilteredCampaigns(allCampaigns.filter(c => c.isActive === true));
   };
 
   return (
@@ -65,6 +99,16 @@ const CampaignStatus = ({ onViewCampaign }) => {
       <h2 className="text-2xl font-bold text-[#E4002B] mb-6 text-center">
         Campaign Status
       </h2>
+
+      <div className="w-full mb-6">
+        <input
+          type="text"
+          placeholder="Search campaign by name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E4002B] focus:border-transparent"
+        />
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
@@ -84,20 +128,21 @@ const CampaignStatus = ({ onViewCampaign }) => {
             { label: "Deactivated", value: "inactive" },
             { label: "All", value: "all" },
           ]}
+          styles={customSelectStyles}
           className="w-48"
           isSearchable
         />
 
         <button
           onClick={applyFilters}
-          className="bg-[#E4002B] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#C3002B] transition"
+          className="bg-[#E4002B] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#C3002B] transition cursor-pointer"
         >
           Search
         </button>
 
         <button
           onClick={resetFilters}
-          className="text-red-600 font-semibold hover:underline"
+          className="text-red-600 font-semibold hover:underline cursor-pointer"
         >
           Reset
         </button>
@@ -124,7 +169,7 @@ const CampaignStatus = ({ onViewCampaign }) => {
             </div>
 
             <button
-              className="mt-5 bg-[#E4002B] text-white w-full py-2 rounded-lg hover:bg-[#C3002B] transition"
+              className="mt-5 bg-[#E4002B] text-white w-full py-2 rounded-lg hover:bg-[#C3002B] transition cursor-pointer"
               onClick={() => onViewCampaign(c._id)}
             >
               View Details

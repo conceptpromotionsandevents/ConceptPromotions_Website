@@ -299,9 +299,6 @@ const CreateClient = () => {
         {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-[#E4002B]">Create Client</h1>
-          <p className="text-gray-600 mt-1 text-sm">
-            Add a new client for your organization.
-          </p>
         </div>
 
         {/* Form */}
@@ -468,7 +465,7 @@ const CreateClient = () => {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60"
+            className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60 cursor-pointer"
           >
             {loading ? "Creating..." : "Create Client"}
           </button>

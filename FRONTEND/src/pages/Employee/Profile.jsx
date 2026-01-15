@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { API_URL } from "../../url/base";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import {
   FaUser,
   FaPhoneAlt,
@@ -14,6 +16,8 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
+import Select from "react-select";
+import customSelectStyles from "../../components/common/selectStyles";
 
 const states = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -204,7 +208,7 @@ const FileInput = ({ label, accept = "*", file, setFile, required = false, exist
                 setPreview(null);
                 if (fileRef.current) fileRef.current.value = "";
               }}
-              className="flex items-center gap-1 text-red-500 text-xs hover:underline"
+              className="flex items-center gap-1 text-red-500 text-xs hover:underline cursor-pointer"
             >
               <FaTimes /> Remove
             </button>
@@ -238,7 +242,7 @@ const IconInput = ({ icon: Icon, label, placeholder, type = "text", value, onCha
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B] text-sm ${disabled ? "bg-gray-100 cursor-not-allowed" : ""
+        className={`w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-[#E4002B] focus:border-[#E4002B] text-sm bg-white hover:border-[#E4002B] transition-colors min-h-[42px] ${disabled ? "bg-gray-100 cursor-not-allowed" : ""
           }`}
         {...rest}
       />
@@ -253,13 +257,10 @@ const Profile = () => {
   // Loading and submission
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState(""); // success or error
 
   // ✅ NEW: Image fetching states
   const [documentStatus, setDocumentStatus] = useState({});
   const [imageUrls, setImageUrls] = useState({});
-  const [loadingImages, setLoadingImages] = useState(false);
 
   // Prefilled from backend (READ-ONLY)
   const [name, setName] = useState("");
@@ -422,8 +423,7 @@ const Profile = () => {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        setMessageType("error");
-        setMessage("Please login again.");
+        toast.error("Please login again.", { theme: "dark" });
         setLoading(false);
         return;
       }
@@ -437,7 +437,6 @@ const Profile = () => {
       });
 
       const responseData = await response.json();
-      console.log("Profile API response:", responseData);
 
       if (response.ok && responseData) {
         const data = responseData.employee || responseData;
@@ -448,7 +447,7 @@ const Profile = () => {
         setPhone(data.phone || data.contactNo || "");
         setWorkerType(data.employeeType || "Permanent");
 
-        // ✅ CONTRACTUAL EMPLOYEE MAPPING
+        // CONTRACTUAL EMPLOYEE MAPPING
         if (data.employeeType === "Contractual") {
           if (data.dob) setCDob(data.dob.split("T")[0]);
           if (data.aadhaarNumber) setCAadhaar(data.aadhaarNumber);
@@ -473,7 +472,7 @@ const Profile = () => {
           }
         }
 
-        // ✅ PERMANENT EMPLOYEE MAPPING
+        // PERMANENT EMPLOYEE MAPPING
         if (data.employeeType === "Permanent") {
           if (data.dob) setPDob(data.dob.split("T")[0]);
           if (data.gender) setPGender(data.gender);
@@ -544,15 +543,12 @@ const Profile = () => {
           setTnc(true);
           setTncLocked(true);
         }
-
-        console.log("Employee profile loaded successfully");
       } else {
         throw new Error(responseData.message || "Failed to fetch profile");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
-      setMessageType("error");
-      setMessage("Failed to load profile. Please try again.");
+      toast.error("Failed to load profile. Please try again.", { theme: "dark" });
     } finally {
       setLoading(false);
     }
@@ -563,7 +559,6 @@ const Profile = () => {
   ======================================== */
   const fetchEmployeeDocuments = async () => {
     try {
-      setLoadingImages(true);
       const token = localStorage.getItem("token");
 
       if (!token) {
@@ -611,7 +606,7 @@ const Profile = () => {
 
         if (status[hasKey]) {
           try {
-            // ✅ MODIFIED: Fetch Cloudinary URL from backend
+            // MODIFIED: Fetch Cloudinary URL from backend
             const imageResponse = await fetch(`${API_URL}/employee/employee/document/${type}`, {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -621,7 +616,7 @@ const Profile = () => {
             if (imageResponse.ok) {
               const data = await imageResponse.json();
 
-              // ✅ NEW: Store Cloudinary URL directly (not blob URL)
+              // NEW: Store Cloudinary URL directly (not blob URL)
               if (data.url || data.secure_url) {
                 urls[type] = data.secure_url || data.url;
               }
@@ -633,11 +628,9 @@ const Profile = () => {
       }
 
       setImageUrls(urls);
-      console.log("✅ Documents fetched successfully:", urls);
     } catch (error) {
       console.error("Error fetching employee documents:", error);
-    } finally {
-      setLoadingImages(false);
+      toast.error("Failed to load some documents", { theme: "dark" });
     }
   };
 
@@ -768,7 +761,7 @@ const Profile = () => {
         return;
       }
 
-      // ✅ FIX: Check for both new files AND existing images
+      // FIX: Check for both new files AND existing images
       if (
         (!caadhaarFile1 && !imageUrls.aadhaarFront) ||
         (!caadhaarFile2 && !imageUrls.aadhaarBack) ||
@@ -780,7 +773,7 @@ const Profile = () => {
       }
     }
 
-    // ✅ MOVE THESE OUTSIDE - APPLY TO BOTH TYPES
+    // MOVE THESE OUTSIDE - APPLY TO BOTH TYPES
     if (coPincodeError || pPincodeError) {
       alert("Please fix pincode errors before submitting.");
       return;
@@ -792,7 +785,6 @@ const Profile = () => {
     }
 
     setSubmitting(true);
-    setMessage("");
 
     try {
       const token = localStorage.getItem("token");
@@ -894,8 +886,6 @@ const Profile = () => {
 
       formData.append("tnc", tnc);
 
-      console.log("Submitting profile update...");
-
       const response = await fetch(`${API_URL}/employee/employee/profile`, {
         method: "PUT",
         headers: {
@@ -907,19 +897,19 @@ const Profile = () => {
       const responseData = await response.json();
 
       if (response.ok) {
-        setMessageType("success");
-        setMessage("Profile completed successfully!");
-        console.log("Profile updated successfully");
-
-        // ✅ Refresh documents after successful update
+        toast.success("Profile updated successfully!", {
+          theme: "dark",
+          autoClose: 3000
+        });
         fetchEmployeeDocuments();
       } else {
         throw new Error(responseData.message || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error:", error);
-      setMessageType("error");
-      setMessage(error.message || "Failed to update profile. Please try again.");
+      toast.error(error.message || "Failed to update profile. Please try again.", {
+        theme: "dark"
+      });
     } finally {
       setSubmitting(false);
     }
@@ -937,9 +927,10 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-10">
-      <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-6">
-        <h2 className="text-2xl font-semibold mb-2 text-center text-[#E4002B]">Complete Your Profile</h2>
+    <div className="min-h-screen bg-[#171717] px-4 pt-8 pb-10">
+      <ToastContainer />
+      <div className="max-w-4xl mx-auto bg-[#EDEDED] shadow rounded-lg p-6">
+        <h2 className="text-2xl font-semibold mb-2 text-center text-[#E4002B]">Update Your Profile</h2>
         <p className="text-center text-gray-600 mb-6">{workerType} Employee</p>
 
         {/* Read-only basic info */}
@@ -961,24 +952,6 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* ✅ NEW: Loading images indicator */}
-        {loadingImages && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
-            <p className="text-sm text-blue-700">Loading documents...</p>
-          </div>
-        )}
-
-        {message && (
-          <div
-            className={`mb-6 p-4 rounded-lg ${messageType === "success"
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-          >
-            {message}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {workerType === "Permanent" ? (
             <>
@@ -986,17 +959,20 @@ const Profile = () => {
               <section className="space-y-4">
                 <h3 className="text-lg font-medium text-[#E4002B]">Personal Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <SearchableSelect
-                    label={
-                      <>
-                        Gender <span className="text-red-500">*</span>
-                      </>
-                    }
-                    placeholder="Select gender"
-                    options={["Male", "Female", "Other"]}
-                    value={pgender}
-                    onChange={setPGender}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={pgender ? { value: pgender, label: pgender } : null}
+                      onChange={(option) => setPGender(option?.value || "")}
+                      options={["Male", "Female", "Other"].map(opt => ({ value: opt, label: opt }))}
+                      styles={customSelectStyles}
+                      placeholder="Select gender"
+                      isClearable
+                      isSearchable
+                    />
+                  </div>
                   <IconInput
                     icon={FaCalendarAlt}
                     label={
@@ -1021,17 +997,20 @@ const Profile = () => {
                     onChange={(e) => setPHighestQualification(e.target.value)}
                     required
                   />
-                  <SearchableSelect
-                    label={
-                      <>
-                        Marital Status <span className="text-red-500">*</span>
-                      </>
-                    }
-                    placeholder="Select"
-                    options={["Unmarried", "Married"]}
-                    value={pmaritalStatus}
-                    onChange={setPMaritalStatus}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">
+                      Marital Status <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={pmaritalStatus ? { value: pmaritalStatus, label: pmaritalStatus } : null}
+                      onChange={(option) => setPMaritalStatus(option?.value || "")}
+                      options={["Unmarried", "Married"].map(opt => ({ value: opt, label: opt }))}
+                      styles={customSelectStyles}
+                      placeholder="Select"
+                      isClearable
+                      isSearchable
+                    />
+                  </div>
                   <IconInput
                     icon={FaPhoneAlt}
                     label="Alternate Phone Number"
@@ -1065,19 +1044,27 @@ const Profile = () => {
                   />
 
                   {/* ✅ FIX: Change this from IconInput to SearchableSelect */}
-                  <SearchableSelect
-                    label={<>State <span className="text-red-500">*</span></>}
-                    placeholder="Select state"
-                    options={states}
-                    value={costate}
-                    onChange={(value) => {
-                      setCoState(value);
-                      // Re-validate pincode when state changes
-                      if (copincode.length === 6 && value) {
-                        validatePincode(copincode, value, setCoPincodeError);
-                      }
-                    }}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={costate ? { value: costate, label: costate } : null}
+                      onChange={(option) => {
+                        const value = option?.value || "";
+                        setCoState(value);
+                        // Re-validate pincode when state changes
+                        if (copincode.length === 6 && value) {
+                          validatePincode(copincode, value, setCoPincodeError);
+                        }
+                      }}
+                      options={states.map(state => ({ value: state, label: state }))}
+                      styles={customSelectStyles}
+                      placeholder="Select state"
+                      isClearable
+                      isSearchable
+                    />
+                  </div>
 
                   <IconInput
                     icon={FaBuilding}
@@ -1093,7 +1080,7 @@ const Profile = () => {
                       Pincode <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <FaSortNumericDownAlt className="absolute left-3 top-3 text-gray-400" />
+                      <FaSortNumericDownAlt className="absolute left-3 top-3.5 text-gray-400" />
                       <input
                         type="text"
                         value={copincode}
@@ -1104,9 +1091,9 @@ const Profile = () => {
                         }}
                         placeholder="110001"
                         maxLength={6}
-                        className={`w-full pl-10 pr-4 py-2 border rounded-lg outline-none focus:ring-2 text-sm ${coPincodeError
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:ring-[#E4002B]"
+                        className={`w-full pl-10 pr-4 py-2.5 border rounded-sm outline-none focus:ring-1 text-sm bg-white hover:border-[#E4002B] transition-colors min-h-[42px] ${coPincodeError
+                          ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                          : "border-gray-300 focus:ring-[#E4002B] focus:border-[#E4002B]"
                           }`}
                         required
                       />
@@ -1152,18 +1139,26 @@ const Profile = () => {
                     value={paddress2}
                     onChange={(e) => setPAddress2(e.target.value)}
                   />
-                  <SearchableSelect
-                    label={<>State <span className="text-red-500">*</span></>}
-                    placeholder="Select state"
-                    options={states}
-                    value={pstate}
-                    onChange={(value) => {
-                      setPState(value);
-                      if (ppincode.length === 6 && value) {
-                        validatePincode(ppincode, value, setPPincodeError);
-                      }
-                    }}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={pstate ? { value: pstate, label: pstate } : null}
+                      onChange={(option) => {
+                        const value = option?.value || "";
+                        setPState(value);
+                        if (ppincode.length === 6 && value) {
+                          validatePincode(ppincode, value, setPPincodeError);
+                        }
+                      }}
+                      options={states.map(state => ({ value: state, label: state }))}
+                      styles={customSelectStyles}
+                      placeholder="Select state"
+                      isClearable
+                      isSearchable
+                    />
+                  </div>
                   <IconInput
                     icon={FaBuilding}
                     label={
@@ -1181,7 +1176,7 @@ const Profile = () => {
                       Pincode <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <FaSortNumericDownAlt className="absolute left-3 top-3 text-gray-400" />
+                      <FaSortNumericDownAlt className="absolute left-3 top-3.5 text-gray-400" />
                       <input
                         type="text"
                         value={ppincode}
@@ -1192,9 +1187,9 @@ const Profile = () => {
                         }}
                         placeholder="110001"
                         maxLength={6}
-                        className={`w-full pl-10 pr-4 py-2 border rounded-lg outline-none focus:ring-2 text-sm ${pPincodeError
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:ring-[#E4002B]"
+                        className={`w-full pl-10 pr-4 py-2.5 border rounded-sm outline-none focus:ring-1 text-sm bg-white hover:border-[#E4002B] transition-colors min-h-[42px] ${pPincodeError
+                            ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                            : "border-gray-300 focus:ring-[#E4002B] focus:border-[#E4002B]"
                           }`}
                         required
                       />
@@ -1444,7 +1439,7 @@ const Profile = () => {
                       <button
                         type="button"
                         onClick={() => removeExperience(idx)}
-                        className="text-sm text-red-500 hover:underline flex items-center gap-1"
+                        className="text-sm text-red-500 hover:underline flex items-center gap-1 cursor-pointer"
                         title="Remove experience"
                       >
                         <FaTrash /> Remove
@@ -1525,7 +1520,7 @@ const Profile = () => {
                 <button
                   type="button"
                   onClick={addExperience}
-                  className="inline-flex items-center gap-2 text-[#E4002B] hover:underline"
+                  className="inline-flex items-center gap-2 text-[#E4002B] hover:underline cursor-pointer"
                 >
                   <FaPlus /> Add Another Experience
                 </button>
@@ -1904,9 +1899,9 @@ const Profile = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#E4002B] text-white py-3 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60"
+              className="w-full bg-[#E4002B] text-white py-3 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60 cursor-pointer"
             >
-              {submitting ? "Submitting..." : "Complete Profile"}
+              {submitting ? "Updating..." : "Update Profile"}
             </button>
           </div>
         </form>
@@ -2103,5 +2098,3 @@ const Profile = () => {
 };
 
 export default Profile;
-
-

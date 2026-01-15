@@ -19,6 +19,7 @@ import {
     getCampaignRetailersWithEmployees,
     getCampaignVisitSchedules,
     updateCampaign,
+    updateCampaignStatus,
 } from "../controllers/admin/campaign.controller.js";
 import {
     createJobPosting,
@@ -66,7 +67,6 @@ import { getEmployeeVisitProgress } from "../controllers/employeeController.js";
 import { deleteCampaign } from "../controllers/payment.controller.js";
 import {
     registerRetailer,
-    updateCampaignStatus,
 } from "../controllers/retailerController.js";
 import { protect } from "../middleware/authMiddleware.js";
 

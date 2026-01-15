@@ -1,7 +1,5 @@
 import express from "express";
 import {
-  
-  
     getAllVisitSchedulesForEmployee,
     getAssignedRetailersForEmployee,
     getEmployeeCampaigns,
@@ -9,14 +7,13 @@ import {
     getEmployeeDocument,
     getEmployeeDocumentStatus,
     getEmployeeProfile,
-  
     getEmployeeVisitProgress,
     getLastVisitDetails,
     getScheduleReportMapping,
     loginEmployee,
-  
     updateCampaignStatus,
     updateEmployeeProfile,
+    deleteEmployeeProfilePicture,
 } from "../controllers/employeeController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { upload } from "../utils/upload.js";
@@ -74,5 +71,7 @@ router.get(
     protect,
     getScheduleReportMapping
 );
+
+router.delete("/employee/profile-picture", protect, deleteEmployeeProfilePicture);
 
 export default router;

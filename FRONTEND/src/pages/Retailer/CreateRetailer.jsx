@@ -296,7 +296,7 @@ const CreateRetailer = () => {
 
                 setTimeout(() => {
                     resetForm();
-                }, 1500);
+                }, 1000);
             } else {
                 toast.error(result.message || "Failed to notify retailer", { theme: "dark" });
             }
@@ -334,7 +334,7 @@ const CreateRetailer = () => {
             <div className="flex justify-center items-center w-full min-h-screen bg-[#171717] py-8">
                 <div className="w-full max-w-2xl bg-[#EDEDED] shadow-md rounded-xl p-8">
                     <h1 className="text-2xl font-bold text-[#E4002B] text-center mb-6">
-                        Retailer Registration
+                        Create Retailer 
                     </h1>
 
                     <div className="space-y-6">
@@ -532,7 +532,7 @@ const CreateRetailer = () => {
                             type="button"
                             onClick={handleNotifyRetailer}
                             disabled={submitting}
-                            className="w-full bg-[#E4002B] hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full bg-[#E4002B] hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md disabled:opacity-60 cursor-pointer"
                         >
                             {submitting ? "Notifying..." : "Notify Retailer"}
                         </button>

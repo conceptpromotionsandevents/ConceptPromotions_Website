@@ -1570,3 +1570,65 @@ export const getRetailerReports = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
+/* ===========================
+   DELETE RETAILER PROFILE PICTURE
+=========================== */
+export const deleteRetailerProfilePicture = async (req, res) => {
+    try {
+        const retailerId = req.user.id;
+        console.log("🗑️ Delete Profile Picture - Retailer ID:", retailerId);
+
+        // Find the retailer
+        const retailer = await Retailer.findById(retailerId);
+        if (!retailer) {
+            return res.status(404).json({
+                success: false,
+                message: "Retailer not found"
+            });
+        }
+
+        // Check if profile picture exists
+        if (!retailer.personPhoto?.publicId) {
+            return res.status(400).json({
+                success: false,
+                message: "No profile picture to delete"
+            });
+        }
+
+        // Delete from Cloudinary
+        console.log("🗑️ Deleting from Cloudinary:", retailer.personPhoto.publicId);
+        const deleteResult = await deleteFromCloudinary(
+            retailer.personPhoto.publicId,
+            "image"
+        );
+
+        console.log("✅ Cloudinary delete result:", deleteResult);
+
+        // Remove from database
+        retailer.personPhoto = {
+            url: null,
+            publicId: null
+        };
+
+        await retailer.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Profile picture deleted successfully",
+            retailer: {
+                ...retailer.toObject(),
+                password: undefined // Don't send password
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ Delete profile picture error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete profile picture",
+            error: error.message
+        });
+    }
+};
+

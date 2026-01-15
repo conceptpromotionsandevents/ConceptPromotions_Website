@@ -67,6 +67,8 @@ const normalizeRow = (row) => {
     return clean;
 };
 
+// ============================ Bulk Assign Employee OR Retailer to Campaign ============================
+
 export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
     try {
         /* --------------------------------
@@ -95,28 +97,74 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
         ---------------------------------*/
         const workbook = XLSX.read(file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json(sheet);
+        const rawRows = XLSX.utils.sheet_to_json(sheet, {
+            raw: false,
+            defval: ""
+        });
 
         const failedRows = [];
-        let successCount = 0;
+        const successfulAssignments = [];
+        let assignmentType = null; // Will be set to 'employee' or 'retailer'
+
+        /* --------------------------------
+           DETERMINE ASSIGNMENT TYPE FROM FIRST ROW
+        ---------------------------------*/
+        if (rawRows.length > 0) {
+            const firstRow = rawRows[0];
+
+            // Check which columns are present
+            const hasEmployeeId = firstRow.hasOwnProperty('employeeId');
+            const hasOutletCode = firstRow.hasOwnProperty('outletCode');
+
+            if (hasEmployeeId && !hasOutletCode) {
+                assignmentType = 'employee';
+            } else if (hasOutletCode && !hasEmployeeId) {
+                assignmentType = 'retailer';
+            } else if (hasEmployeeId && hasOutletCode) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid template: Cannot assign both employees and retailers in the same file. Please use separate files.",
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid template: Missing required column (employeeId or outletCode)",
+                });
+            }
+        }
 
         /* --------------------------------
            PROCESS EACH ROW
         ---------------------------------*/
         for (let i = 0; i < rawRows.length; i++) {
-            const row = normalizeRow(rawRows[i]);
-            const { sno, campaignName, employeeId, outletCode } = row;
+            const row = rawRows[i];
+
+            // Extract only required fields (ignore extra fields like name, contactNo, State, etc.)
+            const campaignName = String(row.campaignName || "").trim();
+            const employeeId = assignmentType === 'employee' ? String(row.employeeId || "").trim() : null;
+            const outletCode = assignmentType === 'retailer' ? String(row.outletCode || "").trim() : null;
 
             /* --------------------------------
                BASIC VALIDATION
             ---------------------------------*/
-            if (!campaignName || (!employeeId && !outletCode)) {
+            const missingFields = [];
+            if (!campaignName) missingFields.push("campaignName");
+
+            if (assignmentType === 'employee' && !employeeId) {
+                missingFields.push("employeeId");
+            }
+            if (assignmentType === 'retailer' && !outletCode) {
+                missingFields.push("outletCode");
+            }
+
+            if (missingFields.length > 0) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "campaignName and at least one of employeeId or outletCode is required",
-                    data: row,
+                    reason: `Missing required fields: ${missingFields.join(", ")}`,
+                    data: {
+                        campaignName,
+                        ...(assignmentType === 'employee' ? { employeeId } : { outletCode }),
+                    },
                 });
                 continue;
             }
@@ -126,178 +174,202 @@ export const bulkAssignEmployeeRetailerToCampaign = async (req, res) => {
             ---------------------------------*/
             const campaign = await Campaign.findOne({
                 name: {
-                    $regex: `^${campaignName.trim()}$`,
+                    $regex: `^${campaignName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
                     $options: "i",
                 },
             });
 
             if (!campaign) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: `Campaign not found: ${campaignName}`,
-                    data: row,
+                    data: {
+                        campaignName,
+                        ...(assignmentType === 'employee' ? { employeeId } : { outletCode }),
+                    },
                 });
                 continue;
             }
 
-            let employee = null;
-            let retailer = null;
-
             /* --------------------------------
-               FETCH EMPLOYEE (OPTIONAL)
+               EMPLOYEE ASSIGNMENT LOGIC
             ---------------------------------*/
-            if (employeeId) {
-                employee = await Employee.findOne({ employeeId });
-                if (!employee) {
-                    failedRows.push({
-                        sno: sno || i + 1,
-                        rowNumber: i + 2,
-                        reason: `Employee not found: ${employeeId}`,
-                        data: row,
-                    });
-                    continue;
-                }
-            }
-
-            /* --------------------------------
-               FETCH RETAILER (outletCode = uniqueId)
-            ---------------------------------*/
-            if (outletCode) {
-                retailer = await Retailer.findOne({
-                    uniqueId: {
-                        $regex: `^${outletCode.trim()}$`,
+            if (assignmentType === 'employee') {
+                const employee = await Employee.findOne({
+                    employeeId: {
+                        $regex: `^${employeeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
                         $options: "i",
-                    },
+                    }
                 });
 
-                if (!retailer) {
+                if (!employee) {
                     failedRows.push({
-                        sno: sno || i + 1,
                         rowNumber: i + 2,
-                        reason: `Retailer not found with uniqueId: ${outletCode}`,
-                        data: row,
+                        reason: `Employee not found: ${employeeId}`,
+                        data: {
+                            campaignName,
+                            employeeId,
+                        },
                     });
                     continue;
                 }
-            }
 
-            /* --------------------------------
-               DUPLICATE CHECKS
-            ---------------------------------*/
-            const employeeAlreadyAssigned =
-                employee &&
-                campaign.assignedEmployees.some((e) =>
+                // Check if employee already assigned to this campaign
+                const alreadyAssigned = campaign.assignedEmployees.some((e) =>
                     e.employeeId.equals(employee._id)
                 );
 
-            const retailerAlreadyAssigned =
-                retailer &&
-                campaign.assignedRetailers.some((r) =>
-                    r.retailerId.equals(retailer._id)
-                );
+                if (alreadyAssigned) {
+                    failedRows.push({
+                        rowNumber: i + 2,
+                        reason: `Employee ${employeeId} already assigned to campaign ${campaign.name}`,
+                        data: {
+                            campaignName,
+                            employeeId,
+                        },
+                    });
+                    continue;
+                }
 
-            const mappingAlreadyExists =
-                employee &&
-                retailer &&
-                campaign.assignedEmployeeRetailers.some(
-                    (m) =>
-                        m.employeeId.equals(employee._id) &&
-                        m.retailerId.equals(retailer._id)
-                );
-
-            /* --------------------------------
-               BLOCK DUPLICATES
-            ---------------------------------*/
-            if (
-                (employee && !retailer && employeeAlreadyAssigned) ||
-                (retailer && !employee && retailerAlreadyAssigned) ||
-                (employee && retailer && mappingAlreadyExists)
-            ) {
-                failedRows.push({
-                    sno: sno || i + 1,
-                    rowNumber: i + 2,
-                    reason:
-                        employee && retailer
-                            ? "Employee–Retailer mapping already exists in this campaign"
-                            : employee
-                            ? "Employee already assigned to this campaign"
-                            : "Retailer already assigned to this campaign",
-                    data: row,
-                });
-                continue;
-            }
-
-            /* --------------------------------
-               ASSIGN EMPLOYEE
-            ---------------------------------*/
-            if (employee && !employeeAlreadyAssigned) {
+                // Assign employee to campaign
                 campaign.assignedEmployees.push({
                     employeeId: employee._id,
                     status: "pending",
                     assignedAt: new Date(),
                 });
 
-                if (
-                    !employee.assignedCampaigns.some((c) =>
-                        c.equals(campaign._id)
-                    )
-                ) {
+                // Add campaign to employee's assignedCampaigns
+                if (!employee.assignedCampaigns.some((c) => c.equals(campaign._id))) {
                     employee.assignedCampaigns.push(campaign._id);
                     await employee.save();
                 }
+
+                await campaign.save();
+
+                successfulAssignments.push({
+                    campaignName: campaign.name,
+                    employeeId: employee.employeeId,
+                    employeeName: employee.name,
+                });
             }
 
             /* --------------------------------
-               ASSIGN RETAILER
-            ---------------------------------*/
-            if (retailer && !retailerAlreadyAssigned) {
+   RETAILER ASSIGNMENT LOGIC
+---------------------------------*/
+            if (assignmentType === 'retailer') {
+                const retailer = await Retailer.findOne({
+                    uniqueId: {
+                        $regex: `^${outletCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                        $options: "i",
+                    },
+                });
+
+                if (!retailer) {
+                    failedRows.push({
+                        rowNumber: i + 2,
+                        reason: `Retailer not found with outlet code: ${outletCode}`,
+                        data: {
+                            campaignName,
+                            outletCode,
+                        },
+                    });
+                    continue;
+                }
+
+                // Check if retailer already assigned to this campaign
+                const alreadyAssigned = campaign.assignedRetailers.some((r) =>
+                    r.retailerId.equals(retailer._id)
+                );
+
+                if (alreadyAssigned) {
+                    failedRows.push({
+                        rowNumber: i + 2,
+                        reason: `Retailer ${outletCode} already assigned to campaign ${campaign.name}`,
+                        data: {
+                            campaignName,
+                            outletCode,
+                        },
+                    });
+                    continue;
+                }
+
+                // Assign retailer to campaign
                 campaign.assignedRetailers.push({
                     retailerId: retailer._id,
                     status: "pending",
                     assignedAt: new Date(),
                 });
-            }
 
-            /* --------------------------------
-               ASSIGN EMPLOYEE–RETAILER MAPPING
-            ---------------------------------*/
-            if (employee && retailer && !mappingAlreadyExists) {
-                campaign.assignedEmployeeRetailers.push({
-                    employeeId: employee._id,
-                    retailerId: retailer._id,
-                    assignedAt: new Date(),
+                // ✅ FIX: Add campaign to retailer's assignedCampaigns with validateModifiedOnly
+                if (!retailer.assignedCampaigns.some((c) => c.equals(campaign._id))) {
+                    retailer.assignedCampaigns.push(campaign._id);
+                    await retailer.save({ validateModifiedOnly: true }); // ✅ Only validate modified fields
+                }
+
+                await campaign.save();
+
+                successfulAssignments.push({
+                    campaignName: campaign.name,
+                    outletCode: retailer.uniqueId,
+                    retailerName: retailer.name,
+                    shopName: retailer.shopDetails?.shopName,
                 });
             }
-
-            await campaign.save();
-            successCount++;
         }
 
         /* --------------------------------
            FINAL RESPONSE
         ---------------------------------*/
-        return res.status(failedRows.length ? 207 : 201).json({
+        const response = {
             success: true,
-            message: failedRows.length
-                ? "Campaign assignment completed with partial success"
-                : "All campaign assignments completed successfully",
             summary: {
+                assignmentType: assignmentType === 'employee' ? 'Employee' : 'Retailer',
                 totalRows: rawRows.length,
-                successful: successCount,
+                successful: successfulAssignments.length,
                 failed: failedRows.length,
+                successRate: rawRows.length > 0
+                    ? `${((successfulAssignments.length / rawRows.length) * 100).toFixed(2)}%`
+                    : "0%",
             },
+            successfulAssignments,
             failedRows,
+        };
+
+        if (successfulAssignments.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: `No ${assignmentType}s were assigned. All rows failed validation.`,
+                ...response,
+            });
+        }
+
+        if (failedRows.length > 0) {
+            return res.status(207).json({
+                success: true,
+                message: `${successfulAssignments.length} ${assignmentType}s assigned, ${failedRows.length} rows failed`,
+                ...response,
+            });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: `All ${successfulAssignments.length} ${assignmentType}s assigned successfully`,
+            ...response,
         });
     } catch (error) {
-        console.error("Bulk campaign assignment error:", error);
+        console.error("❌ Bulk campaign assignment error:", error);
         return res.status(500).json({
             success: false,
             message: "Server error",
             error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         });
     }
 };
+
+
+// ============================ Bulk Assign Employee to Retailer (Mapping) ============================
+
 export const bulkAssignEmployeeToRetailer = async (req, res) => {
     try {
         /* ---------------- ADMIN CHECK ---------------- */
@@ -319,23 +391,38 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
 
         const workbook = XLSX.read(file.buffer, { type: "buffer" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json(sheet);
+        const rawRows = XLSX.utils.sheet_to_json(sheet, {
+            raw: false,
+            defval: ""
+        });
 
         const failedRows = [];
-        let successCount = 0;
+        const successfulMappings = [];
 
         /* ---------------- PROCESS EACH ROW ---------------- */
         for (let i = 0; i < rawRows.length; i++) {
-            const row = normalizeRow(rawRows[i]);
-            const { sno, campaignName, employeeId, uniqueId } = row;
+            const row = rawRows[i];
+
+            // Extract ONLY required fields (ignore extra display columns)
+            const campaignName = String(row.campaignName || "").trim();
+            const employeeId = String(row.employeeID || "").trim(); // Note: Template has "employeeID"
+            const outletCode = String(row.outletCode || "").trim();
 
             /* -------- BASIC VALIDATION -------- */
-            if (!campaignName || !employeeId || !uniqueId) {
+            const missingFields = [];
+            if (!campaignName) missingFields.push("campaignName");
+            if (!employeeId) missingFields.push("employeeID");
+            if (!outletCode) missingFields.push("outletCode");
+
+            if (missingFields.length > 0) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "campaignName, employeeId and uniqueId are required",
-                    data: row,
+                    reason: `Missing required fields: ${missingFields.join(", ")}`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -343,47 +430,62 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
             /* -------- FETCH CAMPAIGN (CASE-INSENSITIVE) -------- */
             const campaign = await Campaign.findOne({
                 name: {
-                    $regex: `^${campaignName.trim()}$`,
+                    $regex: `^${campaignName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
                     $options: "i",
                 },
             });
 
             if (!campaign) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: `Campaign not found: ${campaignName}`,
-                    data: row,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
 
-            /* -------- FETCH EMPLOYEE -------- */
-            const employee = await Employee.findOne({ employeeId });
+            /* -------- FETCH EMPLOYEE (CASE-INSENSITIVE) -------- */
+            const employee = await Employee.findOne({
+                employeeId: {
+                    $regex: `^${employeeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                    $options: "i",
+                }
+            });
+
             if (!employee) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: `Employee not found: ${employeeId}`,
-                    data: row,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
 
-            /* -------- FETCH RETAILER (uniqueId) -------- */
+            /* -------- FETCH RETAILER (CASE-INSENSITIVE using uniqueId) -------- */
             const retailer = await Retailer.findOne({
                 uniqueId: {
-                    $regex: `^${uniqueId.trim()}$`,
+                    $regex: `^${outletCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
                     $options: "i",
                 },
             });
 
             if (!retailer) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: `Retailer not found with uniqueId: ${uniqueId}`,
-                    data: row,
+                    reason: `Retailer not found with outlet code: ${outletCode}`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -399,24 +501,29 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
 
             if (!employeeState) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: "Employee state is not filled",
-                    data: row,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
 
             // Retailer state
-            const retailerState =
-                retailer.shopDetails?.shopAddress?.state;
+            const retailerState = retailer.shopDetails?.shopAddress?.state;
 
             if (!retailerState) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
                     reason: "Retailer state is missing",
-                    data: row,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -431,11 +538,13 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
             // Employee state must be part of campaign
             if (!campaignStates.includes(empState)) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Employee state is not allowed for this campaign",
-                    data: row,
+                    reason: `Employee state '${employeeState}' is not allowed for this campaign`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -443,11 +552,13 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
             // Retailer state must be part of campaign
             if (!campaignStates.includes(retState)) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Retailer state is not allowed for this campaign",
-                    data: row,
+                    reason: `Retailer state '${retailerState}' is not allowed for this campaign`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -455,11 +566,13 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
             // Employee & Retailer must be same state
             if (empState !== retState) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Employee and Retailer do not belong to the same state",
-                    data: row,
+                    reason: `Employee (${employeeState}) and Retailer (${retailerState}) are not in the same state`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -475,10 +588,13 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
 
             if (!employeeAssignedToCampaign) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "Employee is not assigned to this campaign",
-                    data: row,
+                    reason: `Employee ${employeeId} is not assigned to campaign '${campaign.name}'`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -490,29 +606,33 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
 
             if (!retailerAssignedToCampaign) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason: "Retailer is not assigned to this campaign",
-                    data: row,
+                    reason: `Retailer ${outletCode} is not assigned to campaign '${campaign.name}'`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
 
             /* -------- PREVENT DUPLICATE MAPPING -------- */
-            const mappingExists =
-                campaign.assignedEmployeeRetailers.some(
-                    (m) =>
-                        m.employeeId.equals(employee._id) &&
-                        m.retailerId.equals(retailer._id)
-                );
+            const mappingExists = campaign.assignedEmployeeRetailers.some(
+                (m) =>
+                    m.employeeId.equals(employee._id) &&
+                    m.retailerId.equals(retailer._id)
+            );
 
             if (mappingExists) {
                 failedRows.push({
-                    sno: sno || i + 1,
                     rowNumber: i + 2,
-                    reason:
-                        "Employee–Retailer mapping already exists in this campaign",
-                    data: row,
+                    reason: `Mapping already exists: Employee ${employeeId} → Retailer ${outletCode}`,
+                    data: {
+                        campaignName,
+                        employeeId,
+                        outletCode,
+                    },
                 });
                 continue;
             }
@@ -525,28 +645,60 @@ export const bulkAssignEmployeeToRetailer = async (req, res) => {
             });
 
             await campaign.save();
-            successCount++;
+
+            successfulMappings.push({
+                campaignName: campaign.name,
+                employeeId: employee.employeeId,
+                employeeName: employee.name,
+                outletCode: retailer.uniqueId,
+                retailerName: retailer.name,
+                shopName: retailer.shopDetails?.shopName,
+            });
         }
 
         /* ---------------- FINAL RESPONSE ---------------- */
-        return res.status(failedRows.length ? 207 : 201).json({
+        const response = {
             success: true,
-            message: failedRows.length
-                ? "Bulk employee–retailer mapping completed with partial success"
-                : "Bulk employee–retailer mapping completed successfully",
             summary: {
                 totalRows: rawRows.length,
-                successful: successCount,
+                successful: successfulMappings.length,
                 failed: failedRows.length,
+                successRate: rawRows.length > 0
+                    ? `${((successfulMappings.length / rawRows.length) * 100).toFixed(2)}%`
+                    : "0%",
             },
+            successfulMappings,
             failedRows,
+        };
+
+        if (successfulMappings.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No mappings created. All rows failed validation.",
+                ...response,
+            });
+        }
+
+        if (failedRows.length > 0) {
+            return res.status(207).json({
+                success: true,
+                message: `${successfulMappings.length} mappings created, ${failedRows.length} rows failed`,
+                ...response,
+            });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: `All ${successfulMappings.length} employee-retailer mappings created successfully`,
+            ...response,
         });
     } catch (error) {
-        console.error("Bulk assign employee to retailer error:", error);
+        console.error("❌ Bulk assign employee to retailer error:", error);
         return res.status(500).json({
             success: false,
             message: "Server error",
             error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         });
     }
 };

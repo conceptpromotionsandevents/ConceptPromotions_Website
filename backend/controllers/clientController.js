@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { ClientAdmin, ClientUser, Campaign } from "../models/user.js";
 import mongoose from "mongoose";
-
+import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.config.js";
 
 export const loginClientAdmin = async (req, res) => {
   try {
@@ -25,7 +25,6 @@ export const loginClientAdmin = async (req, res) => {
   }
 };
 
-
 export const loginClientUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -47,7 +46,194 @@ export const loginClientUser = async (req, res) => {
   }
 };
 
+/* ===========================
+   UPLOAD PROFILE PICTURE
+=========================== */
+export const uploadProfilePicture = async (req, res) => {
+  try {
+    const { role, id: userId } = req.user;
+    console.log("📸 Upload Profile Picture - User ID:", userId, "Role:", role);
 
+    // Check if file exists
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded"
+      });
+    }
+
+    // Only allow client_admin to upload profile picture
+    if (role !== "client_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only client admins can upload profile pictures."
+      });
+    }
+
+    // Find the client admin
+    const admin = await ClientAdmin.findById(userId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Client Admin not found"
+      });
+    }
+
+    // Delete old image from Cloudinary if exists
+    if (admin.profilePicture?.publicId) {
+      try {
+        console.log("🗑️ Deleting old profile picture:", admin.profilePicture.publicId);
+        await deleteFromCloudinary(admin.profilePicture.publicId, "image");
+        console.log("✅ Old profile picture deleted");
+      } catch (error) {
+        console.error("❌ Error deleting old image:", error);
+        // Continue with upload even if delete fails
+      }
+    }
+
+    // Upload new image to Cloudinary
+    console.log("📤 Uploading new profile picture to Cloudinary...");
+    const result = await uploadToCloudinary(
+      req.file.buffer,
+      "client_profiles", // folder name
+      "image",
+      {
+        client_id: userId,
+        client_name: admin.name,
+        upload_type: "profile_picture"
+      }
+    );
+
+    console.log("✅ Profile picture uploaded successfully:", result.secure_url);
+
+    // Update admin profile picture
+    admin.profilePicture = {
+      url: result.secure_url,
+      publicId: result.public_id
+    };
+
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile picture uploaded successfully",
+      profilePicture: admin.profilePicture
+    });
+
+  } catch (error) {
+    console.error("❌ Upload profile picture error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to upload profile picture",
+      error: error.message
+    });
+  }
+};
+
+/* ===========================
+   DELETE PROFILE PICTURE
+=========================== */
+export const deleteProfilePicture = async (req, res) => {
+  try {
+    const { role, id: userId } = req.user;
+    console.log("🗑️ Delete Profile Picture - User ID:", userId, "Role:", role);
+
+    // Only allow client_admin to delete profile picture
+    if (role !== "client_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only client admins can delete profile pictures."
+      });
+    }
+
+    // Find the client admin
+    const admin = await ClientAdmin.findById(userId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Client Admin not found"
+      });
+    }
+
+    // Check if profile picture exists
+    if (!admin.profilePicture?.publicId) {
+      return res.status(400).json({
+        success: false,
+        message: "No profile picture to delete"
+      });
+    }
+
+    // Delete from Cloudinary
+    console.log("🗑️ Deleting from Cloudinary:", admin.profilePicture.publicId);
+    const deleteResult = await deleteFromCloudinary(
+      admin.profilePicture.publicId,
+      "image"
+    );
+
+    console.log("✅ Cloudinary delete result:", deleteResult);
+
+    // Remove from database
+    admin.profilePicture = {
+      url: null,
+      publicId: null
+    };
+
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile picture deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("❌ Delete profile picture error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete profile picture",
+      error: error.message
+    });
+  }
+};
+
+/* ===========================
+   GET CLIENT PROFILE
+=========================== */
+export const getClientProfile = async (req, res) => {
+  try {
+    const { role, id: userId } = req.user;
+    console.log("👤 Get Profile - User ID:", userId, "Role:", role);
+
+    if (role !== "client_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    const admin = await ClientAdmin.findById(userId).select("-password");
+    
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Client Admin not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      client: admin,
+      profilePicture: admin.profilePicture
+    });
+
+  } catch (error) {
+    console.error("❌ Get profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch profile",
+      error: error.message
+    });
+  }
+};
 
 /* ===========================
    GET ALL CAMPAIGNS FOR CLIENT

@@ -566,7 +566,7 @@ const ScheduleUnscheduleTask = () => {
                                                                             pair
                                                                         )
                                                                     }
-                                                                    className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded hover:bg-red-700 transition"
+                                                                    className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded hover:bg-red-700 transition cursor-pointer"
                                                                 >
                                                                     Manage Visit
                                                                 </button>
@@ -609,7 +609,7 @@ const ScheduleUnscheduleTask = () => {
                                     }}
                                     className="text-gray-400 hover:text-gray-800 transition"
                                 >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-6 h-6 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
@@ -709,7 +709,7 @@ const ScheduleUnscheduleTask = () => {
                             {/* Buttons */}
                             <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
                                 <button
-                                    className="flex-1 px-6 py-3 bg-gray-400 hover:bg-gray-500 text-gray-800 font-semibold rounded-lg transition shadow-lg"
+                                    className="flex-1 px-6 py-3 bg-gray-400 hover:bg-gray-500 text-gray-800 font-semibold rounded-lg transition shadow-lg cursor-pointer"
                                     onClick={() => {
                                         setOpenModal(false);
                                         setEditingId(null);
@@ -727,7 +727,7 @@ const ScheduleUnscheduleTask = () => {
                                     </button>
                                 ) : (
                                     <button
-                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-lg transition shadow-lg"
+                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-lg transition shadow-lg cursor-pointer"
                                         onClick={createVisit}
                                     >
                                         Create Visit

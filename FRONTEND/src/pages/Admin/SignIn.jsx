@@ -32,7 +32,7 @@ const SignIn = () => {
       if (!response.ok) {
         toast.error(data.message || "Login failed", {
           position: "top-right",
-          autoClose: 3000,
+          autoClose: 1000,
           theme: "dark",
         });
         setLoading(false);
@@ -45,7 +45,7 @@ const SignIn = () => {
 
       toast.success("Login successful!", {
         position: "top-right",
-        autoClose: 2000,
+        autoClose: 1000,
         theme: "dark",
       });
 
@@ -53,7 +53,7 @@ const SignIn = () => {
     } catch (error) {
       toast.error("Something went wrong. Try again.", {
         position: "top-right",
-        autoClose: 2000,
+        autoClose: 1000,
         theme: "dark",
       });
     } finally {
@@ -139,7 +139,7 @@ const SignIn = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60"
+              className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60 cursor-pointer"
             >
               {loading ? "Logging in..." : "Login"}
             </button>

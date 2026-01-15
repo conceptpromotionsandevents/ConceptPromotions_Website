@@ -4,43 +4,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import * as XLSX from 'xlsx-js-style';
 import { API_URL } from "../../url/base";
-
-const customSelectStyles = {
-  control: (provided, state) => ({
-    ...provided,
-    borderColor: state.isFocused ? "#E4002B" : "#d1d5db",
-    boxShadow: state.isFocused ? "0 0 0 1px #E4002B" : "none",
-    "&:hover": { borderColor: "#E4002B" },
-    minHeight: "42px",
-  }),
-  option: (provided, state) => ({
-    ...provided,
-    backgroundColor: state.isFocused ? "#FEE2E2" : "white",
-    color: "#333",
-    "&:active": { backgroundColor: "#FECACA" },
-  }),
-  menu: (provided) => ({
-    ...provided,
-    zIndex: 20,
-  }),
-  multiValue: (provided) => ({
-    ...provided,
-    backgroundColor: "#FEE2E2",
-  }),
-  multiValueLabel: (provided) => ({
-    ...provided,
-    color: "#E4002B",
-    fontWeight: "500",
-  }),
-  multiValueRemove: (provided) => ({
-    ...provided,
-    color: "#E4002B",
-    ":hover": {
-      backgroundColor: "#E4002B",
-      color: "white",
-    },
-  }),
-};
+import customSelectStyles from "../../components/common/selectStyles";
 
 const RetailerPassbook = () => {
   // Retailer Info
@@ -444,7 +408,7 @@ const RetailerPassbook = () => {
 
     // Column widths
     ws["!cols"] = [
-      { wpx: 60 },   // A: S.No
+      { wpx: 100 },   // A: S.No
       { wpx: 200 },  // B: Campaign Name
       { wpx: 150 },  // C: Client
       { wpx: 120 },  // D: Type
@@ -473,7 +437,7 @@ const RetailerPassbook = () => {
       <div className="min-h-screen bg-[#171717] p-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-[#E4002B] mb-8">
-            My Passbook
+            Passbook
           </h1>
 
           {loading ? (
@@ -485,7 +449,7 @@ const RetailerPassbook = () => {
               {/* Filters */}
               <div className="bg-[#EDEDED] rounded-lg shadow-md p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                  Filter Options (Optional)
+                  Filter Options <span className="text-red-500">(Optional)</span>
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -502,7 +466,7 @@ const RetailerPassbook = () => {
                       placeholder="Select campaigns..."
                       isClearable
                       isSearchable
-                      isMulti // ✅ Enable multiple selection
+                      isMulti
                     />
                     {selectedCampaigns.length > 0 && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -520,7 +484,7 @@ const RetailerPassbook = () => {
                       type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
-                      className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+                      className="w-full h-[42px] px-4 text-sm border border-gray-300 rounded-lg bg-white outline-none transition focus:border-[#E4002B] focus:ring-2 focus:ring-[#E4002B]"
                     />
                   </div>
 
@@ -533,7 +497,7 @@ const RetailerPassbook = () => {
                       type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
-                      className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
+                      className="w-full h-[42px] px-4 text-sm border border-gray-300 rounded-lg bg-white outline-none transition focus:border-[#E4002B] focus:ring-2 focus:ring-[#E4002B]"
                     />
                   </div>
                 </div>
@@ -563,7 +527,7 @@ const RetailerPassbook = () => {
                     <button
                       onClick={handleDownloadPassbook}
                       disabled={displayedCampaigns.length === 0}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
                     >
                       Download Passbook
                     </button>
@@ -573,13 +537,13 @@ const RetailerPassbook = () => {
                     <p><strong>Outlet Code:</strong> {passbookData.outletCode}</p>
                     <p><strong>Shop Name:</strong> {passbookData.shopName}</p>
                     <p><strong>State:</strong> {passbookData.state}</p>
-                    <p><strong>Retailer Name:</strong> {passbookData.retailerName}</p>
+                    <p><strong>Retailer Name:</strong> {retailerInfo?.name}</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-600">
-                        Total Budget (TAR)
+                        Total Budget
                         {selectedCampaigns.length > 0 && <span className="text-xs"> - Filtered</span>}
                       </p>
                       <p className="text-2xl font-bold text-blue-600">
@@ -603,7 +567,7 @@ const RetailerPassbook = () => {
                     </div>
                     <div className="bg-yellow-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-600">
-                        Total Pending
+                        Total Balance
                         {selectedCampaigns.length > 0 && <span className="text-xs"> - Filtered</span>}
                       </p>
                       <p className="text-2xl font-bold text-yellow-600">
@@ -625,13 +589,13 @@ const RetailerPassbook = () => {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-4">
-                    <p><strong>Organization Name:</strong> {campaign.campaignId?.client || "N/A"}</p>
+                    <p><strong>Client:</strong> {campaign.campaignId?.client || "N/A"}</p>
                     <p><strong>Type:</strong> {campaign.campaignId?.type || "N/A"}</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600">Campaign Budget (TCA)</p>
+                      <p className="text-xs text-gray-600">Campaign Budget</p>
                       <p className="text-xl font-bold text-blue-600">
                         ₹{campaign.tca || 0}
                       </p>
@@ -643,7 +607,7 @@ const RetailerPassbook = () => {
                       </p>
                     </div>
                     <div className="bg-yellow-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600">Pending</p>
+                      <p className="text-xs text-gray-600">Balance</p>
                       <p className="text-xl font-bold text-yellow-600">
                         ₹{campaign.cPending || 0}
                       </p>
