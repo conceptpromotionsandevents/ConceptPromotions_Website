@@ -10,6 +10,14 @@ import {
 } from "react-icons/fa";
 
 const Footer = () => {
+  // Social media links
+  const socialLinks = [
+    { Icon: FaFacebookF, url: "#" },
+    { Icon: FaTwitter, url: "https://x.com/Conceptpro_22" },
+    { Icon: FaLinkedinIn, url: "https://www.linkedin.com/in/concept-promotions-8782463a6/" },
+    { Icon: FaInstagram, url: "https://www.instagram.com/concept_promotions_22/" },
+  ];
+
   return (
     <>
       <div className="border-b border-gray-700 mx-auto"></div>
@@ -33,9 +41,19 @@ const Footer = () => {
               <li><a href="/contact" className="hover:text-red-500 transition">Contact</a></li>
             </ul>
 
-            <p className="text-gray-500 text-xs">
-              © {new Date().getFullYear()} Concept Promotions & Events
-            </p>
+            <div className="text-gray-500 text-xs flex justify-center md:justify-start gap-2">
+              <p>
+                © {new Date().getFullYear()} Concept Promotions & Events
+              </p>
+              <p>|</p>
+              {/* Privacy Policy Link */}
+              <a
+                href="/privacy"
+                className="hover:text-red-500 transition"
+              >
+                Privacy Policy
+              </a>
+            </div>
           </div>
 
           {/* Middle Section */}
@@ -69,10 +87,10 @@ const Footer = () => {
               Follow us on
             </h3>
             <div className="flex justify-center md:justify-start space-x-4 pt-2">
-              {[FaFacebookF, FaTwitter, FaLinkedinIn, FaInstagram].map((Icon, idx) => (
+              {socialLinks.map(({ Icon, url }, idx) => (
                 <a
                   key={idx}
-                  href="#"
+                  href={url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-xl border border-gray-600 bg-gradient-to-b from-gray-900 shadow-md hover:border-red-500 hover:shadow-red-500/40 hover:text-red-500 transition-all duration-300"
@@ -81,21 +99,6 @@ const Footer = () => {
                 </a>
               ))}
             </div>
-            {/* <h3 className="font-semibold text-white text-base">
-              Also Available On
-            </h3>
-            <div className="flex justify-center md:justify-start items-center gap-2 mt-2">
-              <img
-                src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037893/Playstore_kctght.png"
-                alt="Google Play"
-                className="h-15 w-auto cursor-pointer hover:opacity-80 transition"
-              />
-              <img
-                src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037881/Appstore_nwcf5v.png"
-                alt="App Store"
-                className="h-15 w-auto cursor-pointer hover:opacity-80 transition"
-              />
-            </div> */}
           </div>
         </div>
       </footer>
