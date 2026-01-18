@@ -12,11 +12,19 @@ import { IoChevronDown, IoClose } from "react-icons/io5";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+
 const ContactForm = () => {
   const [showOtpBox, setShowOtpBox] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [otherSubject, setOtherSubject] = useState("");
+  
+  // OTP states
+  const [otpValue, setOtpValue] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const [formData, setFormData] = useState({
     from_name: "",
@@ -58,7 +66,20 @@ const ContactForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Only allow digits for phone number
+    if (name === "phone_number") {
+      const cleaned = value.replace(/\D/g, "");
+      setFormData(prev => ({ ...prev, [name]: cleaned }));
+      
+      // Reset verification if phone number changes
+      if (isVerified && cleaned !== formData.phone_number) {
+        setIsVerified(false);
+        setOtpSent(false);
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   React.useEffect(() => {
@@ -82,6 +103,91 @@ const ContactForm = () => {
     };
   }, [dropdownOpen]);
 
+  // Send OTP Handler
+  const handleSendOtp = async () => {
+    // Validate phone number
+    if (!formData.phone_number || !/^\d{10}$/.test(formData.phone_number)) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
+
+    setIsSendingOtp(true);
+
+    try {
+      const res = await fetch(`${API_URL}/otp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          phone: formData.phone_number,
+          type: 'verification'
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("OTP sent successfully!");
+        setShowOtpBox(true);
+        setOtpSent(true);
+        
+        // Show OTP in development mode
+        if (data.otp) {
+          toast.info(`Dev OTP: ${data.otp}`, { autoClose: 10000 });
+        }
+      } else {
+        toast.error(data.message || "Failed to send OTP");
+      }
+    } catch (error) {
+      console.error('OTP Send Error:', error);
+      toast.error("Failed to send OTP. Please try again.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  // Verify OTP Handler
+  const handleVerifyOtp = async () => {
+    if (!otpValue || otpValue.length !== 6) {
+      toast.error("Please enter a 6-digit OTP");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+
+    try {
+      const res = await fetch(`${API_URL}/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          phone: formData.phone_number,
+          otp: otpValue 
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Phone verified successfully!");
+        setIsVerified(true);
+        setShowOtpBox(false);
+        setOtpValue("");
+      } else {
+        toast.error(data.message || "Invalid OTP");
+      }
+    } catch (error) {
+      console.error('OTP Verify Error:', error);
+      toast.error("Verification failed. Please try again.");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  // Resend OTP Handler
+  const handleResendOtp = async () => {
+    setOtpValue("");
+    await handleSendOtp();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -103,8 +209,15 @@ const ContactForm = () => {
       return;
     }
 
-    if (!/^\d{10}$/.test(formData.phone_number.replace(/\s/g, ""))) {
+    if (!/^\d{10}$/.test(formData.phone_number)) {
       toast.error("Please enter a valid 10-digit phone number");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check if phone is verified
+    if (!isVerified) {
+      toast.error("Please verify your phone number first");
       setIsSubmitting(false);
       return;
     }
@@ -154,6 +267,9 @@ const ContactForm = () => {
         message: "",
       });
       setOtherSubject("");
+      setIsVerified(false);
+      setOtpSent(false);
+      setOtpValue("");
 
     } catch (err) {
       console.error("CONTACT API ERROR:", err);
@@ -163,7 +279,6 @@ const ContactForm = () => {
 
     setIsSubmitting(false);
   };
-
 
   return (
     <>
@@ -209,7 +324,7 @@ const ContactForm = () => {
               We'd love to hear from you! Fill out the form below and we'll respond shortly.
             </p>
 
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 {/* Name & City */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -273,15 +388,25 @@ const ContactForm = () => {
                       value={formData.phone_number}
                       onChange={handleInputChange}
                       placeholder="Enter your phone number"
-                      className="w-full pl-9 pr-20 py-2 rounded-md bg-gray-800/80 text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition text-sm"
+                      disabled={isVerified}
+                      className={`w-full pl-9 pr-20 py-2 rounded-md bg-gray-800/80 text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition text-sm ${
+                        isVerified ? 'opacity-70 cursor-not-allowed' : ''
+                      }`}
                       required
                     />
                     <button
                       type="button"
-                      onClick={() => setShowOtpBox(true)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 text-xs font-semibold hover:underline cursor-pointer"
+                      onClick={handleSendOtp}
+                      disabled={isVerified || isSendingOtp || formData.phone_number.length !== 10}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold transition cursor-pointer ${
+                        isVerified 
+                          ? 'text-green-500 cursor-default' 
+                          : isSendingOtp || formData.phone_number.length !== 10
+                          ? 'text-gray-500 cursor-not-allowed'
+                          : 'text-red-500 hover:underline cursor-pointer'
+                      }`}
                     >
-                      Verify
+                      {isVerified ? '✓ Verified' : isSendingOtp ? 'Sending...' : 'Verify'}
                     </button>
                   </div>
                 </div>
@@ -333,8 +458,9 @@ const ContactForm = () => {
                     />
                     <IoChevronDown
                       size={16}
-                      className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""
-                        }`}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform duration-200 ${
+                        dropdownOpen ? "rotate-180" : ""
+                      }`}
                     />
                   </div>
 
@@ -394,18 +520,18 @@ const ContactForm = () => {
                 {/* Submit */}
                 <button
                   type="submit"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isVerified}
                   className={`
-    w-full text-white font-semibold py-2 rounded-md shadow-md text-sm transition-all duration-300 transform
-    ${isSubmitting
+                    w-full text-white font-semibold py-2 rounded-md shadow-md text-sm transition-all duration-300 transform cursor-pointer
+                    ${isSubmitting || !isVerified
                       ? "bg-gray-500 cursor-not-allowed"
                       : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600"
                     }
-  `}
+                  `}
                 >
-                  {isSubmitting ? "Sending..." : "Send Message"}
+                  {isSubmitting ? "Sending..." : !isVerified ? "Verify Phone First" : "Send Message"}
                 </button>
+                
                 {submitStatus === 'success' && (
                   <div className="text-green-400 text-sm text-center">
                     ✓ Message sent successfully!
@@ -419,32 +545,64 @@ const ContactForm = () => {
               </div>
             </form>
 
-
             {/* OTP Modal */}
             {showOtpBox && (
-              <div className="fixed inset-0 flex justify-center items-center bg-black/60 z-50">
-                <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-lg w-80 text-center">
-                  <h3 className="text-lg font-semibold mb-3 text-white">Enter OTP</h3>
+              <div className="fixed inset-0 flex justify-center items-center bg-black/60 z-50 backdrop-blur-sm">
+                <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-lg w-80 text-center relative">
+                  <button
+                    onClick={() => {
+                      setShowOtpBox(false);
+                      setOtpValue("");
+                    }}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-white transition"
+                  >
+                    <IoClose size={20} />
+                  </button>
+                  
+                  <h3 className="text-lg font-semibold mb-2 text-white">Enter OTP</h3>
+                  <p className="text-gray-400 text-xs mb-4">
+                    OTP sent to <span className="text-white font-semibold">{formData.phone_number}</span>
+                  </p>
+                  
                   <input
                     type="text"
                     maxLength="6"
+                    value={otpValue}
+                    onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
                     placeholder="Enter 6-digit OTP"
-                    className="w-full px-3 py-2 rounded-md bg-gray-800 text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition text-sm mb-4"
+                    className="w-full px-3 py-2 rounded-md bg-gray-800 text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition text-sm mb-4 text-center tracking-widest text-lg"
                   />
-                  <div className="flex justify-center space-x-4">
+                  
+                  <div className="flex justify-center space-x-3 mb-3">
                     <button
-                      onClick={() => setShowOtpBox(false)}
-                      className="px-4 py-2 text-sm bg-gray-700 rounded-md hover:bg-gray-600 transition"
+                      onClick={() => {
+                        setShowOtpBox(false);
+                        setOtpValue("");
+                      }}
+                      className="px-4 py-2 text-sm bg-gray-700 rounded-md hover:bg-gray-600 transition cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={() => setShowOtpBox(false)}
-                      className="px-4 py-2 text-sm bg-red-600 rounded-md hover:bg-red-500 transition"
+                      onClick={handleVerifyOtp}
+                      disabled={isVerifyingOtp || otpValue.length !== 6}
+                      className={`px-4 py-2 text-sm rounded-md transition cursor-pointer ${
+                        isVerifyingOtp || otpValue.length !== 6
+                          ? 'bg-gray-600 cursor-not-allowed'
+                          : 'bg-red-600 hover:bg-red-500'
+                      }`}
                     >
-                      Verify
+                      {isVerifyingOtp ? 'Verifying...' : 'Verify'}
                     </button>
                   </div>
+                  
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={isSendingOtp}
+                    className="text-red-500 text-xs hover:underline disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isSendingOtp ? 'Sending...' : 'Resend OTP'}
+                  </button>
                 </div>
               </div>
             )}
@@ -456,4 +614,3 @@ const ContactForm = () => {
 };
 
 export default ContactForm;
-

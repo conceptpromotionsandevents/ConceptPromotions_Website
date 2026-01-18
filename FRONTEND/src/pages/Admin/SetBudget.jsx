@@ -1,10 +1,11 @@
+// Admin/SetBudget.jsx
 import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API_URL } from "../../url/base";
-import { FaUpload, FaDownload, FaTimes, FaFileExcel } from "react-icons/fa"; // ✅ ADD THIS
-import ExcelJS from "exceljs"; // ✅ ADD THIS
+import { FaUpload, FaDownload, FaTimes, FaFileExcel, FaInfoCircle, FaWallet } from "react-icons/fa";
+import ExcelJS from "exceljs";
 
 const customSelectStyles = {
     control: (provided, state) => ({
@@ -51,11 +52,18 @@ const SetBudget = () => {
     const [budgetId, setBudgetId] = useState(null);
     const [campaignSubId, setCampaignSubId] = useState(null);
 
-    // ✅ BULK UPLOAD STATES (NEW)
+    // ✅ NEW: TDS Info Display
+    const [tdsInfo, setTdsInfo] = useState(null);
+
+    // BULK UPLOAD STATES
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [bulkFile, setBulkFile] = useState(null);
     const [bulkUploading, setBulkUploading] = useState(false);
     const [bulkResult, setBulkResult] = useState(null);
+
+    // ✅ NEW: Remaining Budget State
+    const [remainingBudget, setRemainingBudget] = useState(null);
+
 
     // ===============================
     // FETCH ALL DATA ON MOUNT
@@ -157,6 +165,33 @@ const SetBudget = () => {
                         setIsEditMode(true);
                         setBudgetId(data.budget._id);
                         setCampaignSubId(existingCampaign._id);
+
+                        // Inside checkExistingBudget function, update the tdsInfo setting:
+                        setTdsInfo({
+                            tca: existingCampaign.tca || 0,
+                            tdsAmount: existingCampaign.tdsAmount || 0,
+                            tdsRate: existingCampaign.tdsRate || 0,
+                            netPayable: existingCampaign.netPayable || existingCampaign.tca || 0,
+                            tdsApplicable: existingCampaign.tdsApplicable || false,
+                            thresholdReason: existingCampaign.thresholdReason || 'NONE',
+                            taxableAmount: existingCampaign.taxableAmount || existingCampaign.tca || 0, // ✅ NEW
+                            totalTCA: existingCampaign.tca || 0,
+                            totalTDS: existingCampaign.tdsAmount || 0,
+                            totalNetPayable: existingCampaign.netPayable || existingCampaign.tca || 0,
+                            fyTotalTCA: data.budget.fyTotalTCA || 0,
+                            financialYear: data.budget.financialYear || "Current FY",
+                        });
+
+                        // ✅ NEW: Set Remaining Budget
+                        setRemainingBudget({
+                            fyTotalTCA: data.budget.fyTotalTCA || 0,
+                            fyTotalTDS: data.budget.fyTotalTDS || 0,
+                            fyTotalNetPayable: data.budget.fyTotalNetPayable || 0,
+                            fyTotalPaid: data.budget.fyTotalPaid || 0,
+                            fyRemainingBudget: data.budget.fyRemainingBudget || 0,
+                            financialYear: data.budget.financialYear || "Current FY",
+                        });
+
                         if (!silent) {
                             toast.info(
                                 "Budget already exists. You can update or delete it.",
@@ -166,6 +201,16 @@ const SetBudget = () => {
                             );
                         }
                     } else {
+                        // ✅ NEW: Even if no campaign exists, set remaining budget
+                        setRemainingBudget({
+                            fyTotalTCA: data.budget.fyTotalTCA || 0,
+                            fyTotalTDS: data.budget.fyTotalTDS || 0,
+                            fyTotalNetPayable: data.budget.fyTotalNetPayable || 0,
+                            fyTotalPaid: data.budget.fyTotalPaid || 0,
+                            fyRemainingBudget: data.budget.fyRemainingBudget || 0,
+                            financialYear: data.budget.financialYear || "Current FY",
+                        });
+
                         resetBudgetState();
                         if (!silent) {
                             toast.info(
@@ -178,6 +223,7 @@ const SetBudget = () => {
                     }
                 } else {
                     resetBudgetState();
+                    setRemainingBudget(null);
                     if (!silent) {
                         toast.info(
                             "No existing budget found. You can create a new one.",
@@ -189,6 +235,7 @@ const SetBudget = () => {
                 }
             } else {
                 resetBudgetState();
+                setRemainingBudget(null);
                 if (!silent) {
                     toast.info(
                         "No existing budget found. You can create a new one.",
@@ -201,6 +248,7 @@ const SetBudget = () => {
         } catch (error) {
             console.error("Error checking existing budget:", error);
             resetBudgetState();
+            setRemainingBudget(null);
             if (!silent) {
                 toast.error(
                     "Failed to check existing budget. Please try again.",
@@ -218,10 +266,12 @@ const SetBudget = () => {
         setIsEditMode(false);
         setBudgetId(null);
         setCampaignSubId(null);
+        setTdsInfo(null);
+        // Don't reset remainingBudget here - keep it visible
     };
 
     // ===============================
-    // FILTER LOGIC
+    // FILTER LOGIC (KEEPING YOUR EXISTING CODE)
     // ===============================
     useEffect(() => {
         if (!selectedState && !selectedCampaign && !selectedRetailer) {
@@ -295,8 +345,8 @@ const SetBudget = () => {
                 const campaignStates = Array.isArray(campaignData.states)
                     ? campaignData.states
                     : campaignData.state
-                    ? [campaignData.state]
-                    : [];
+                        ? [campaignData.state]
+                        : [];
 
                 if (!selectedState) {
                     filteredStates = filteredStates.filter((s) =>
@@ -429,6 +479,40 @@ const SetBudget = () => {
 
             if (response.ok && data.success) {
                 toast.success("Budget set successfully!", { theme: "dark" });
+
+                // ✅ FIXED: Set TDS Info from response with fallbacks
+                if (data.tdsInfo) {
+                    setTdsInfo({
+                        tca: data.tdsInfo.totalTCA || data.tdsInfo.tca || parseFloat(budgetAmount),
+                        tdsAmount: data.tdsInfo.totalTDS || data.tdsInfo.tdsAmount || 0,
+                        tdsRate: data.tdsInfo.tdsRate || 0,
+                        netPayable: data.tdsInfo.totalNetPayable || data.tdsInfo.netPayable || parseFloat(budgetAmount),
+                        tdsApplicable: data.tdsInfo.tdsApplicable || false,
+                        // Keep alternate names for compatibility
+                        totalTCA: data.tdsInfo.totalTCA || parseFloat(budgetAmount),
+                        totalTDS: data.tdsInfo.totalTDS || 0,
+                        totalNetPayable: data.tdsInfo.totalNetPayable || parseFloat(budgetAmount),
+                    });
+                } else {
+                    // If no tdsInfo in response, calculate manually
+                    const tca = parseFloat(budgetAmount);
+                    const tdsApplicable = tca >= 100000;
+                    const tdsRate = tdsApplicable ? 2 : 0;
+                    const tdsAmount = tdsApplicable ? (tca * tdsRate) / 100 : 0;
+                    const netPayable = tca - tdsAmount;
+
+                    setTdsInfo({
+                        tca,
+                        tdsAmount,
+                        tdsRate,
+                        netPayable,
+                        tdsApplicable,
+                        totalTCA: tca,
+                        totalTDS: tdsAmount,
+                        totalNetPayable: netPayable,
+                    });
+                }
+
                 await checkExistingBudget(true);
             } else {
                 toast.error(data.message || "Failed to set budget", {
@@ -440,6 +524,7 @@ const SetBudget = () => {
             toast.error("Failed to set budget", { theme: "dark" });
         }
     };
+
 
     // ===============================
     // UPDATE BUDGET
@@ -477,6 +562,39 @@ const SetBudget = () => {
                 toast.success("Budget updated successfully!", {
                     theme: "dark",
                 });
+
+                // ✅ FIXED: Update TDS Info from response with fallbacks
+                if (data.tdsInfo) {
+                    setTdsInfo({
+                        tca: data.tdsInfo.tca || data.tdsInfo.totalTCA || parseFloat(budgetAmount),
+                        tdsAmount: data.tdsInfo.tdsAmount || data.tdsInfo.totalTDS || 0,
+                        tdsRate: data.tdsInfo.tdsRate || 0,
+                        netPayable: data.tdsInfo.netPayable || data.tdsInfo.totalNetPayable || parseFloat(budgetAmount),
+                        tdsApplicable: data.tdsInfo.tdsApplicable || false,
+                        totalTCA: data.tdsInfo.totalTCA || parseFloat(budgetAmount),
+                        totalTDS: data.tdsInfo.totalTDS || 0,
+                        totalNetPayable: data.tdsInfo.totalNetPayable || parseFloat(budgetAmount),
+                    });
+                } else {
+                    // Fallback calculation
+                    const tca = parseFloat(budgetAmount);
+                    const tdsApplicable = tca >= 100000;
+                    const tdsRate = tdsApplicable ? 2 : 0;
+                    const tdsAmount = tdsApplicable ? (tca * tdsRate) / 100 : 0;
+                    const netPayable = tca - tdsAmount;
+
+                    setTdsInfo({
+                        tca,
+                        tdsAmount,
+                        tdsRate,
+                        netPayable,
+                        tdsApplicable,
+                        totalTCA: tca,
+                        totalTDS: tdsAmount,
+                        totalNetPayable: netPayable,
+                    });
+                }
+
                 await checkExistingBudget(true);
             } else {
                 toast.error(data.message || "Failed to update budget", {
@@ -488,6 +606,7 @@ const SetBudget = () => {
             toast.error("Failed to update budget", { theme: "dark" });
         }
     };
+
 
     // ===============================
     // DELETE BUDGET
@@ -535,7 +654,7 @@ const SetBudget = () => {
     };
 
     // ===============================
-    // ✅ BULK UPLOAD FUNCTIONS (NEW)
+    // BULK UPLOAD FUNCTIONS (KEEPING YOUR EXISTING CODE)
     // ===============================
     const downloadBulkTemplate = () => {
         const fileName = "Set_Budget_Template.xlsx";
@@ -615,7 +734,7 @@ const SetBudget = () => {
                 setBulkResult(data);
                 toast.error(
                     data.message ||
-                        "Upload failed - All rows failed validation",
+                    "Upload failed - All rows failed validation",
                     { theme: "dark" }
                 );
             } else {
@@ -690,9 +809,8 @@ const SetBudget = () => {
             });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `Failed_Budget_${
-                new Date().toISOString().split("T")[0]
-            }.xlsx`;
+            link.download = `Failed_Budget_${new Date().toISOString().split("T")[0]
+                }.xlsx`;
             link.click();
             URL.revokeObjectURL(link.href);
             toast.success("Failed rows downloaded", { theme: "dark" });
@@ -729,7 +847,7 @@ const SetBudget = () => {
             <ToastContainer position="top-right" autoClose={3000} />
             <div className="min-h-screen bg-[#171717] p-6">
                 <div className="max-w-7xl mx-auto">
-                    {/* ✅ UPDATED HEADER WITH BULK UPLOAD BUTTON */}
+                    {/* HEADER WITH BULK UPLOAD BUTTON */}
                     <div className="flex justify-between items-center mb-8">
                         <h1 className="text-3xl font-bold text-[#E4002B]">
                             Set Budget
@@ -809,13 +927,13 @@ const SetBudget = () => {
                                 {(selectedState ||
                                     selectedCampaign ||
                                     selectedRetailer) && (
-                                    <button
-                                        onClick={handleClearAllFilters}
-                                        className="mt-4 text-sm text-red-600 underline hover:text-red-800"
-                                    >
-                                        Clear All Filters
-                                    </button>
-                                )}
+                                        <button
+                                            onClick={handleClearAllFilters}
+                                            className="mt-4 text-sm text-red-600 underline hover:text-red-800"
+                                        >
+                                            Clear All Filters
+                                        </button>
+                                    )}
                             </div>
 
                             {/* Selected Information Display */}
@@ -898,14 +1016,14 @@ const SetBudget = () => {
                                         </h2>
                                         {isEditMode && existingBudget && (
                                             <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                                                Current: ₹{existingBudget.tca}
+                                                Current TCA: ₹{existingBudget.tca.toLocaleString()}
                                             </span>
                                         )}
                                     </div>
 
                                     <div className="max-w-md">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Budget Amount (₹)
+                                            Total Campaign Amount (TCA) - ₹
                                         </label>
                                         <input
                                             type="number"
@@ -913,28 +1031,135 @@ const SetBudget = () => {
                                             onChange={(e) =>
                                                 setBudgetAmount(e.target.value)
                                             }
-                                            placeholder="Enter budget amount"
+                                            placeholder="Enter total campaign amount"
                                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
                                             min="0"
                                             step="0.01"
                                         />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            TDS will be calculated automatically based on amount and FY total
+                                        </p>
                                     </div>
+
+                                    {/* ✅ UPDATED TDS INFO DISPLAY */}
+                                    {tdsInfo && (
+                                        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <FaInfoCircle className="text-blue-600" />
+                                                <h3 className="font-semibold text-blue-900">
+                                                    TDS Calculation Summary ({tdsInfo.financialYear || "2025-2026"})
+                                                </h3>
+                                            </div>
+
+                                            {/* Show FY Total Context */}
+                                            {tdsInfo.fyTotalTCA > 0 && (
+                                                <div className="mb-4 pb-3 border-b border-blue-200">
+                                                    <p className="text-xs text-gray-600 mb-1">
+                                                        Total Budget for this Retailer in {tdsInfo.financialYear || "Current FY"}
+                                                    </p>
+                                                    <p className="text-sm font-semibold text-gray-700">
+                                                        ₹{tdsInfo.fyTotalTCA.toLocaleString()}
+                                                        {tdsInfo.fyTotalTCA > 100000 ? (
+                                                            <span className="ml-2 text-orange-600">
+                                                                (Exceeded ₹1,00,000 threshold)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="ml-2 text-gray-600">
+                                                                ({((tdsInfo.fyTotalTCA / 100000) * 100).toFixed(1)}% of ₹1,00,000 threshold)
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                                <div>
+                                                    <p className="text-gray-600">This Campaign Amount (TCA)</p>
+                                                    <p className="text-lg font-bold text-blue-900">
+                                                        ₹{(tdsInfo.tca || tdsInfo.totalTCA || 0).toLocaleString()}
+                                                    </p>
+                                                </div>
+
+                                                {tdsInfo.tdsApplicable ? (
+                                                    <>
+                                                        {/* Show Taxable Amount if different from TCA */}
+                                                        {tdsInfo.taxableAmount && tdsInfo.taxableAmount !== tdsInfo.tca && (
+                                                            <div>
+                                                                <p className="text-gray-600">Taxable Amount</p>
+                                                                <p className="text-lg font-bold text-purple-600">
+                                                                    ₹{tdsInfo.taxableAmount.toLocaleString()}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500">
+                                                                    (Excess above ₹1,00,000)
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        <div>
+                                                            <p className="text-gray-600">TDS Rate</p>
+                                                            <p className="text-lg font-bold text-orange-600">
+                                                                {tdsInfo.tdsRate || 0}%
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-600">TDS Deducted</p>
+                                                            <p className="text-lg font-bold text-red-600">
+                                                                - ₹{(tdsInfo.tdsAmount || tdsInfo.totalTDS || 0).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-600">Net Payable (This Campaign)</p>
+                                                            <p className="text-lg font-bold text-green-600">
+                                                                ₹{(tdsInfo.netPayable || tdsInfo.totalNetPayable || 0).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="col-span-2">
+                                                        <p className="text-sm text-gray-600 bg-green-50 border border-green-200 rounded p-3">
+                                                            <strong className="text-green-700">✓ No TDS on this campaign</strong>
+                                                            <br />
+                                                            <span className="text-xs mt-1 block">
+                                                                • Campaign amount: ₹{(tdsInfo.tca || 0).toLocaleString()} (below ₹30,000)
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {tdsInfo.tdsApplicable && (
+                                                <div className="mt-3 pt-3 border-t border-blue-200">
+                                                    <p className="text-xs text-gray-600">
+                                                        <strong>TDS Applied Because:</strong>{" "}
+                                                        {tdsInfo.thresholdReason === 'SINGLE_PAYMENT' &&
+                                                            "Campaign amount ≥ ₹30,000 (TDS on full amount)"
+                                                        }
+                                                        {tdsInfo.thresholdReason === 'ANNUAL_AGGREGATE' && (
+                                                            tdsInfo.taxableAmount && tdsInfo.taxableAmount !== tdsInfo.tca
+                                                                ? "FY total crossed ₹1,00,000 (TDS on excess amount only)"
+                                                                : "FY total already above ₹1,00,000 (TDS on full amount)"
+                                                        )}
+                                                        {tdsInfo.thresholdReason === 'BOTH' &&
+                                                            "Campaign ≥ ₹30,000 AND FY total > ₹1,00,000 (TDS on full amount)"
+                                                        }
+                                                        <br />
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div className="mt-6 flex gap-3">
                                         {isEditMode ? (
                                             <>
                                                 <button
-                                                    onClick={
-                                                        handleUpdateBudget
-                                                    }
+                                                    onClick={handleUpdateBudget}
                                                     className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
                                                 >
                                                     Update Budget
                                                 </button>
                                                 <button
-                                                    onClick={
-                                                        handleDeleteBudget
-                                                    }
+                                                    onClick={handleDeleteBudget}
                                                     className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
                                                 >
                                                     Delete Budget
@@ -1056,11 +1281,10 @@ const SetBudget = () => {
                                 <button
                                     onClick={handleBulkUpload}
                                     disabled={bulkUploading || !bulkFile}
-                                    className={`w-full py-3 rounded-lg font-semibold transition mt-4 ${
-                                        bulkUploading || !bulkFile
-                                            ? "bg-gray-400 cursor-not-allowed text-white"
-                                            : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
-                                    }`}
+                                    className={`w-full py-3 rounded-lg font-semibold transition mt-4 ${bulkUploading || !bulkFile
+                                        ? "bg-gray-400 cursor-not-allowed text-white"
+                                        : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
+                                        }`}
                                 >
                                     {bulkUploading
                                         ? "Uploading..."
@@ -1118,7 +1342,7 @@ const SetBudget = () => {
                                     {/* Successful Budgets */}
                                     {bulkResult.successfulRows &&
                                         bulkResult.successfulRows.length >
-                                            0 && (
+                                        0 && (
                                             <div className="mb-6">
                                                 <h4 className="font-semibold text-green-700 mb-3">
                                                     Successfully Set Budgets (
