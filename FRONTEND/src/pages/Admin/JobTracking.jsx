@@ -65,12 +65,22 @@ const JobTracking = ({ onViewJob }) => {
     fetchJobs();
   }, []);
 
-  const departments = [...new Set(allJobs.map((j) => j.title))].map((d) => ({
+  // ✅ Filter jobs based on status first
+  const getJobsByStatus = () => {
+    if (status.value === "all") return allJobs;
+    return allJobs.filter((job) =>
+      status.value === "active" ? job.isActive : !job.isActive
+    );
+  };
+
+  // ✅ Get departments based on current status
+  const statusFilteredJobs = getJobsByStatus();
+  const departments = [...new Set(statusFilteredJobs.map((j) => j.title))].map((d) => ({
     label: d,
     value: d,
   }));
 
-  const states = [...new Set(allJobs.map((j) => j.location))].map((d) => ({
+  const states = [...new Set(statusFilteredJobs.map((j) => j.location))].map((d) => ({
     label: d,
     value: d,
   }));
@@ -81,14 +91,14 @@ const JobTracking = ({ onViewJob }) => {
     { label: "All", value: "all" },
   ];
 
-  const applyFilters = () => {
-    let filtered = [...allJobs];
+  // ✅ Reset dependent filters when status changes
+  useEffect(() => {
+    setDepartment(null);
+    setState(null);
+  }, [status]);
 
-    if (status.value !== "all") {
-      filtered = filtered.filter((job) =>
-        status.value === "active" ? job.isActive : !job.isActive
-      );
-    }
+  const applyFilters = () => {
+    let filtered = getJobsByStatus();
 
     if (searchTerm.trim()) {
       filtered = filtered.filter(
@@ -144,7 +154,7 @@ const JobTracking = ({ onViewJob }) => {
           Filter Jobs
         </h3>
 
-        {/* 🔍 SEARCH BAR (NORMAL, NOT CENTERED) */}
+        {/* 🔍 SEARCH BAR */}
         <div className="mb-4">
           <div className="flex items-center bg-white rounded-lg px-3">
             <FaSearch className="text-gray-400" />
@@ -186,19 +196,19 @@ const JobTracking = ({ onViewJob }) => {
           />
         </div>
 
-        {/* DATE RANGE */}
+        {/* DATE RANGE - ✅ WHITE BACKGROUND */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="border rounded-md px-3 py-2"
+            className="bg-white border border-gray-300 rounded-md px-3 py-2"
           />
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="border rounded-md px-3 py-2"
+            className="bg-white border border-gray-300 rounded-md px-3 py-2"
           />
         </div>
 
