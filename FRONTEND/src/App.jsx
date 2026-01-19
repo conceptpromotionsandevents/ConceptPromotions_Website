@@ -15,6 +15,8 @@ import Careers from "./pages/Website/CareerPage";
 import Services from "./pages/Website/ServicesPage";
 import Network from "./pages/Website/NetworkPage";
 import ContactForm from "./pages/Website/ContactFormPage";
+import PrivacyPolicy from "./pages/Website/PrivacyPolicyPage";
+import NotFound from "./pages/Website/NotFoundPage";
 import RetailerDashboard from "./pages/Retailer/RetailerDashboard"
 import EmployeeDashboard from "./pages/Employee/EmployeeDashboard"
 import ClientDashboard from "./pages/Client/ClientDashboard"
@@ -46,6 +48,7 @@ const App = () => {
           <Route path="/services" element={<Services />} />
           <Route path="/network" element={<Network />} />
           <Route path="/contact" element={<ContactForm />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route
@@ -83,6 +86,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </>
