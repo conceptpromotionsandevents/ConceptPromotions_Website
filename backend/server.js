@@ -9,9 +9,9 @@ import clientRoutes from "./routes/clientRoutes.js";
 import contactRoutes from "./routes/contactUsRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
-import passwordReset from "./routes/passwordReset.js";
 import paymentRoutes from "./routes/payment.route.js";
 import reportRoutes from "./routes/report.route.js";
+import passwordReset from "./routes/reset-password.route.js";
 import retailerRoutes from "./routes/retailerRoutes.js";
 import tdsCertificateRoutes from "./routes/tdsCertificateRoutes.js";
 

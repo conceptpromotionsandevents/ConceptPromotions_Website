@@ -59,7 +59,7 @@ const adminSchema = new Schema(
         resetPasswordToken: { type: String },
         resetPasswordExpires: { type: Date },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 export const Admin = model("Admin", adminSchema);
 
@@ -103,10 +103,8 @@ const clientAdminSchema = new Schema(
             password: { type: String, required: true },
         },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
-
-
 
 export const ClientAdmin = model("ClientAdmin", clientAdminSchema);
 
@@ -125,7 +123,7 @@ const clientUserSchema = new Schema(
         },
         parentClientAdmin: { type: Schema.Types.ObjectId, ref: "ClientAdmin" },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 export const ClientUser = model("ClientUser", clientUserSchema);
 
@@ -280,7 +278,7 @@ const employeeSchema = new Schema(
 
         tnc: { type: Boolean },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 // ------------------------------------------------------
@@ -289,7 +287,7 @@ const employeeSchema = new Schema(
 employeeSchema.pre("save", function (next) {
     if (!this.employeeId) {
         const letters = Array.from({ length: 4 }, () =>
-            String.fromCharCode(65 + Math.floor(Math.random() * 26))
+            String.fromCharCode(65 + Math.floor(Math.random() * 26)),
         ).join("");
 
         const numbers = Math.floor(10000 + Math.random() * 90000);
@@ -302,7 +300,6 @@ employeeSchema.pre("save", function (next) {
 /* ===============================
    EMPLOYEE REPORT SCHEMA - UPDATED FOR CLOUDINARY
 =============================== */
-
 
 /* ===========================
    PASSWORD HASH MIDDLEWARE
@@ -415,7 +412,6 @@ const campaignSchema = new Schema(
                 },
             ],
         },
-
 
         /* =========================
            💰 GRATIFICATION DETAILS (WITH IMAGES) 🔥
@@ -536,7 +532,7 @@ const campaignSchema = new Schema(
             },
         ],
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 /* ---------------------------
@@ -561,7 +557,10 @@ campaignSchema.pre("remove", async function (next) {
         }
 
         // Delete gratification images ✅ NEW
-        if (this.gratification?.images && this.gratification.images.length > 0) {
+        if (
+            this.gratification?.images &&
+            this.gratification.images.length > 0
+        ) {
             for (const image of this.gratification.images) {
                 if (image.publicId) {
                     await deleteFromCloudinary(image.publicId, "image");
@@ -607,7 +606,6 @@ export const Campaign = mongoose.model("Campaign", campaignSchema);
    PAYMENT SCHEMA (NO CHANGES)
 =============================== */
 
-
 /* ===============================
    CAREER APPLICATION SCHEMA - UPDATED FOR CLOUDINARY
 =============================== */
@@ -629,12 +627,12 @@ const careerApplicationSchema = new mongoose.Schema(
             fileName: String,
         },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 export const CareerApplication = mongoose.model(
     "CareerApplication",
-    careerApplicationSchema
+    careerApplicationSchema,
 );
 
 /* ===============================
@@ -659,7 +657,7 @@ const jobSchema = new mongoose.Schema(
         },
         isActive: { type: Boolean, default: true },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 export const Job = mongoose.model("Job", jobSchema);
@@ -693,14 +691,13 @@ const jobApplicationSchema = new mongoose.Schema(
         totalRounds: { type: Number, default: 1 },
         currentRound: { type: Number, default: 0 },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 export const JobApplication = mongoose.model(
     "JobApplication",
-    jobApplicationSchema
+    jobApplicationSchema,
 );
-
 
 /* ===============================
    VISIT SCHEDULE SCHEMA (NO CHANGES)
@@ -767,7 +764,7 @@ const visitScheduleSchema = new Schema(
             default: null,
         },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 export const VisitSchedule = model("VisitSchedule", visitScheduleSchema);

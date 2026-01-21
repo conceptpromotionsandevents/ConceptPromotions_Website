@@ -156,7 +156,7 @@ const ForgotPassword = () => {
             toast.success("Password reset successfully!", { theme: "dark" });
 
             setTimeout(() => {
-                navigate("/retailer-signin");
+                navigate("/retailersignin");
             }, 1500);
         } catch (err) {
             console.error("Password reset error:", err);

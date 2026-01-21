@@ -1,5 +1,23 @@
 import { Retailer } from "../models/retailer.model.js";
+import { Employee, ClientAdmin } from "../models/user.js";
 import { otpStore } from "../utils/sms/otpStore.js";
+
+// Helper function to find user across all models
+const findUserByPhone = async (cleanPhone) => {
+    // Try to find in Retailer
+    let user = await Retailer.findOne({ contactNo: cleanPhone });
+    if (user) return { user, userType: "retailer" };
+
+    // Try to find in Employee
+    user = await Employee.findOne({ phone: cleanPhone });
+    if (user) return { user, userType: "employee" };
+
+    // Try to find in ClientAdmin
+    user = await ClientAdmin.findOne({ contactNo: cleanPhone });
+    if (user) return { user, userType: "client" };
+
+    return { user: null, userType: null };
+};
 
 // Step 1: Initiate password reset (send OTP)
 export const initiatePasswordReset = async (req, res) => {
@@ -17,63 +35,36 @@ export const initiatePasswordReset = async (req, res) => {
             });
         }
 
-        // Log all retailers to debug
-        const totalRetailers = await Retailer.countDocuments();
+        // Search across all user types
+        const { user, userType } = await findUserByPhone(cleanPhone);
 
-        // Try multiple search patterns
-        let retailer = await Retailer.findOne({ contactNo: cleanPhone });
-        console.log(
-            "🔍 Search result (exact):",
-            retailer ? "FOUND" : "NOT FOUND",
-        );
-
-        if (!retailer) {
-            // Try with country code
-            retailer = await Retailer.findOne({ contactNo: `91${cleanPhone}` });
-            console.log(
-                "🔍 Search result (with 91):",
-                retailer ? "FOUND" : "NOT FOUND",
-            );
-        }
-
-        if (!retailer) {
-            // Try with leading zero
-            retailer = await Retailer.findOne({ contactNo: `0${cleanPhone}` });
-            console.log(
-                "🔍 Search result (with 0):",
-                retailer ? "FOUND" : "NOT FOUND",
-            );
-        }
-
-        if (!retailer) {
-            // Get a sample retailer to see the format
-            const sampleRetailer = await Retailer.findOne({}).select(
-                "contactNo name",
-            );
-            console.log("📝 Sample retailer:", sampleRetailer);
-
+        if (!user) {
+            console.log("🔍 Phone not found in any collection");
             return res.status(404).json({
                 success: false,
                 message:
                     "Phone number not registered. Please check and try again.",
-                debug: {
-                    searchedPhone: cleanPhone,
-                    totalRetailers: totalRetailers,
-                    sampleContactNo: sampleRetailer?.contactNo,
-                },
             });
         }
 
-        console.log("✅ Retailer found:", retailer.name);
+        console.log(`✅ User found: ${user.name} (Type: ${userType})`);
 
+        // Mark this OTP as password reset type
         if (otpStore.setResetFlag) {
             otpStore.setResetFlag(cleanPhone, true);
+        }
+
+        // Store user type for the reset step
+        const existingOTPData = otpStore.get(cleanPhone);
+        if (existingOTPData) {
+            existingOTPData.userType = userType;
         }
 
         res.status(200).json({
             success: true,
             message: "Phone number verified. Please request OTP to proceed.",
             phoneExists: true,
+            userType: userType, // Return user type for frontend reference
         });
     } catch (error) {
         console.error("Password Reset Initiation Error:", error);
@@ -149,33 +140,45 @@ export const resetPassword = async (req, res) => {
             });
         }
 
-        // Find retailer by contactNo (phone number field)
-        const retailer = await Retailer.findOne({ contactNo: cleanPhone });
+        // Find user across all models
+        const { user, userType } = await findUserByPhone(cleanPhone);
 
-        if (!retailer) {
+        if (!user) {
             return res.status(404).json({
                 success: false,
-                message: "Retailer not found",
+                message: "User not found",
             });
         }
 
-        // Update the PASSWORD field (not contactNo)
-        // The pre-save hook will automatically hash it
-        retailer.password = newPassword;
-        await retailer.save();
+        console.log(`🔄 Resetting password for ${userType}: ${user.name}`);
+
+        // Update password based on user type
+        // All schemas have password field and pre-save hooks for hashing
+        user.password = newPassword;
+
+        // For employees, reset first login flag since they're setting a new password
+        if (userType === "employee" && user.isFirstLogin !== undefined) {
+            user.isFirstLogin = false;
+        }
+
+        await user.save();
 
         // Delete OTP
         otpStore.delete(cleanPhone);
 
+        console.log(`✅ Password reset successful for ${userType}`);
+
         res.status(200).json({
             success: true,
             message: "Password reset successfully",
+            userType: userType,
         });
     } catch (error) {
         console.error("Password Reset Error:", error);
         res.status(500).json({
             success: false,
             message: "Failed to reset password",
+            error: error.message,
         });
     }
 };

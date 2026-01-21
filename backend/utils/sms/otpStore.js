@@ -52,6 +52,18 @@ class OTPStore {
         return Date.now() > data.expiresAt;
     }
 
+    setUserType(phone, userType) {
+        const data = this.store.get(phone);
+        if (data) {
+            data.userType = userType;
+        }
+    }
+
+    getUserType(phone) {
+        const data = this.store.get(phone);
+        return data?.userType || null;
+    }
+
     // Clean expired OTPs periodically
     cleanExpired() {
         const now = Date.now();
