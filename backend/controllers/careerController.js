@@ -1,8 +1,8 @@
-import { CareerApplication, JobApplication, Job } from "../models/user.js";
 import nodemailer from "nodemailer";
+import { CareerApplication, Job, JobApplication } from "../models/user.js";
 import {
-    uploadToCloudinary,
     deleteFromCloudinary,
+    uploadToCloudinary,
 } from "../utils/cloudinary.config.js";
 
 /* ============================================================
@@ -50,7 +50,7 @@ export const applyToJob = async (req, res) => {
             const result = await uploadToCloudinary(
                 resumeFile.buffer,
                 "career/resumes",
-                "raw" // For PDF/DOC files
+                "raw", // For PDF/DOC files
             );
 
             resumeData = {
@@ -88,12 +88,12 @@ export const applyToJob = async (req, res) => {
                 try {
                     await deleteFromCloudinary(
                         candidate.resume.publicId,
-                        "raw"
+                        "raw",
                     );
                 } catch (err) {
                     console.error(
                         `Failed to delete old resume ${candidate.resume.publicId}:`,
-                        err
+                        err,
                     );
                 }
             }
@@ -217,7 +217,7 @@ export const getAllJobs = async (req, res) => {
         const jobs = await Job.find(filters)
             .sort({ createdAt: -1 })
             .select(
-                "title description location department employmentType salaryRange experienceRequired createdAt"
+                "title description location department employmentType salaryRange experienceRequired createdAt",
             );
 
         if (!jobs.length)
