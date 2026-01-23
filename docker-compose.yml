@@ -7,6 +7,7 @@ services:
         build:
             context: ./backend
             dockerfile: Dockerfile
+            pull: true
         image: concept-backend:latest
         container_name: concept-backend
         restart: unless-stopped
@@ -36,6 +37,7 @@ services:
         build:
             context: ./FRONTEND
             dockerfile: Dockerfile
+            pull: true
             args:
                 VITE_API_URL: https://conceptpromotions.in/api
         image: concept-frontend:latest
