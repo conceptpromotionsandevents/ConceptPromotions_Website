@@ -16,7 +16,7 @@ git pull origin main
 
 # Stop containers
 echo "🛑 Stopping containers..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 # Remove ALL old images (not just dangling)
 echo "🗑️  Removing old images..."
@@ -28,18 +28,18 @@ docker system prune -af --volumes
 
 # Build fresh images with no cache
 echo "🏗️  Building fresh images..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache --pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache --pull
 
 # Start services
 echo "🚀 Starting services..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Wait for health checks
 echo "⏳ Waiting for health checks..."
 sleep 20
 
 # Verify services
-docker-compose ps
+docker compose ps
 
 # Final size check
 echo "💿 Final disk usage:"

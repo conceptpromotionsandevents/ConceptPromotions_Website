@@ -22,7 +22,7 @@ git pull origin main || print_warning "Git pull failed or already up to date"
 
 # Stop and remove existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 # Remove old images (keep latest)
 echo "🗑️  Cleaning up old Docker images..."
@@ -39,7 +39,7 @@ docker image prune -f
 
 # Build and start containers
 echo "🏗️  Building and starting containers..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."
@@ -47,7 +47,7 @@ sleep 10
 
 # Check container status
 echo "📊 Container status:"
-docker-compose ps
+docker compose ps
 
 # Show resource usage
 echo "💾 Resource usage:"
