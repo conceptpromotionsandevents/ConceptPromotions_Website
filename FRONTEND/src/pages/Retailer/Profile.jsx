@@ -203,14 +203,14 @@ const formatDateForInput = (dateString) => {
 };
 
 // NEW: OTP Modal Component
-const OTPModal = ({ 
-  show, 
-  onClose, 
-  phoneNumber, 
-  onVerify, 
+const OTPModal = ({
+  show,
+  onClose,
+  phoneNumber,
+  onVerify,
   onResend,
   isVerifying,
-  isSending 
+  isSending
 }) => {
   const [otpValue, setOtpValue] = useState("");
 
@@ -218,18 +218,18 @@ const OTPModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="bg-white rounded-lg shadow-2xl w-[90%] md:w-[400px] p-6 relative">
+      <div className="bg-[#171717] rounded-lg shadow-2xl w-[90%] md:w-[400px] p-6 relative">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+          className="absolute top-3 right-3 text-gray-200 hover:text-gray-400 cursor-pointer"
         >
           <IoClose size={24} />
         </button>
 
-        <h3 className="text-xl font-bold mb-2 text-gray-800 text-center">
+        <h3 className="text-xl font-bold mb-2 text-gray-200 text-center">
           Verify Phone Number
         </h3>
-        <p className="text-sm text-gray-600 mb-4 text-center">
+        <p className="text-sm text-gray-400 mb-4 text-center">
           OTP sent to <span className="font-semibold text-[#E4002B]">{phoneNumber}</span>
         </p>
 
@@ -237,26 +237,34 @@ const OTPModal = ({
           type="text"
           maxLength="6"
           value={otpValue}
-          onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
+          onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
           placeholder="Enter 6-digit OTP"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-widest font-semibold focus:outline-none focus:ring-2 focus:ring-[#E4002B] mb-4"
+          className="
+            w-full px-4 py-3
+            border-2 border-red-500
+            rounded-lg
+            text-center text-2xl tracking-widest font-semibold
+            text-white placeholder-gray
+            bg-transparent
+            focus:outline-none focus:ring-2 focus:ring-red-500
+            mb-4
+          "
         />
 
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition cursor-pointer"
+            className="flex-1 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={() => onVerify(otpValue)}
             disabled={isVerifying || otpValue.length !== 6}
-            className={`flex-1 py-2 rounded-lg transition cursor-pointer ${
-              isVerifying || otpValue.length !== 6
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-[#E4002B] hover:bg-[#c4001f]'
-            } text-white font-semibold`}
+            className={`flex-1 py-2 rounded-lg transition cursor-pointer ${isVerifying || otpValue.length !== 6
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-green-600 hover:bg-green-700'
+              } text-white font-semibold`}
           >
             {isVerifying ? 'Verifying...' : 'Verify'}
           </button>
@@ -281,6 +289,7 @@ const RetailerProfile = () => {
   // Personal details
   const [name, setName] = useState("");
   const [contactNo, setContactNo] = useState("");
+  const [originalContactNo, setOriginalContactNo] = useState("");
   const [altContactNo, setAltContactNo] = useState("");
   const [email, setEmail] = useState("");
   const [dob, setDob] = useState("");
@@ -366,35 +375,28 @@ const RetailerProfile = () => {
   const [tncLocked, setTncLocked] = useState(false);
   const [error, setError] = useState("");
   const isUpdatingFromBackend = useRef(false);
-  
+
   // OTP States
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpFor, setOtpFor] = useState(null); // 'contact' or 'altContact'
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [contactVerified, setContactVerified] = useState(false);
-  const [altContactVerified, setAltContactVerified] = useState(false);
-
-  // ... [Keep all other state variables from your original code] ...
 
   // Send OTP Handler
-  const handleSendOtp = async (phoneType) => {
-    const phone = phoneType === 'contact' ? contactNo : altContactNo;
-    
-    if (!phone || !/^\d{10}$/.test(phone)) {
-      toast.error("Please enter a valid 10-digit phone number");
+  const handleSendOtp = async () => {
+    if (!contactNo || !/^\d{10}$/.test(contactNo)) {
+      toast.error("Please enter a valid 10-digit phone number", { theme: "dark" }); // ADD THEME
       return;
     }
 
     setIsSendingOtp(true);
-    setOtpFor(phoneType);
 
     try {
       const res = await fetch(`${API_URL}/otp/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          phone: phone,
+        body: JSON.stringify({
+          phone: contactNo,
           type: 'verification'
         })
       });
@@ -402,21 +404,18 @@ const RetailerProfile = () => {
       const data = await res.json();
 
       if (data.success) {
-        toast.success("OTP sent successfully!");
+        toast.success("OTP sent successfully!", { theme: "dark" }); // ADD THEME
         setShowOtpModal(true);
-        
-        // Show OTP in development mode
+
         if (data.otp) {
-          console.log(`Dev OTP for ${phone}:`, data.otp);
+          console.log(`Dev OTP for ${contactNo}:`, data.otp);
         }
       } else {
-        toast.error(data.message || "Failed to send OTP");
-        setOtpFor(null);
+        toast.error(data.message || "Failed to send OTP", { theme: "dark" }); // ADD THEME
       }
     } catch (error) {
       console.error('OTP Send Error:', error);
-      toast.error("Failed to send OTP. Please try again.");
-      setOtpFor(null);
+      toast.error("Failed to send OTP. Please try again.", { theme: "dark" }); // ADD THEME
     } finally {
       setIsSendingOtp(false);
     }
@@ -425,42 +424,35 @@ const RetailerProfile = () => {
   // Verify OTP Handler
   const handleVerifyOtp = async (otp) => {
     if (!otp || otp.length !== 6) {
-      toast.error("Please enter a 6-digit OTP");
+      toast.error("Please enter a 6-digit OTP", { theme: "dark" });
       return;
     }
 
-    const phone = otpFor === 'contact' ? contactNo : altContactNo;
     setIsVerifyingOtp(true);
 
     try {
       const res = await fetch(`${API_URL}/otp/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          phone: phone,
-          otp: otp 
+        body: JSON.stringify({
+          phone: contactNo,
+          otp: otp
         })
       });
 
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Phone verified successfully! ✓");
-        
-        if (otpFor === 'contact') {
-          setContactVerified(true);
-        } else {
-          setAltContactVerified(true);
-        }
-        
+        toast.success("Phone verified successfully! ✓", { theme: "dark" });
+        setContactVerified(true);
+        setOriginalContactNo(contactNo);
         setShowOtpModal(false);
-        setOtpFor(null);
       } else {
-        toast.error("Invalid OTP");
+        toast.error("Invalid OTP", { theme: "dark" });
       }
     } catch (error) {
       console.error('OTP Verify Error:', error);
-      toast.error("Verification failed. Please try again.");
+      toast.error("Verification failed. Please try again.", { theme: "dark" });
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -468,19 +460,13 @@ const RetailerProfile = () => {
 
   // Resend OTP Handler
   const handleResendOtp = () => {
-    if (otpFor) {
-      handleSendOtp(otpFor);
-    }
+    handleSendOtp();
   };
 
   // Reset verification when phone number changes
   useEffect(() => {
     setContactVerified(false);
   }, [contactNo]);
-
-  useEffect(() => {
-    setAltContactVerified(false);
-  }, [altContactNo]);
 
   // LOAD PROFILE FROM BACKEND
   useEffect(() => {
@@ -509,7 +495,9 @@ const RetailerProfile = () => {
         // Map backend -> frontend state
         setName(data.name || "");
         setContactNo(data.contactNo || "");
+        setOriginalContactNo(data.contactNo || "");
         setAltContactNo(data.altContactNo || "");
+        setContactVerified(data.phoneVerified || false);
         setEmail(data.email || "");
         setDob(formatDateForInput(data.dob) || "");
         setGender(data.gender || "");
@@ -585,19 +573,12 @@ const RetailerProfile = () => {
     }
   }, [bankName, accountNumber, ifsc, branchName, originalBankDetails, pennyCheckLocked]);
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Check if contact number is verified
     if (!contactVerified) {
       toast.error("Please verify your contact number first");
-      return;
-    }
-
-    // Check if alternate contact is provided and not verified
-    if (altContactNo && !altContactVerified) {
-      toast.error("Please verify your alternate contact number");
       return;
     }
 
@@ -619,6 +600,9 @@ const RetailerProfile = () => {
       formData.append("name", name);
       formData.append("email", email);
       formData.append("contactNo", contactNo);
+      if (contactVerified) {
+        formData.append("phoneVerified", "true");
+      }
       formData.append("altContactNo", altContactNo);
       formData.append("dob", dob || "");
       formData.append("gender", gender || "");
@@ -670,6 +654,8 @@ const RetailerProfile = () => {
 
       // Update state with response
       setEmail(r.email || "");
+      setOriginalContactNo(r.contactNo || "");
+      setContactVerified(r.phoneVerified || false);
       setDob(formatDateForInput(r.dob) || "");
       setGender(r.gender || "");
       setGovtIdType(r.govtIdType || "");
@@ -761,9 +747,8 @@ const RetailerProfile = () => {
         show={showOtpModal}
         onClose={() => {
           setShowOtpModal(false);
-          setOtpFor(null);
         }}
-        phoneNumber={otpFor === 'contact' ? contactNo : altContactNo}
+        phoneNumber={contactNo}
         onVerify={handleVerifyOtp}
         onResend={handleResendOtp}
         isVerifying={isVerifyingOtp}
@@ -812,17 +797,22 @@ const RetailerProfile = () => {
                   <input
                     type="tel"
                     value={contactNo}
-                    onChange={(e) => setContactNo(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) => {
+                      const newValue = e.target.value.replace(/\D/g, "");
+                      setContactNo(newValue);
+                      // Reset verification if contact number changes
+                      if (newValue !== originalContactNo) {
+                        setContactVerified(false);
+                      }
+                    }}
                     placeholder="+91 1234567890"
                     maxLength={10}
-                    disabled={contactVerified}
-                    className={`w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B] ${contactVerified ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
+                    className="w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                     required
                   />
                   <button
                     type="button"
-                    onClick={() => handleSendOtp('contact')}
+                    onClick={handleSendOtp}
                     disabled={contactVerified || isSendingOtp || contactNo.length !== 10}
                     className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold px-2 py-1 rounded transition ${contactVerified
                       ? 'text-green-600 cursor-default'
@@ -831,12 +821,17 @@ const RetailerProfile = () => {
                         : 'text-[#E4002B] hover:bg-red-50 cursor-pointer'
                       }`}
                   >
-                    {contactVerified ? '✓ Verified' : isSendingOtp && otpFor === 'contact' ? 'Sending...' : 'Verify'}
+                    {contactVerified ? '✓ Verified' : isSendingOtp ? 'Sending...' : 'Verify'}
                   </button>
                 </div>
+                {contactNo !== originalContactNo && !contactVerified && (
+                  <p className="text-amber-600 text-xs mt-1">
+                    Phone number changed. Please verify the new number.
+                  </p>
+                )}
               </div>
 
-              {/* Alternate Contact Number with OTP Verification */}
+              {/* Alternate Contact Number - NO VERIFICATION */}
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Alternate Contact No
@@ -849,25 +844,8 @@ const RetailerProfile = () => {
                     onChange={(e) => setAltContactNo(e.target.value.replace(/\D/g, ""))}
                     placeholder="+91 1234567890"
                     maxLength={10}
-                    disabled={altContactVerified}
-                    className={`w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B] ${altContactVerified ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B]"
                   />
-                  {altContactNo && (
-                    <button
-                      type="button"
-                      onClick={() => handleSendOtp('altContact')}
-                      disabled={altContactVerified || isSendingOtp || altContactNo.length !== 10}
-                      className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold px-2 py-1 rounded transition ${altContactVerified
-                        ? 'text-green-600 cursor-default'
-                        : isSendingOtp || altContactNo.length !== 10
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-[#E4002B] hover:bg-red-50 cursor-pointer'
-                        }`}
-                    >
-                      {altContactVerified ? '✓ Verified' : isSendingOtp && otpFor === 'altContact' ? 'Sending...' : 'Verify'}
-                    </button>
-                  )}
                 </div>
               </div>
 

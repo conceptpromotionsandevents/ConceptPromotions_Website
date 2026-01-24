@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaLock, FaPhone } from "react-icons/fa";
+import { FaLock, FaPhoneAlt } from "react-icons/fa";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -43,8 +43,6 @@ const ForgotPassword = () => {
         setLoading(true);
 
         try {
-            console.log("API_URL:", API_URL); // Add this line
-            console.log("Full URL:", `${API_URL}/password-reset/initiate`); // Add this
 
             const response = await fetch(`${API_URL}/password-reset/initiate`, {
                 method: "POST",
@@ -156,7 +154,7 @@ const ForgotPassword = () => {
             toast.success("Password reset successfully!", { theme: "dark" });
 
             setTimeout(() => {
-                navigate("/retailersignin");
+                navigate("/");
             }, 1500);
         } catch (err) {
             console.error("Password reset error:", err);
@@ -208,7 +206,7 @@ const ForgotPassword = () => {
                                     <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    <FaPhone className="absolute left-3 top-3 text-gray-400" />
+                                    <FaPhoneAlt className="absolute left-3 top-3 text-gray-400" />
                                     <input
                                         type="tel"
                                         placeholder="10-digit phone number"
@@ -231,16 +229,16 @@ const ForgotPassword = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60"
+                                className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60 cursor-pointer"
                             >
                                 {loading ? "Verifying..." : "Continue"}
                             </button>
 
                             <p
                                 className="text-center text-sm text-blue-400 cursor-pointer hover:underline"
-                                onClick={() => navigate("/retailer-signin")}
+                                onClick={() => navigate("/")}
                             >
-                                Back to Login
+                                Back to Home
                             </p>
                         </form>
                     )}
@@ -265,7 +263,7 @@ const ForgotPassword = () => {
                                 type="button"
                                 onClick={handleSendOTP}
                                 disabled={loading || otpTimer > 0}
-                                className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-60"
+                                className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-60 cursor-pointer"
                             >
                                 {otpTimer > 0
                                     ? `Resend in ${otpTimer}s`
@@ -371,7 +369,7 @@ const ForgotPassword = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60"
+                                className="w-full bg-[#E4002B] text-white py-2 rounded-lg font-medium hover:bg-[#C3002B] transition disabled:opacity-60 cursor-pointer"
                             >
                                 {loading ? "Resetting..." : "Reset Password"}
                             </button>
