@@ -8,6 +8,7 @@ import {
     uploadToCloudinary,
 } from "../utils/cloudinary.config.js";
 import { getResourceType } from "../utils/cloudinary.helper.js";
+import bcrypt from "bcryptjs";
 
 import XLSX from "xlsx";
 dotenv.config();
@@ -250,28 +251,31 @@ export const registerRetailer = async (req, res) => {
 };
 
 /* ===============================
-   LOGIN RETAILER (Phone only)
+   LOGIN RETAILER (Email + Password)
 =============================== */
 export const loginRetailer = async (req, res) => {
     try {
-        const { contactNo, email } = req.body;
+        const { email, password } = req.body;
 
-        if (!contactNo || !email) {
+        if (!email || !password) {
             return res.status(400).json({
-                message: "Email and phone number are both required",
+                message: "Email and password are both required",
             });
         }
 
-        const retailer = await Retailer.findOne({
-            email,
-            contactNo,
-        });
+        const retailer = await Retailer.findOne({ email });
 
         if (!retailer)
-            return res.status(400).json({ message: "Retailer not found" });
+            return res.status(400).json({ message: "Invalid credentials" });
 
         if (!retailer.phoneVerified)
             return res.status(400).json({ message: "Phone not verified" });
+
+        // Compare password
+        const isPasswordValid = await bcrypt.compare(password, retailer.password);
+
+        if (!isPasswordValid)
+            return res.status(400).json({ message: "Invalid credentials" });
 
         if (!process.env.JWT_SECRET) {
             console.error("JWT_SECRET missing in environment variables");
@@ -420,7 +424,7 @@ export const getRetailerImageStatus = async (req, res) => {
 };
 
 /* ===============================
-   UPDATE RETAILER PROFILE - UPDATED FOR CLOUDINARY
+    UPDATE RETAILER PROFILE - UPDATED FOR CLOUDINARY
 =============================== */
 export const updateRetailer = async (req, res) => {
     try {
@@ -442,10 +446,33 @@ export const updateRetailer = async (req, res) => {
         const body = req.body;
         const files = req.files || {};
 
+        console.log("=== UPDATE RETAILER DEBUG ===");
+        console.log("Current phoneVerified in DB:", retailer.phoneVerified);
+        console.log("phoneVerified from request:", body.phoneVerified);
+        console.log("Type of phoneVerified:", typeof body.phoneVerified);
+        console.log("contactNo from request:", body.contactNo);
+        console.log("Current contactNo in DB:", retailer.contactNo);
+
+        /* ========================================
+           PHONE VERIFICATION HANDLING - SIMPLIFIED
+        ======================================== */
+        // Update phoneVerified FIRST if it's being sent (user just verified)
+        if (body.phoneVerified === "true" || body.phoneVerified === true) {
+            console.log("✅ Setting phoneVerified to TRUE");
+            retailer.phoneVerified = true;
+        } else {
+            console.log("❌ NOT setting phoneVerified (condition not met)");
+        }
+
+        // Update contact number
+        if (body.contactNo) {
+            console.log("📞 Updating contactNo to:", body.contactNo);
+            retailer.contactNo = body.contactNo;
+        }
+
         /* BASIC FIELDS */
         if (body.name) retailer.name = body.name;
         if (body.email) retailer.email = body.email;
-        if (body.contactNo) retailer.contactNo = body.contactNo;
         if (body.altContactNo) retailer.altContactNo = body.altContactNo;
         if (body.gender) retailer.gender = body.gender;
         if (body.dob) retailer.dob = body.dob;
@@ -601,11 +628,17 @@ export const updateRetailer = async (req, res) => {
             };
         }
 
+        console.log("💾 Before save - phoneVerified:", retailer.phoneVerified);
+
         await retailer.save();
+
+        console.log("✅ After save - phoneVerified:", retailer.phoneVerified);
 
         // Return sanitized response
         const sanitizedRetailer = retailer.toObject();
         delete sanitizedRetailer.password;
+
+        console.log("📤 Sending response with phoneVerified:", sanitizedRetailer.phoneVerified);
 
         res.status(200).json({
             message: "Retailer updated successfully",
@@ -616,6 +649,7 @@ export const updateRetailer = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 /* ===============================
    GET CAMPAIGNS ASSIGNED TO RETAILER
@@ -750,8 +784,8 @@ export const getRetailerCampaigns = async (req, res) => {
         ========================== */
         const finalResult = status
             ? mapped.filter(
-                  (c) => c.retailerStatus.status === status.toLowerCase()
-              )
+                (c) => c.retailerStatus.status === status.toLowerCase()
+            )
             : mapped;
 
         /* =========================
@@ -1553,10 +1587,10 @@ export const getRetailerReports = async (req, res) => {
 
             billCopy: r.billCopy?.url
                 ? {
-                      url: r.billCopy.url,
-                      publicId: r.billCopy.publicId,
-                      fileName: r.billCopy.fileName,
-                  }
+                    url: r.billCopy.url,
+                    publicId: r.billCopy.publicId,
+                    fileName: r.billCopy.fileName,
+                }
                 : null,
         }));
 

@@ -1,6 +1,5 @@
-// Admin/Dashboard.jsx
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaUpload, FaBriefcase, FaWallet, FaBullseye, FaFileInvoice } from "react-icons/fa";
+import { FaPlus, FaUpload, FaBriefcase, FaWallet, FaBullseye } from "react-icons/fa";
 import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -34,13 +33,13 @@ import ManageReports from "../Campaign/ManageReports";
 import PassbookHome from "./PassbookHome";
 import SetBudget from "./SetBudget";
 import ManageInstallments from "./ManageInstallments";
-import TDSCertificates from "./TDSCertificates"; // NEW
 
 const Dashboard = () => {
     const [openMenu, setOpenMenu] = useState("");
     const [selectedComponent, setSelectedComponent] = useState("welcome");
     const [selectedJobId, setSelectedJobId] = useState(null);
     const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+    const [selectedPaymentId, setSelectedPaymentId] = useState(null);
 
     // Scroll to top whenever selectedComponent changes
     useEffect(() => {
@@ -52,10 +51,10 @@ const Dashboard = () => {
             // If clicking same menu → close it
             if (prev === menuName) {
                 if (menuName === "campaignManagement") {
-                    setSelectedComponent("campaignHome");
+                    setSelectedComponent("campaignHome"); // Show home when closed
                 }
                 if (menuName === "passbook") {
-                    setSelectedComponent("passbookHome");
+                    setSelectedComponent("passbookHome"); // Show home when closed
                 }
                 return "";
             }
@@ -75,20 +74,25 @@ const Dashboard = () => {
     };
 
     const handleLogout = () => {
+        // Clear storage
         localStorage.removeItem("token");
         localStorage.removeItem("adminName");
         localStorage.removeItem("adminEmail");
 
+        // Show toast
         toast.success("Logout successful!", {
             position: "top-right",
             autoClose: 1000,
             theme: "dark",
         });
 
+        // Redirect after 1.5 sec
         setTimeout(() => {
             window.location.href = "/signin";
         }, 1000);
     };
+
+
 
     const renderContent = () => {
         switch (selectedComponent) {
@@ -102,6 +106,7 @@ const Dashboard = () => {
                 return <CreateEmployee />;
 
             /* JOB MANAGEMENT */
+
             case "postJob":
                 return <PostJob />;
 
@@ -142,6 +147,7 @@ const Dashboard = () => {
                 );
 
             /* CAMPAIGN MANAGEMENT */
+
             case "campaignHome":
                 return <CampaignHome />;
 
@@ -207,10 +213,8 @@ const Dashboard = () => {
             case "manageinstallments":
                 return <ManageInstallments />;
 
-            case "tdsCertificates": // NEW
-                return <TDSCertificates />;
-
             /* BULK UPLOAD */
+
             case "bulkUpload":
                 return <BulkUpload />;
 
@@ -235,6 +239,7 @@ const Dashboard = () => {
             {/* TOP NAVBAR */}
             <nav className="fixed top-0 w-full z-50 bg-black shadow-md px-6 md:px-10 border-b border-red-500">
                 <div className="flex justify-between items-center py-4 max-w-screen-xl mx-auto relative">
+
                     <img
                         src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/supreme_chdev9.png"
                         alt="Logo"
@@ -263,7 +268,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("create")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaPlus className="text-[#E4002B]" />
@@ -283,11 +288,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("client")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent === "client"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "client"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Client
                                     </li>
@@ -296,11 +300,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("retailer")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent === "retailer"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "retailer"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Retailer
                                     </li>
@@ -309,11 +312,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("employee")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent === "employee"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "employee"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Employee
                                     </li>
@@ -325,7 +327,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("job")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaBriefcase className="text-[#E4002B]" />
@@ -345,11 +347,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("postJob")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent === "postJob"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "postJob"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Post New Job
                                     </li>
@@ -358,13 +359,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("updateJob")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            ["updateJob", "editJob"].includes(
-                                                selectedComponent
-                                            )
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "updateJob"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Update Existing Jobs
                                     </li>
@@ -373,13 +371,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("jobTracking")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            ["jobTracking", "jobDetails"].includes(
-                                                selectedComponent
-                                            )
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "jobTracking"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Job Tracking
                                     </li>
@@ -391,7 +386,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("campaignManagement")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaBullseye className="text-[#E4002B]" />
@@ -413,12 +408,11 @@ const Dashboard = () => {
                                                 "createCampaign"
                                             )
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent ===
                                             "createCampaign"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Create Campaign
                                     </li>
@@ -429,12 +423,11 @@ const Dashboard = () => {
                                                 "assignCampaign"
                                             )
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent ===
                                             "assignCampaign"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Assign Campaign
                                     </li>
@@ -443,14 +436,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("editCampaign")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            [
-                                                "editCampaign",
-                                                "editCampaignDetails",
-                                            ].includes(selectedComponent)
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "editCampaign"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Edit Campaign
                                     </li>
@@ -461,14 +450,11 @@ const Dashboard = () => {
                                                 "activateDeactivateCampaign"
                                             )
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            [
-                                                "activateDeactivateCampaign",
-                                                "activateDeactivateCampaignDetails",
-                                            ].includes(selectedComponent)
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent ===
+                                            "activateDeactivateCampaign"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Activate / Deactivate Campaign
                                     </li>
@@ -477,11 +463,10 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("mapEmployee")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent === "mapEmployee"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "mapEmployee"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Map Employee
                                     </li>
@@ -491,12 +476,11 @@ const Dashboard = () => {
                                                 "scheduleUnscheduleTask"
                                             )
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent ===
                                             "scheduleUnscheduleTask"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Schedule / Unschedule Task
                                     </li>
@@ -506,12 +490,11 @@ const Dashboard = () => {
                                                 "manageReports"
                                             )
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent ===
                                             "manageReports"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Manage Reports
                                     </li>
@@ -523,7 +506,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("passbook")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaWallet className="text-[#E4002B]" />
@@ -543,44 +526,23 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setSelectedComponent("setbudget")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent === "setbudget"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "setbudget"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Set Budget
                                     </li>
                                     <li
                                         onClick={() =>
-                                            setSelectedComponent(
-                                                "manageinstallments"
-                                            )
+                                            setSelectedComponent("manageinstallments")
                                         }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
-                                            "manageinstallments"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
+                                        className={`hover:text-[#E4002B] cursor-pointer ${selectedComponent === "manageinstallments"
+                                            ? "text-[#E4002B] font-semibold"
+                                            : ""
+                                            }`}
                                     >
                                         Manage Installments
-                                    </li>
-                                    {/* NEW: TDS Certificates */}
-                                    <li
-                                        onClick={() =>
-                                            setSelectedComponent(
-                                                "tdsCertificates"
-                                            )
-                                        }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
-                                            "tdsCertificates"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
-                                    >
-                                        TDS Certificates
                                     </li>
                                 </ul>
                             )}
@@ -591,11 +553,10 @@ const Dashboard = () => {
                     <div className="border-t pt-3">
                         <div
                             onClick={() => setSelectedComponent("bulkUpload")}
-                            className={`flex items-center gap-2 text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 cursor-pointer ${
-                                selectedComponent === "bulkUpload"
-                                    ? "text-[#E4002B] font-semibold"
-                                    : ""
-                            }`}
+                            className={`flex items-center gap-2 text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 cursor-pointer ${selectedComponent === "bulkUpload"
+                                ? "text-[#E4002B] font-semibold"
+                                : ""
+                                }`}
                         >
                             <FaUpload className="text-[#E4002B]" />
                             Bulk Upload

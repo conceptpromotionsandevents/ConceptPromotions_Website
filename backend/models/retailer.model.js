@@ -57,7 +57,7 @@ const retailerSchema = new Schema(
         tnc: { type: Boolean },
         pennyCheck: { type: Boolean },
 
-        phoneVerified: { type: Boolean, default: true },
+        phoneVerified: { type: Boolean, default: false },
         email: { type: String, sparse: true, unique: true },
         password: { type: String },
 

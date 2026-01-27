@@ -11,7 +11,7 @@ const RetailerSignIn = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const [email, setEmail] = useState("");
-    const [contactNo, setContactNo] = useState("");
+    const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
@@ -26,7 +26,7 @@ const RetailerSignIn = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     email,
-                    contactNo,
+                    password,
                 }),
             });
 
@@ -114,7 +114,7 @@ const RetailerSignIn = () => {
                             </div>
                         </div>
 
-                        {/* Phone Number as Password */}
+                        {/* Password */}
                         <div>
                             <label className="block text-sm font-medium mb-1 text-gray-200">
                                 Password <span className="text-red-500">*</span>
@@ -123,13 +123,10 @@ const RetailerSignIn = () => {
                                 <FaLock className="absolute left-3 top-3 text-gray-400" />
                                 <input
                                     type={showPassword ? "text" : "password"}
-                                    placeholder="Enter phone number"
-                                    value={contactNo}
-                                    maxLength={10}
+                                    placeholder="At least 8 characters"
+                                    value={password}
                                     onChange={(e) =>
-                                        setContactNo(
-                                            e.target.value.replace(/\D/g, ""),
-                                        )
+                                        setPassword(e.target.value)
                                     }
                                     className="w-full pl-10 pr-10 py-2 bg-[#222] text-white border border-gray-600 rounded-lg
                   outline-none focus:ring-2 focus:ring-[#E4002B]"

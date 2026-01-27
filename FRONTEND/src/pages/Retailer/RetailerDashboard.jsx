@@ -145,13 +145,10 @@ const RetailerDashboard = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log("📊 Full Response:", data);
 
                 const retailer = data.retailer || data.data || data;
-                console.log("👤 Retailer Object:", retailer);
 
                 if (retailer.name) {
-                    console.log("✅ Setting name:", retailer.name);
                     setRetailerName(retailer.name);
                 }
 
@@ -159,8 +156,6 @@ const RetailerDashboard = () => {
                     retailer.personPhoto ||
                     data.personPhoto ||
                     data.retailer?.personPhoto;
-
-                console.log("📸 Person Photo:", personPhoto);
 
                 if (personPhoto) {
                     setProfilePicture(personPhoto);
@@ -227,7 +222,6 @@ const RetailerDashboard = () => {
             }
 
             const data = await response.json();
-            console.log("Upload response:", data); // Debug log
 
             // Handle different response structures
             const updatedPhoto = data.retailer?.personPhoto || data.personPhoto;
