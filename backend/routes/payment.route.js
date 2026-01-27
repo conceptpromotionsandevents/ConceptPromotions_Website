@@ -12,7 +12,7 @@ import {
     getPassbookData,
     updateCampaignTCA,
     bulkAddCampaignTCA,
-    bulkAddPayments,
+    bulkAddPayments
 } from "../controllers/payment.controller.js";
 import multer from "multer";
 
@@ -42,22 +42,28 @@ router.post("/add-payment", addPayment);
 // PUT/PATCH routes
 router.put(
     "/:budgetId/campaign/:campaignId/installment/:installmentId",
-    editPayment,
+    editPayment
 );
 router.patch("/:budgetId/campaign/:campaignId/tca", updateCampaignTCA);
 
 // DELETE routes
 router.delete(
     "/:budgetId/campaign/:campaignId/installment/:installmentId",
-    deletePayment,
+    deletePayment
 );
 router.delete("/:budgetId/campaign/:campaignId", deleteCampaign);
 router.post(
     "/campaign-tca/bulk",
     protect,
     upload.single("file"),
-    bulkAddCampaignTCA,
+    bulkAddCampaignTCA
 );
-router.post("/payments/bulk", protect, upload.single("file"), bulkAddPayments);
+router.post(
+    "/payments/bulk",
+    protect,
+    upload.single("file"),
+    bulkAddPayments
+);
+
 
 export default router;

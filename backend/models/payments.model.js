@@ -1,7 +1,5 @@
 // models/payments.model.js
 import mongoose from "mongoose";
-import { Retailer } from "./retailer.model.js";
-import { getFiscalYear, TDSRecord } from "./tds.model.js";
 
 // Installment/Payment sub-schema
 const installmentSchema = new mongoose.Schema(
@@ -37,7 +35,7 @@ const installmentSchema = new mongoose.Schema(
             default: Date.now,
         },
     },
-    { _id: true },
+    { _id: true }
 );
 
 // Campaign budget sub-schema
@@ -69,7 +67,7 @@ const campaignBudgetSchema = new mongoose.Schema(
         },
         installments: [installmentSchema],
     },
-    { _id: true },
+    { _id: true }
 );
 
 // Main Retailer Budget schema
@@ -122,7 +120,7 @@ const retailerBudgetSchema = new mongoose.Schema(
         timestamps: true,
         toJSON: { virtuals: true },
         toObject: { virtuals: true },
-    },
+    }
 );
 
 // ✅ PRE-SAVE MIDDLEWARE: Fixed to use installmentAmount
@@ -183,5 +181,5 @@ retailerBudgetSchema.virtual("utrList").get(function () {
 
 export const RetailerBudget = mongoose.model(
     "RetailerBudget",
-    retailerBudgetSchema,
+    retailerBudgetSchema
 );
