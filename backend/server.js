@@ -14,6 +14,7 @@ import reportRoutes from "./routes/report.route.js";
 import passwordReset from "./routes/reset-password.route.js";
 import retailerRoutes from "./routes/retailerRoutes.js";
 import tdsCertificateRoutes from "./routes/tdsCertificateRoutes.js";
+import tdsRoutes from "./routes/tds.route.js";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/tds-certificates", tdsCertificateRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/password-reset", passwordReset);
+app.use("/api/tds", tdsRoutes);
 console.log("✅ Password reset routes registered at /api/password-reset");
 
 // ===== Health Check =====

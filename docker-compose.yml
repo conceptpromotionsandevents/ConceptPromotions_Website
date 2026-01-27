@@ -39,7 +39,7 @@ services:
             dockerfile: Dockerfile
             pull: true
             args:
-                VITE_API_URL: https://conceptpromotions.in/api
+                VITE_API_BASE_URL: https://conceptpromotions.in/api
         image: concept-frontend:latest
         container_name: concept-frontend
         restart: unless-stopped
