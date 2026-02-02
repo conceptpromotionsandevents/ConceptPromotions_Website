@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { FaEnvelope, FaLock } from "react-icons/fa";
+import { FaUser, FaLock } from "react-icons/fa";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API_URL } from "../../url/base";
 
 import { ToastContainer, toast } from "react-toastify";
@@ -10,15 +10,39 @@ import "react-toastify/dist/ReactToastify.css";
 const RetailerSignIn = () => {
     const [showPassword, setShowPassword] = useState(false);
 
-    const [email, setEmail] = useState("");
-    const [contactNo, setContactNo] = useState("");
+    const [identifier, setIdentifier] = useState(""); // Single field for email or phone
+    const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
 
+    // Helper function to detect if input is email or phone
+    const isEmail = (value) => {
+        return /\S+@\S+\.\S+/.test(value);
+    };
+
+    const isPhone = (value) => {
+        return /^\d{10}$/.test(value);
+    };
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
+
+        // Detect whether identifier is email or phone
+        let email, contactNo;
+
+        if (isEmail(identifier)) {
+            email = identifier;
+        } else if (isPhone(identifier)) {
+            contactNo = identifier;
+        } else {
+            toast.error("Please enter a valid email or 10-digit phone number", {
+                theme: "dark",
+            });
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await fetch(`${API_URL}/retailer/login`, {
@@ -27,6 +51,7 @@ const RetailerSignIn = () => {
                 body: JSON.stringify({
                     email,
                     contactNo,
+                    password,
                 }),
             });
 
@@ -67,11 +92,13 @@ const RetailerSignIn = () => {
             {/* NAVBAR */}
             <nav className="fixed top-0 w-full z-50 bg-black shadow-md transition-all duration-300 ease-in-out px-6 md:px-10">
                 <div className="flex justify-between items-center py-4 max-w-screen-xl mx-auto">
-                    <img
-                        src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/supreme_chdev9.png"
-                        alt="Logo"
-                        className="h-14 cursor-pointer"
-                    />
+                    <Link to="/">
+                        <img
+                            src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/supreme_chdev9.png"
+                            alt="Logo"
+                            className="h-14 cursor-pointer"
+                        />
+                    </Link>
 
                     <h2 className="absolute left-1/2 transform -translate-x-1/2 text-xl md:text-2xl font-bold text-[#E4002B]">
                         Retailer Login Page
@@ -95,18 +122,21 @@ const RetailerSignIn = () => {
 
                     {/* Form */}
                     <form className="space-y-5" onSubmit={handleLogin}>
-                        {/* Email */}
+                        {/* Email or Phone Number */}
                         <div>
                             <label className="block text-sm font-medium mb-1 text-gray-200">
-                                Email <span className="text-red-500">*</span>
+                                Email or Phone Number{" "}
+                                <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
-                                <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
+                                <FaUser className="absolute left-3 top-3 text-gray-400" />
                                 <input
-                                    type="email"
-                                    placeholder="example@gmail.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    type="text"
+                                    placeholder="example@gmail.com or 9876543210"
+                                    value={identifier}
+                                    onChange={(e) =>
+                                        setIdentifier(e.target.value)
+                                    }
                                     className="w-full pl-10 pr-4 py-2 bg-[#222] text-white border border-gray-600 rounded-lg
                   outline-none focus:ring-2 focus:ring-[#E4002B]"
                                     required
@@ -114,7 +144,7 @@ const RetailerSignIn = () => {
                             </div>
                         </div>
 
-                        {/* Phone Number as Password */}
+                        {/* Password */}
                         <div>
                             <label className="block text-sm font-medium mb-1 text-gray-200">
                                 Password <span className="text-red-500">*</span>
@@ -123,13 +153,10 @@ const RetailerSignIn = () => {
                                 <FaLock className="absolute left-3 top-3 text-gray-400" />
                                 <input
                                     type={showPassword ? "text" : "password"}
-                                    placeholder="Enter phone number"
-                                    value={contactNo}
-                                    maxLength={10}
+                                    placeholder="Enter password"
+                                    value={password}
                                     onChange={(e) =>
-                                        setContactNo(
-                                            e.target.value.replace(/\D/g, ""),
-                                        )
+                                        setPassword(e.target.value)
                                     }
                                     className="w-full pl-10 pr-10 py-2 bg-[#222] text-white border border-gray-600 rounded-lg
                   outline-none focus:ring-2 focus:ring-[#E4002B]"

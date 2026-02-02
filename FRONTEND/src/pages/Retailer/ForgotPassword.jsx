@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaLock, FaPhone } from "react-icons/fa";
+import { FaLock, FaPhoneAlt } from "react-icons/fa";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -156,7 +156,7 @@ const ForgotPassword = () => {
             toast.success("Password reset successfully!", { theme: "dark" });
 
             setTimeout(() => {
-                navigate("/retailersignin");
+                navigate("/");
             }, 1500);
         } catch (err) {
             console.error("Password reset error:", err);
@@ -208,7 +208,7 @@ const ForgotPassword = () => {
                                     <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    <FaPhone className="absolute left-3 top-3 text-gray-400" />
+                                    <FaPhoneAlt className="absolute left-3 top-3 text-gray-400" />
                                     <input
                                         type="tel"
                                         placeholder="10-digit phone number"
@@ -238,7 +238,7 @@ const ForgotPassword = () => {
 
                             <p
                                 className="text-center text-sm text-blue-400 cursor-pointer hover:underline"
-                                onClick={() => navigate("/retailer-signin")}
+                                onClick={() => navigate("/")}
                             >
                                 Back to Login
                             </p>

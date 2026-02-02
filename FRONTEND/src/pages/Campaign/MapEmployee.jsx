@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import ExcelJS from "exceljs"; // ✅ ADD THIS
+import { useEffect, useState } from "react";
+import { FaDownload, FaFileExcel, FaTimes, FaUpload } from "react-icons/fa"; // ✅ ADD THIS
 import Select from "react-select";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import * as XLSX from 'xlsx-js-style';
+import * as XLSX from "xlsx-js-style";
 import { API_URL } from "../../url/base";
-import { FaUpload, FaDownload, FaTimes, FaFileExcel } from "react-icons/fa"; // ✅ ADD THIS
-import ExcelJS from "exceljs"; // ✅ ADD THIS
 
 const customSelectStyles = {
     control: (provided, state) => ({
@@ -73,13 +73,10 @@ const MapEmployee = () => {
     const fetchCampaigns = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(
-                `${API_URL}/admin/campaigns`,
-                {
-                    method: "GET",
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
+            const res = await fetch(`${API_URL}/admin/campaigns`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
             const data = await res.json();
 
@@ -92,7 +89,7 @@ const MapEmployee = () => {
 
             // Filter Active Campaigns ONLY
             const activeCampaigns = (data.campaigns || []).filter(
-                (c) => c.isActive === true
+                (c) => c.isActive === true,
             );
 
             const campaignOptions = activeCampaigns.map((c) => ({
@@ -121,7 +118,7 @@ const MapEmployee = () => {
                         `${API_URL}/admin/campaign/${campaignId}/retailer/${retailer._id}/employee`,
                         {
                             headers: { Authorization: `Bearer ${token}` },
-                        }
+                        },
                     );
 
                     const data = await res.json();
@@ -131,22 +128,25 @@ const MapEmployee = () => {
                             ...retailer,
                             status: "assigned",
                             assignedEmployee: data.employee,
-                            assignedAt: data.assignedAt
+                            assignedAt: data.assignedAt,
                         };
                     } else {
                         return {
                             ...retailer,
-                            status: retailer.status || "pending"
+                            status: retailer.status || "pending",
                         };
                     }
                 } catch (err) {
-                    console.error(`Error checking status for retailer ${retailer._id}:`, err);
+                    console.error(
+                        `Error checking status for retailer ${retailer._id}:`,
+                        err,
+                    );
                     return {
                         ...retailer,
-                        status: retailer.status || "pending"
+                        status: retailer.status || "pending",
                     };
                 }
-            })
+            }),
         );
 
         return updatedRetailers;
@@ -158,7 +158,7 @@ const MapEmployee = () => {
 
         const res = await fetch(
             `${API_URL}/admin/campaign/${campaignId}/employee-retailer-mapping`,
-            { headers: { Authorization: `Bearer ${token}` } }
+            { headers: { Authorization: `Bearer ${token}` } },
         );
 
         const data = await res.json();
@@ -168,10 +168,10 @@ const MapEmployee = () => {
     };
 
     const handleSelectRetailer = (retailerId) => {
-        setSelectedRetailers(prev =>
+        setSelectedRetailers((prev) =>
             prev.includes(retailerId)
-                ? prev.filter(id => id !== retailerId)
-                : [...prev, retailerId]
+                ? prev.filter((id) => id !== retailerId)
+                : [...prev, retailerId],
         );
     };
 
@@ -190,16 +190,16 @@ const MapEmployee = () => {
 
         if (stateFilter) {
             filtered = filtered.filter(
-                r => r.shopDetails?.shopAddress?.state === stateFilter.value
+                (r) => r.shopDetails?.shopAddress?.state === stateFilter.value,
             );
         }
 
         if (searchRetailer.trim() !== "") {
             const query = searchRetailer.toLowerCase();
             filtered = filtered.filter(
-                r =>
+                (r) =>
                     r.uniqueId?.toLowerCase().includes(query) ||
-                    r.shopDetails?.shopName?.toLowerCase().includes(query)
+                    r.shopDetails?.shopName?.toLowerCase().includes(query),
             );
         }
 
@@ -217,16 +217,16 @@ const MapEmployee = () => {
 
         if (stateFilter) {
             filtered = filtered.filter(
-                e => e.correspondenceAddress?.state === stateFilter.value
+                (e) => e.correspondenceAddress?.state === stateFilter.value,
             );
         }
 
         if (searchEmployee.trim() !== "") {
             const query = searchEmployee.toLowerCase();
             filtered = filtered.filter(
-                e =>
+                (e) =>
                     e.employeeId?.toLowerCase().includes(query) ||
-                    e.name?.toLowerCase().includes(query)
+                    e.name?.toLowerCase().includes(query),
             );
         }
 
@@ -246,7 +246,8 @@ const MapEmployee = () => {
         if (pairStateFilter) {
             filtered = filtered.filter(
                 (p) =>
-                    p.retailer?.shopDetails?.shopAddress?.state === pairStateFilter.value
+                    p.retailer?.shopDetails?.shopAddress?.state ===
+                    pairStateFilter.value,
             );
         }
 
@@ -258,7 +259,7 @@ const MapEmployee = () => {
                     p.retailer.uniqueId?.toLowerCase().includes(q) ||
                     p.retailer.shopName?.toLowerCase().includes(q) ||
                     p.employee.employeeId?.toLowerCase().includes(q) ||
-                    p.employee.name?.toLowerCase().includes(q)
+                    p.employee.name?.toLowerCase().includes(q),
             );
         }
 
@@ -300,7 +301,7 @@ const MapEmployee = () => {
             // 1️⃣ Fetch retailers + employees
             const res = await fetch(
                 `${API_URL}/admin/campaign/${selected.value}/retailers-with-employees`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
 
             const data = await res.json();
@@ -318,7 +319,7 @@ const MapEmployee = () => {
             // 2️⃣ Check retailer assignment status
             const retailersWithStatus = await checkRetailerAssignmentStatus(
                 selected.value,
-                retailers
+                retailers,
             );
 
             setAssignedRetailers(retailersWithStatus);
@@ -343,14 +344,16 @@ const MapEmployee = () => {
             setFilteredEmployees(employeesWithOutletCounts);
 
             // 🆕 Fetch Employee–Retailer Mapping for Assigned Pairs Table
-            const mappingForPairs = await fetchEmployeeRetailerMapping(selected.value);
+            const mappingForPairs = await fetchEmployeeRetailerMapping(
+                selected.value,
+            );
 
             // 🆕 Flatten employee → retailer mapping into row pairs for table
             const assigned = [];
 
-            mappingForPairs.forEach(emp => {
+            mappingForPairs.forEach((emp) => {
                 if (Array.isArray(emp.retailers)) {
-                    emp.retailers.forEach(ret => {
+                    emp.retailers.forEach((ret) => {
                         assigned.push({
                             employee: {
                                 _id: emp._id,
@@ -362,9 +365,9 @@ const MapEmployee = () => {
                                 uniqueId: ret.uniqueId,
                                 shopName: ret.shopDetails?.shopName,
                                 state: ret.shopDetails?.shopAddress?.state,
-                                shopDetails: ret.shopDetails
+                                shopDetails: ret.shopDetails,
                             },
-                            assignedAt: ret.assignedAt
+                            assignedAt: ret.assignedAt,
                         });
                     });
                 }
@@ -372,7 +375,6 @@ const MapEmployee = () => {
 
             setAssignedPairs(assigned);
             setFilteredPairs(assigned);
-
         } catch (err) {
             toast.error("Server error. Try again.", { theme: "dark" });
         } finally {
@@ -386,15 +388,24 @@ const MapEmployee = () => {
             return;
         }
         if (selectedRetailers.length === 0) {
-            toast.error("Please select at least one retailer", { theme: "dark" });
+            toast.error("Please select at least one retailer", {
+                theme: "dark",
+            });
             return;
         }
 
-        if (!window.confirm(
-            `Assign selected ${selectedRetailers.length} retailers to this employee?`
-        )) return;
+        if (
+            !window.confirm(
+                `Assign selected ${selectedRetailers.length} retailers to this employee?`,
+            )
+        )
+            return;
 
         const token = localStorage.getItem("token");
+
+        // ✅ Track success/failure counts
+        let successCount = 0;
+        let failCount = 0;
 
         for (const retailerId of selectedRetailers) {
             try {
@@ -411,35 +422,59 @@ const MapEmployee = () => {
                             retailerId,
                             employeeId: selectedEmployee,
                         }),
-                    }
+                    },
                 );
 
                 const data = await res.json();
 
                 if (!res.ok) {
-                    toast.warn(data.message || "Assignment failed", {
-                        theme: "dark",
-                    });
+                    failCount++;
+                    // ✅ Removed individual toast for each failure
                 } else {
-                    toast.success("Assigned Successfully!", { theme: "dark" });
+                    successCount++;
 
                     // ✅ Update table UI with proper assigned status
                     setAssignedRetailers((prev) =>
                         prev.map((r) =>
                             r._id === retailerId
-                                ? { ...r, status: "assigned", assignedEmployee: data.employee }
-                                : r
-                        )
+                                ? {
+                                      ...r,
+                                      status: "assigned",
+                                      assignedEmployee: data.employee,
+                                  }
+                                : r,
+                        ),
                     );
                 }
             } catch (err) {
                 console.error("Assign error:", err);
-                toast.error("Server error", { theme: "dark" });
+                failCount++;
             }
+        }
+
+        // ✅ Show single summary toast after all assignments
+        if (successCount > 0 && failCount === 0) {
+            toast.success(
+                `Successfully assigned ${successCount} retailer(s)!`,
+                { theme: "dark" },
+            );
+        } else if (successCount > 0 && failCount > 0) {
+            toast.warning(`${successCount} assigned, ${failCount} failed`, {
+                theme: "dark",
+            });
+        } else if (failCount > 0) {
+            toast.error(`Failed to assign ${failCount} retailer(s)`, {
+                theme: "dark",
+            });
         }
 
         // Clear selection after assignment
         setSelectedRetailers([]);
+
+        // ✅ Refresh the campaign data to update the table
+        if (selectedCampaign) {
+            handleCampaignChange(selectedCampaign);
+        }
     };
 
     const handleDownloadFilteredReport = () => {
@@ -470,11 +505,11 @@ const MapEmployee = () => {
         const headerStyle = {
             font: { bold: true },
             alignment: { horizontal: "center", vertical: "center" },
-            fill: { fgColor: { rgb: "E2E8F0" } } // Optional: light gray background
+            fill: { fgColor: { rgb: "E2E8F0" } }, // Optional: light gray background
         };
 
         const dataStyle = {
-            alignment: { horizontal: "center", vertical: "center" }
+            alignment: { horizontal: "center", vertical: "center" },
         };
 
         // -----------------------------
@@ -490,7 +525,7 @@ const MapEmployee = () => {
         // -----------------------------
         // APPLY DATA CELL STYLES
         // -----------------------------
-        const range = XLSX.utils.decode_range(ws['!ref']);
+        const range = XLSX.utils.decode_range(ws["!ref"]);
         for (let R = range.s.r + 1; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
                 const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
@@ -504,13 +539,13 @@ const MapEmployee = () => {
         // COLUMN WIDTHS
         // -----------------------------
         ws["!cols"] = [
-            { wpx: 60 },   // S.No
-            { wpx: 120 },  // Outlet Code
-            { wpx: 180 },  // Outlet Name
-            { wpx: 100 },  // State
-            { wpx: 120 },  // Employee Code
-            { wpx: 150 },  // Employee Name
-            { wpx: 160 },  // Assigned At
+            { wpx: 60 }, // S.No
+            { wpx: 120 }, // Outlet Code
+            { wpx: 180 }, // Outlet Name
+            { wpx: 100 }, // State
+            { wpx: 120 }, // Employee Code
+            { wpx: 150 }, // Employee Name
+            { wpx: 160 }, // Assigned At
         ];
 
         // Create workbook
@@ -520,7 +555,7 @@ const MapEmployee = () => {
         // Download Excel
         XLSX.writeFile(
             wb,
-            `employee_retailer_filtered_${selectedCampaign.value}.xlsx`
+            `employee_retailer_filtered_${selectedCampaign.value}.xlsx`,
         );
     };
 
@@ -528,7 +563,8 @@ const MapEmployee = () => {
 
     const downloadBulkTemplate = () => {
         const fileName = "Mapping_EmployeeRetailer_Template.xlsx";
-        const publicPath = "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482374/Mapping_EmployeeRetailer_Template_ajw7bs.xlsx";
+        const publicPath =
+            "https://res.cloudinary.com/dltqp0vgg/raw/upload/v1768482374/Mapping_EmployeeRetailer_Template_ajw7bs.xlsx";
 
         const link = document.createElement("a");
         link.href = publicPath;
@@ -555,7 +591,9 @@ const MapEmployee = () => {
 
     const handleBulkUpload = async () => {
         if (!bulkFile) {
-            toast.error("Please select an Excel file to upload", { theme: "dark" });
+            toast.error("Please select an Excel file to upload", {
+                theme: "dark",
+            });
             return;
         }
 
@@ -575,7 +613,7 @@ const MapEmployee = () => {
                         Authorization: `Bearer ${token}`,
                     },
                     body: formData,
-                }
+                },
             );
 
             const data = await response.json();
@@ -586,7 +624,7 @@ const MapEmployee = () => {
                 if (data.summary?.failed === 0) {
                     toast.success(
                         `All ${data.summary.successful} mappings created successfully!`,
-                        { theme: "dark", autoClose: 3000 }
+                        { theme: "dark", autoClose: 3000 },
                     );
 
                     // Refresh the page data
@@ -596,14 +634,15 @@ const MapEmployee = () => {
                 } else {
                     toast.warning(
                         `${data.summary.successful} successful, ${data.summary.failed} failed. Check details below.`,
-                        { theme: "dark", autoClose: 5000 }
+                        { theme: "dark", autoClose: 5000 },
                     );
                 }
             } else if (response.status === 400) {
                 setBulkResult(data);
                 toast.error(
-                    data.message || "Upload failed - All rows failed validation",
-                    { theme: "dark" }
+                    data.message ||
+                        "Upload failed - All rows failed validation",
+                    { theme: "dark" },
                 );
             } else {
                 toast.error(data.message || "Upload failed", { theme: "dark" });
@@ -618,7 +657,11 @@ const MapEmployee = () => {
     };
 
     const downloadFailedMappingRows = async () => {
-        if (!bulkResult || !bulkResult.failedRows || bulkResult.failedRows.length === 0) {
+        if (
+            !bulkResult ||
+            !bulkResult.failedRows ||
+            bulkResult.failedRows.length === 0
+        ) {
             toast.error("No failed rows to download", { theme: "dark" });
             return;
         }
@@ -737,21 +780,29 @@ const MapEmployee = () => {
                         {selectedCampaign && (
                             <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
                                 <p>
-                                    <strong>Client:</strong> {selectedCampaign.data.client}
+                                    <strong>Client:</strong>{" "}
+                                    {selectedCampaign.data.client}
                                 </p>
                                 <p>
-                                    <strong>Type:</strong> {selectedCampaign.data.type}
+                                    <strong>Type:</strong>{" "}
+                                    {selectedCampaign.data.type}
                                 </p>
                                 <p>
                                     <strong>Region(s):</strong>{" "}
-                                    {Array.isArray(selectedCampaign.data.regions)
-                                        ? selectedCampaign.data.regions.join(", ")
+                                    {Array.isArray(
+                                        selectedCampaign.data.regions,
+                                    )
+                                        ? selectedCampaign.data.regions.join(
+                                              ", ",
+                                          )
                                         : selectedCampaign.data.region || "N/A"}
                                 </p>
                                 <p>
                                     <strong>State(s):</strong>{" "}
                                     {Array.isArray(selectedCampaign.data.states)
-                                        ? selectedCampaign.data.states.join(", ")
+                                        ? selectedCampaign.data.states.join(
+                                              ", ",
+                                          )
                                         : selectedCampaign.data.state || "N/A"}
                                 </p>
                             </div>
@@ -769,17 +820,33 @@ const MapEmployee = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     {/* 🏙️ State Filter */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            State
+                                        </label>
                                         <Select
                                             value={stateFilter}
                                             onChange={setStateFilter}
-                                            options={[...new Set([
-                                                ...assignedRetailers.map(r => r?.shopDetails?.shopAddress?.state),
-                                                ...assignedEmployees.map(e => e?.correspondenceAddress?.state)
-                                            ])]
+                                            options={[
+                                                ...new Set([
+                                                    ...assignedRetailers.map(
+                                                        (r) =>
+                                                            r?.shopDetails
+                                                                ?.shopAddress
+                                                                ?.state,
+                                                    ),
+                                                    ...assignedEmployees.map(
+                                                        (e) =>
+                                                            e
+                                                                ?.correspondenceAddress
+                                                                ?.state,
+                                                    ),
+                                                ]),
+                                            ]
                                                 .filter(Boolean)
-                                                .map(s => ({ label: s, value: s }))
-                                            }
+                                                .map((s) => ({
+                                                    label: s,
+                                                    value: s,
+                                                }))}
                                             styles={customSelectStyles}
                                             placeholder="Select State"
                                             isClearable
@@ -801,7 +868,8 @@ const MapEmployee = () => {
                             {/* Retailer Table */}
                             <div className="bg-[#EDEDED] shadow-md rounded-lg p-6 mb-6">
                                 <h3 className="text-lg font-semibold text-gray-700 mb-4">
-                                    Select Retailers ({filteredRetailers.length} of {assignedRetailers.length})
+                                    Select Retailers ({filteredRetailers.length}{" "}
+                                    of {assignedRetailers.length})
                                 </h3>
 
                                 {/* Retailer Search Bar */}
@@ -810,12 +878,16 @@ const MapEmployee = () => {
                                         type="text"
                                         placeholder="Search by Outlet Code or Outlet Name"
                                         value={searchRetailer}
-                                        onChange={(e) => setSearchRetailer(e.target.value)}
+                                        onChange={(e) =>
+                                            setSearchRetailer(e.target.value)
+                                        }
                                         className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
                                     />
                                     {searchRetailer && (
                                         <button
-                                            onClick={() => setSearchRetailer("")}
+                                            onClick={() =>
+                                                setSearchRetailer("")
+                                            }
                                             className="mt-2 text-sm text-red-600 underline hover:text-red-800"
                                         >
                                             Clear Search
@@ -824,72 +896,121 @@ const MapEmployee = () => {
                                 </div>
 
                                 {loadingAssignedData ? (
-                                    <p className="text-gray-500 py-3">Loading retailers and checking assignment status...</p>
+                                    <p className="text-gray-500 py-3">
+                                        Loading retailers and checking
+                                        assignment status...
+                                    </p>
                                 ) : assignedRetailers.length === 0 ? (
-                                    <p className="text-gray-500 py-3">No retailers assigned yet.</p>
+                                    <p className="text-gray-500 py-3">
+                                        No retailers assigned yet.
+                                    </p>
                                 ) : filteredRetailers.length === 0 ? (
-                                    <p className="text-gray-500 py-3">No retailers match your filters.</p>
+                                    <p className="text-gray-500 py-3">
+                                        No retailers match your filters.
+                                    </p>
                                 ) : (
                                     <div className="overflow-x-auto">
                                         <table className="min-w-full divide-y divide-gray-200">
                                             <thead className="bg-gray-100">
                                                 <tr>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">Select</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">S.No</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">Outlet Code</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">Outlet Name</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">Business Type</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">State</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        Select
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        S.No
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        Outlet Code
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        Outlet Name
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        Business Type
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        State
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                        Status
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {filteredRetailers.map((r, i) => (
-                                                    <tr key={r._id} className="hover:bg-gray-50">
-                                                        <td className="px-4 py-2">
-                                                            <input
-                                                                type="checkbox"
-                                                                disabled={r.status?.toLowerCase() === "assigned"}
-                                                                checked={selectedRetailers.includes(r._id)}
-                                                                onChange={() => handleSelectRetailer(r._id)}
-                                                                className={`w-4 h-4 cursor-pointer ${r.status?.toLowerCase() === "assigned"
-                                                                    ? "cursor-not-allowed opacity-50"
-                                                                    : ""
-                                                                    }`}
-                                                            />
-                                                        </td>
-
-                                                        <td className="px-4 py-2 text-sm">{i + 1}</td>
-
-                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">
-                                                            {r.uniqueId || "-"}
-                                                        </td>
-
-                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">
-                                                            {r.shopDetails?.shopName || "-"}
-                                                        </td>
-
-                                                        <td className="px-4 py-2 text-sm text-gray-600">
-                                                            {r.shopDetails?.businessType || "-"}
-                                                        </td>
-
-                                                        <td className="px-4 py-2 text-sm text-gray-600">
-                                                            {r.shopDetails?.shopAddress?.state || "-"}
-                                                        </td>
-
-                                                        <td
-                                                            className={`px-4 py-2 uppercase text-xs font-bold ${r.status?.toLowerCase() === "pending"
-                                                                ? "text-yellow-600"
-                                                                : r.status?.toLowerCase() === "assigned"
-                                                                    ? "text-green-600"
-                                                                    : "text-blue-600"
-                                                                }`}
+                                                {filteredRetailers.map(
+                                                    (r, i) => (
+                                                        <tr
+                                                            key={r._id}
+                                                            className="hover:bg-gray-50"
                                                         >
-                                                            {r.status}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                            <td className="px-4 py-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    disabled={
+                                                                        r.status?.toLowerCase() ===
+                                                                        "assigned"
+                                                                    }
+                                                                    checked={selectedRetailers.includes(
+                                                                        r._id,
+                                                                    )}
+                                                                    onChange={() =>
+                                                                        handleSelectRetailer(
+                                                                            r._id,
+                                                                        )
+                                                                    }
+                                                                    className={`w-4 h-4 cursor-pointer ${
+                                                                        r.status?.toLowerCase() ===
+                                                                        "assigned"
+                                                                            ? "cursor-not-allowed opacity-50"
+                                                                            : ""
+                                                                    }`}
+                                                                />
+                                                            </td>
 
+                                                            <td className="px-4 py-2 text-sm">
+                                                                {i + 1}
+                                                            </td>
+
+                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                                {r.uniqueId ||
+                                                                    "-"}
+                                                            </td>
+
+                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                                {r.shopDetails
+                                                                    ?.shopName ||
+                                                                    "-"}
+                                                            </td>
+
+                                                            <td className="px-4 py-2 text-sm text-gray-600">
+                                                                {r.shopDetails
+                                                                    ?.businessType ||
+                                                                    "-"}
+                                                            </td>
+
+                                                            <td className="px-4 py-2 text-sm text-gray-600">
+                                                                {r.shopDetails
+                                                                    ?.shopAddress
+                                                                    ?.state ||
+                                                                    "-"}
+                                                            </td>
+
+                                                            <td
+                                                                className={`px-4 py-2 uppercase text-xs font-bold ${
+                                                                    r.status?.toLowerCase() ===
+                                                                    "pending"
+                                                                        ? "text-yellow-600"
+                                                                        : r.status?.toLowerCase() ===
+                                                                            "assigned"
+                                                                          ? "text-green-600"
+                                                                          : "text-blue-600"
+                                                                }`}
+                                                            >
+                                                                {r.status}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -899,7 +1020,8 @@ const MapEmployee = () => {
                             {/* Employee Table */}
                             <div className="bg-[#EDEDED] shadow-md rounded-lg p-6">
                                 <h3 className="text-lg font-semibold text-gray-700 mb-4">
-                                    Select Employee ({filteredEmployees.length} of {assignedEmployees.length})
+                                    Select Employee ({filteredEmployees.length}{" "}
+                                    of {assignedEmployees.length})
                                 </h3>
 
                                 {/* Employee Search Bar */}
@@ -908,12 +1030,16 @@ const MapEmployee = () => {
                                         type="text"
                                         placeholder="Search by Employee Code or Employee Name"
                                         value={searchEmployee}
-                                        onChange={(e) => setSearchEmployee(e.target.value)}
+                                        onChange={(e) =>
+                                            setSearchEmployee(e.target.value)
+                                        }
                                         className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
                                     />
                                     {searchEmployee && (
                                         <button
-                                            onClick={() => setSearchEmployee("")}
+                                            onClick={() =>
+                                                setSearchEmployee("")
+                                            }
                                             className="mt-2 text-sm text-red-600 underline hover:text-red-800"
                                         >
                                             Clear Search
@@ -922,58 +1048,107 @@ const MapEmployee = () => {
                                 </div>
 
                                 {loadingAssignedData ? (
-                                    <p className="text-gray-500 py-3">Loading...</p>
+                                    <p className="text-gray-500 py-3">
+                                        Loading...
+                                    </p>
                                 ) : assignedEmployees.length === 0 ? (
-                                    <p className="text-gray-500 py-3">No employees assigned yet.</p>
+                                    <p className="text-gray-500 py-3">
+                                        No employees assigned yet.
+                                    </p>
                                 ) : filteredEmployees.length === 0 ? (
-                                    <p className="text-gray-500 py-3">No employees match your filters.</p>
+                                    <p className="text-gray-500 py-3">
+                                        No employees match your filters.
+                                    </p>
                                 ) : (
                                     <div className="overflow-x-auto">
                                         <table className="min-w-full divide-y divide-gray-200">
                                             <thead className="bg-gray-100">
                                                 <tr>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Select</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">S.No</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Employee Code</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Employee Name</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">State</th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        Select
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        S.No
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        Employee Code
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        Employee Name
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        Phone
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        State
+                                                    </th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                                         Outlets Assigned
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {filteredEmployees.map((e, i) => (
-                                                    <tr key={e._id || i} className="hover:bg-gray-50">
-                                                        <td className="px-4 py-2">
-                                                            <input
-                                                                type="radio"
-                                                                name="employeeSelection"
-                                                                checked={selectedEmployee === e._id}
-                                                                onChange={() => handleSelectEmployee(e._id)}
-                                                                className="w-4 h-4 cursor-pointer"
-                                                            />
-                                                        </td>
-                                                        <td className="px-4 py-2 text-sm">{i + 1}</td>
-                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">{e.employeeId || "-"}</td>
-                                                        <td className="px-4 py-2 text-sm text-gray-700">{e.name}</td>
-                                                        <td className="px-4 py-2 text-sm text-gray-600">{e.phone}</td>
-                                                        <td className="px-4 py-2 text-sm text-gray-600">{e.correspondenceAddress?.state || "-"}</td>
-                                                        <td className="px-4 py-2 text-sm font-semibold text-gray-700">
-                                                            {e.outletCount}
+                                                {filteredEmployees.map(
+                                                    (e, i) => (
+                                                        <tr
+                                                            key={e._id || i}
+                                                            className="hover:bg-gray-50"
+                                                        >
+                                                            <td className="px-4 py-2">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="employeeSelection"
+                                                                    checked={
+                                                                        selectedEmployee ===
+                                                                        e._id
+                                                                    }
+                                                                    onChange={() =>
+                                                                        handleSelectEmployee(
+                                                                            e._id,
+                                                                        )
+                                                                    }
+                                                                    className="w-4 h-4 cursor-pointer"
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm">
+                                                                {i + 1}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                                {e.employeeId ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm text-gray-700">
+                                                                {e.name}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm text-gray-600">
+                                                                {e.phone}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm text-gray-600">
+                                                                {e
+                                                                    .correspondenceAddress
+                                                                    ?.state ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm font-semibold text-gray-700">
+                                                                {e.outletCount}
 
-                                                            {e.outletCount > 0 && (
-                                                                <button
-                                                                    onClick={() => setOpenOutletList(e)}
-                                                                    className="ml-3 text-blue-600 underline text-xs hover:text-blue-800"
-                                                                >
-                                                                    View
-                                                                </button>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                                {e.outletCount >
+                                                                    0 && (
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            setOpenOutletList(
+                                                                                e,
+                                                                            )
+                                                                        }
+                                                                        className="ml-3 text-blue-600 underline text-xs hover:text-blue-800"
+                                                                    >
+                                                                        View
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -983,12 +1158,16 @@ const MapEmployee = () => {
                             <div className="text-right mt-6">
                                 <button
                                     onClick={handleAssignEmployee}
-                                    disabled={!selectedEmployee || selectedRetailers.length === 0}
+                                    disabled={
+                                        !selectedEmployee ||
+                                        selectedRetailers.length === 0
+                                    }
                                     className={`px-6 py-3 rounded-lg font-semibold text-white transition cursor-pointer
-                ${!selectedEmployee || selectedRetailers.length === 0
-                                            ? "bg-gray-400 cursor-not-allowed"
-                                            : "bg-red-600 hover:bg-red-700"
-                                        }`}
+                ${
+                    !selectedEmployee || selectedRetailers.length === 0
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-red-600 hover:bg-red-700"
+                }`}
                                 >
                                     Map Employee
                                 </button>
@@ -997,13 +1176,17 @@ const MapEmployee = () => {
                                 {/* Header with Download Button */}
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="text-lg font-semibold text-gray-700">
-                                        Assigned Employee-Retailer Pairs ({filteredPairs.length} of {assignedPairs.length})
+                                        Assigned Employee-Retailer Pairs (
+                                        {filteredPairs.length} of{" "}
+                                        {assignedPairs.length})
                                     </h3>
 
                                     {/* Download Button at Top */}
                                     {filteredPairs.length > 0 && (
                                         <button
-                                            onClick={handleDownloadFilteredReport}
+                                            onClick={
+                                                handleDownloadFilteredReport
+                                            }
                                             className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition cursor-pointer"
                                         >
                                             Download Report
@@ -1020,10 +1203,17 @@ const MapEmployee = () => {
                                         value={pairStateFilter}
                                         onChange={setPairStateFilter}
                                         options={[
-                                            ...new Set(assignedPairs.map(p => p.retailer?.state))
+                                            ...new Set(
+                                                assignedPairs.map(
+                                                    (p) => p.retailer?.state,
+                                                ),
+                                            ),
                                         ]
                                             .filter(Boolean)
-                                            .map(s => ({ label: s, value: s }))}
+                                            .map((s) => ({
+                                                label: s,
+                                                value: s,
+                                            }))}
                                         placeholder="Select State"
                                         isClearable
                                         styles={customSelectStyles}
@@ -1036,14 +1226,20 @@ const MapEmployee = () => {
                                         type="text"
                                         placeholder="Search by Outlet / Employee Code or Name"
                                         value={searchAssignedPairs}
-                                        onChange={(e) => setSearchAssignedPairs(e.target.value)}
+                                        onChange={(e) =>
+                                            setSearchAssignedPairs(
+                                                e.target.value,
+                                            )
+                                        }
                                         className="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-red-600 focus:outline-none"
                                     />
                                 </div>
 
                                 {/* Table or Empty State */}
                                 {loadingAssignedData ? (
-                                    <p className="text-gray-500 py-3">Loading...</p>
+                                    <p className="text-gray-500 py-3">
+                                        Loading...
+                                    </p>
                                 ) : assignedPairs.length === 0 ? (
                                     <p className="text-gray-500 py-3">
                                         No assignments found for this campaign.
@@ -1078,29 +1274,51 @@ const MapEmployee = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {filteredPairs.map((pair, index) => (
-                                                    <tr
-                                                        key={`${pair.retailer?._id}-${pair.employee?._id}-${index}`}
-                                                        className="hover:bg-gray-50"
-                                                    >
-                                                        <td className="px-4 py-2 text-sm">{index + 1}</td>
-                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">
-                                                            {pair.retailer.uniqueId}
-                                                        </td>
-                                                        <td className="px-4 py-2 text-sm text-gray-700">
-                                                            {pair.retailer.shopName}
-                                                        </td>
-                                                        <td className="px-4 py-2 text-sm text-gray-600">
-                                                            {pair.retailer.state || "-"}
-                                                        </td>
-                                                        <td className="px-4 py-2 text-sm font-medium text-gray-700">
-                                                            {pair.employee.employeeId}
-                                                        </td>
-                                                        <td className="px-4 py-2 text-sm text-gray-700">
-                                                            {pair.employee.name}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {filteredPairs.map(
+                                                    (pair, index) => (
+                                                        <tr
+                                                            key={`${pair.retailer?._id}-${pair.employee?._id}-${index}`}
+                                                            className="hover:bg-gray-50"
+                                                        >
+                                                            <td className="px-4 py-2 text-sm">
+                                                                {index + 1}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                                {
+                                                                    pair
+                                                                        .retailer
+                                                                        .uniqueId
+                                                                }
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm text-gray-700">
+                                                                {
+                                                                    pair
+                                                                        .retailer
+                                                                        .shopName
+                                                                }
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm text-gray-600">
+                                                                {pair.retailer
+                                                                    .state ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm font-medium text-gray-700">
+                                                                {
+                                                                    pair
+                                                                        .employee
+                                                                        .employeeId
+                                                                }
+                                                            </td>
+                                                            <td className="px-4 py-2 text-sm text-gray-700">
+                                                                {
+                                                                    pair
+                                                                        .employee
+                                                                        .name
+                                                                }
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1109,40 +1327,54 @@ const MapEmployee = () => {
 
                             {openOutletList && (
                                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center px-4 animate-fadeIn z-50">
-
                                     <div className="bg-[#EDEDED] w-full max-w-md rounded-xl shadow-xl p-6 border border-gray-200 animate-slideUp">
-
                                         {/* Header */}
                                         <h2 className="text-xl font-bold mb-4 text-gray-800">
                                             Outlets Assigned to
-                                            <span className="text-red-600"> {openOutletList.name}</span>
+                                            <span className="text-red-600">
+                                                {" "}
+                                                {openOutletList.name}
+                                            </span>
                                         </h2>
 
                                         {/* Outlet List */}
                                         <ul className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                                            {openOutletList.outletList.map((o, i) => (
-                                                <li
-                                                    key={i}
-                                                    className="p-3 border border-gray-200 rounded-md bg-gray-50 hover:bg-gray-100 transition"
-                                                >
-                                                    <p className="font-semibold text-gray-800 text-sm">
-                                                        {o.uniqueId || o.shopDetails?.uniqueId || "N/A"}
-                                                    </p>
+                                            {openOutletList.outletList.map(
+                                                (o, i) => (
+                                                    <li
+                                                        key={i}
+                                                        className="p-3 border border-gray-200 rounded-md bg-gray-50 hover:bg-gray-100 transition"
+                                                    >
+                                                        <p className="font-semibold text-gray-800 text-sm">
+                                                            {o.uniqueId ||
+                                                                o.shopDetails
+                                                                    ?.uniqueId ||
+                                                                "N/A"}
+                                                        </p>
 
-                                                    <p className="text-sm text-gray-700">
-                                                        {o.shopDetails?.shopName || o.name}
-                                                    </p>
+                                                        <p className="text-sm text-gray-700">
+                                                            {o.shopDetails
+                                                                ?.shopName ||
+                                                                o.name}
+                                                        </p>
 
-                                                    <p className="text-xs text-gray-500">
-                                                        {o.shopDetails?.shopAddress?.state}
-                                                    </p>
-                                                </li>
-                                            ))}
+                                                        <p className="text-xs text-gray-500">
+                                                            {
+                                                                o.shopDetails
+                                                                    ?.shopAddress
+                                                                    ?.state
+                                                            }
+                                                        </p>
+                                                    </li>
+                                                ),
+                                            )}
                                         </ul>
 
                                         {/* Close Button */}
                                         <button
-                                            onClick={() => setOpenOutletList(null)}
+                                            onClick={() =>
+                                                setOpenOutletList(null)
+                                            }
                                             className="mt-4 w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition"
                                         >
                                             Close
@@ -1152,7 +1384,6 @@ const MapEmployee = () => {
                             )}
                         </>
                     )}
-
                 </div>
             </div>
 
@@ -1180,16 +1411,23 @@ const MapEmployee = () => {
                                     Download Mapping Template
                                 </h3>
                                 <div className="mb-3 text-sm text-gray-600">
-                                    <p className="font-medium mb-2">Template columns:</p>
+                                    <p className="font-medium mb-2">
+                                        Template columns:
+                                    </p>
                                     <p>
-                                        <strong>Sno</strong>, <strong>campaignName</strong>,{" "}
-                                        <strong>outletCode</strong>, <strong>employeeID</strong>,{" "}
-                                        <strong>outletName</strong>, <strong>retailerName</strong>,{" "}
-                                        <strong>businessType</strong>, <strong>EmployeeName</strong>,{" "}
+                                        <strong>Sno</strong>,{" "}
+                                        <strong>campaignName</strong>,{" "}
+                                        <strong>outletCode</strong>,{" "}
+                                        <strong>employeeID</strong>,{" "}
+                                        <strong>outletName</strong>,{" "}
+                                        <strong>retailerName</strong>,{" "}
+                                        <strong>businessType</strong>,{" "}
+                                        <strong>EmployeeName</strong>,{" "}
                                         <strong>State</strong>
                                         <br />
                                         <span className="text-xs text-red-600 mt-1 block">
-                                            Backend validation: campaignName, employeeID, outletCode only
+                                            Backend validation: campaignName,
+                                            employeeID, outletCode only
                                         </span>
                                     </p>
                                 </div>
@@ -1238,7 +1476,9 @@ const MapEmployee = () => {
                                         type="button"
                                         onClick={() => {
                                             setBulkFile(null);
-                                            document.getElementById("bulkMappingFileUpload").value = "";
+                                            document.getElementById(
+                                                "bulkMappingFileUpload",
+                                            ).value = "";
                                         }}
                                         className="flex items-center gap-2 text-red-500 text-sm hover:underline mt-3"
                                     >
@@ -1249,12 +1489,15 @@ const MapEmployee = () => {
                                 <button
                                     onClick={handleBulkUpload}
                                     disabled={bulkUploading || !bulkFile}
-                                    className={`w-full py-3 rounded-lg font-semibold transition mt-4 ${bulkUploading || !bulkFile
-                                        ? "bg-gray-400 cursor-not-allowed text-white"
-                                        : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
-                                        }`}
+                                    className={`w-full py-3 rounded-lg font-semibold transition mt-4 ${
+                                        bulkUploading || !bulkFile
+                                            ? "bg-gray-400 cursor-not-allowed text-white"
+                                            : "bg-[#E4002B] text-white hover:bg-[#c4001f]"
+                                    }`}
                                 >
-                                    {bulkUploading ? "Uploading..." : "Upload & Create Mappings"}
+                                    {bulkUploading
+                                        ? "Uploading..."
+                                        : "Upload & Create Mappings"}
                                 </button>
                             </div>
 
@@ -1268,133 +1511,214 @@ const MapEmployee = () => {
                                     {/* Summary */}
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                         <div className="bg-blue-50 p-4 rounded-lg text-center">
-                                            <p className="text-sm text-gray-600">Total Rows</p>
+                                            <p className="text-sm text-gray-600">
+                                                Total Rows
+                                            </p>
                                             <p className="text-2xl font-bold text-blue-600">
-                                                {bulkResult.summary?.totalRows || 0}
+                                                {bulkResult.summary
+                                                    ?.totalRows || 0}
                                             </p>
                                         </div>
                                         <div className="bg-green-50 p-4 rounded-lg text-center">
-                                            <p className="text-sm text-gray-600">Successful</p>
+                                            <p className="text-sm text-gray-600">
+                                                Successful
+                                            </p>
                                             <p className="text-2xl font-bold text-green-600">
-                                                {bulkResult.summary?.successful || 0}
+                                                {bulkResult.summary
+                                                    ?.successful || 0}
                                             </p>
                                         </div>
                                         <div className="bg-red-50 p-4 rounded-lg text-center">
-                                            <p className="text-sm text-gray-600">Failed</p>
+                                            <p className="text-sm text-gray-600">
+                                                Failed
+                                            </p>
                                             <p className="text-2xl font-bold text-red-600">
-                                                {bulkResult.summary?.failed || 0}
+                                                {bulkResult.summary?.failed ||
+                                                    0}
                                             </p>
                                         </div>
                                         <div className="bg-purple-50 p-4 rounded-lg text-center">
-                                            <p className="text-sm text-gray-600">Success Rate</p>
+                                            <p className="text-sm text-gray-600">
+                                                Success Rate
+                                            </p>
                                             <p className="text-2xl font-bold text-purple-600">
-                                                {bulkResult.summary?.successRate || "0%"}
+                                                {bulkResult.summary
+                                                    ?.successRate || "0%"}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Successful Mappings */}
-                                    {bulkResult.successfulMappings && bulkResult.successfulMappings.length > 0 && (
-                                        <div className="mb-6">
-                                            <h4 className="font-semibold text-green-700 mb-3">
-                                                Successfully Created ({bulkResult.successfulMappings.length})
-                                            </h4>
-                                            <div className="max-h-60 overflow-y-auto border border-green-200 rounded-lg">
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-green-50">
-                                                        <tr>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Campaign
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Employee
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Outlet
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
-                                                        {bulkResult.successfulMappings.map((item, index) => (
-                                                            <tr key={index} className="hover:bg-gray-50">
-                                                                <td className="px-4 py-2 text-sm">
-                                                                    {item.campaignName}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-sm">
-                                                                    {item.employeeId} - {item.employeeName}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-sm">
-                                                                    {item.outletCode} - {item.shopName}
-                                                                </td>
+                                    {bulkResult.successfulMappings &&
+                                        bulkResult.successfulMappings.length >
+                                            0 && (
+                                            <div className="mb-6">
+                                                <h4 className="font-semibold text-green-700 mb-3">
+                                                    Successfully Created (
+                                                    {
+                                                        bulkResult
+                                                            .successfulMappings
+                                                            .length
+                                                    }
+                                                    )
+                                                </h4>
+                                                <div className="max-h-60 overflow-y-auto border border-green-200 rounded-lg">
+                                                    <table className="min-w-full divide-y divide-gray-200">
+                                                        <thead className="bg-green-50">
+                                                            <tr>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Campaign
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Employee
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Outlet
+                                                                </th>
                                                             </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                        </thead>
+                                                        <tbody className="bg-white divide-y divide-gray-200">
+                                                            {bulkResult.successfulMappings.map(
+                                                                (
+                                                                    item,
+                                                                    index,
+                                                                ) => (
+                                                                    <tr
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="hover:bg-gray-50"
+                                                                    >
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {
+                                                                                item.campaignName
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {
+                                                                                item.employeeId
+                                                                            }{" "}
+                                                                            -{" "}
+                                                                            {
+                                                                                item.employeeName
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {
+                                                                                item.outletCode
+                                                                            }{" "}
+                                                                            -{" "}
+                                                                            {
+                                                                                item.shopName
+                                                                            }
+                                                                        </td>
+                                                                    </tr>
+                                                                ),
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
 
                                     {/* Failed Rows */}
-                                    {bulkResult.failedRows && bulkResult.failedRows.length > 0 && (
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h4 className="font-semibold text-red-700">
-                                                    Failed Rows ({bulkResult.failedRows.length})
-                                                </h4>
-                                                <button
-                                                    onClick={downloadFailedMappingRows}
-                                                    className="flex items-center gap-2 bg-[#E4002B] text-white px-4 py-2 rounded-lg hover:bg-[#c4001f] transition text-sm"
-                                                >
-                                                    <FaDownload />
-                                                    Download Failed Rows
-                                                </button>
-                                            </div>
-                                            <div className="max-h-60 overflow-y-auto border border-red-200 rounded-lg">
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-red-50">
-                                                        <tr>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Row #
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Reason
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Campaign
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Employee ID
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
-                                                                Outlet Code
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
-                                                        {bulkResult.failedRows.map((row, index) => (
-                                                            <tr key={index} className="hover:bg-gray-50">
-                                                                <td className="px-4 py-2 text-sm font-medium">
-                                                                    {row.rowNumber}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-sm text-red-600 max-w-xs" title={row.reason}>
-                                                                    {row.reason}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-sm">
-                                                                    {row.data?.campaignName || "-"}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-sm">
-                                                                    {row.data?.employeeId || "-"}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-sm">
-                                                                    {row.data?.outletCode || "-"}
-                                                                </td>
+                                    {bulkResult.failedRows &&
+                                        bulkResult.failedRows.length > 0 && (
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <h4 className="font-semibold text-red-700">
+                                                        Failed Rows (
+                                                        {
+                                                            bulkResult
+                                                                .failedRows
+                                                                .length
+                                                        }
+                                                        )
+                                                    </h4>
+                                                    <button
+                                                        onClick={
+                                                            downloadFailedMappingRows
+                                                        }
+                                                        className="flex items-center gap-2 bg-[#E4002B] text-white px-4 py-2 rounded-lg hover:bg-[#c4001f] transition text-sm"
+                                                    >
+                                                        <FaDownload />
+                                                        Download Failed Rows
+                                                    </button>
+                                                </div>
+                                                <div className="max-h-60 overflow-y-auto border border-red-200 rounded-lg">
+                                                    <table className="min-w-full divide-y divide-gray-200">
+                                                        <thead className="bg-red-50">
+                                                            <tr>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Row #
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Reason
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Campaign
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Employee ID
+                                                                </th>
+                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                                                    Outlet Code
+                                                                </th>
                                                             </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                        </thead>
+                                                        <tbody className="bg-white divide-y divide-gray-200">
+                                                            {bulkResult.failedRows.map(
+                                                                (
+                                                                    row,
+                                                                    index,
+                                                                ) => (
+                                                                    <tr
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="hover:bg-gray-50"
+                                                                    >
+                                                                        <td className="px-4 py-2 text-sm font-medium">
+                                                                            {
+                                                                                row.rowNumber
+                                                                            }
+                                                                        </td>
+                                                                        <td
+                                                                            className="px-4 py-2 text-sm text-red-600 max-w-xs"
+                                                                            title={
+                                                                                row.reason
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                row.reason
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {row
+                                                                                .data
+                                                                                ?.campaignName ||
+                                                                                "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {row
+                                                                                .data
+                                                                                ?.employeeId ||
+                                                                                "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            {row
+                                                                                .data
+                                                                                ?.outletCode ||
+                                                                                "-"}
+                                                                        </td>
+                                                                    </tr>
+                                                                ),
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
                                 </div>
                             )}
                         </div>

@@ -6,7 +6,7 @@ import { Campaign, Employee } from "../../models/user.js";
 // Utility to generate unique IDs (same implementation as original)
 function generateUniqueId() {
     const letters = Array.from({ length: 4 }, () =>
-        String.fromCharCode(65 + Math.floor(Math.random() * 26))
+        String.fromCharCode(65 + Math.floor(Math.random() * 26)),
     ).join("");
     const numbers = Math.floor(1000 + Math.random() * 9000);
     return `${letters}${numbers}`;
@@ -29,7 +29,7 @@ export const updateRetailerDates = async (req, res) => {
             return res.status(404).json({ message: "Campaign not found" });
 
         const retailerEntry = campaign.assignedRetailers.find(
-            (r) => r.retailerId.toString() === retailerId.toString()
+            (r) => r.retailerId.toString() === retailerId.toString(),
         );
 
         if (!retailerEntry)
@@ -91,7 +91,7 @@ export const assignEmployeeToRetailer = async (req, res) => {
         // 1️⃣ Check retailer is part of campaign
         // -------------------------------
         const retailerExists = campaign.assignedRetailers.some(
-            (r) => r.retailerId.toString() === retailerId.toString()
+            (r) => r.retailerId.toString() === retailerId.toString(),
         );
 
         if (!retailerExists) {
@@ -104,7 +104,7 @@ export const assignEmployeeToRetailer = async (req, res) => {
         // 2️⃣ Check employee is part of campaign
         // -------------------------------
         const employeeExists = campaign.assignedEmployees.some(
-            (e) => e.employeeId.toString() === employeeId.toString()
+            (e) => e.employeeId.toString() === employeeId.toString(),
         );
 
         if (!employeeExists) {
@@ -119,7 +119,7 @@ export const assignEmployeeToRetailer = async (req, res) => {
         const alreadyMapped = campaign.assignedEmployeeRetailers.some(
             (entry) =>
                 entry.employeeId.toString() === employeeId.toString() &&
-                entry.retailerId.toString() === retailerId.toString()
+                entry.retailerId.toString() === retailerId.toString(),
         );
 
         if (alreadyMapped) {
@@ -244,7 +244,7 @@ export const getAssignedEmployeeForRetailer = async (req, res) => {
 
         // Find the employee mapped to this retailer
         const mapping = campaign.assignedEmployeeRetailers.find(
-            (m) => m.retailerId.toString() === retailerId.toString()
+            (m) => m.retailerId.toString() === retailerId.toString(),
         );
 
         // Retailer not assigned to any employee
@@ -317,7 +317,7 @@ export const bulkRegisterRetailers = async (req, res) => {
                 .slice(0, 6);
             const accountNumber = String(row.accountNumber || "").replace(
                 /[^0-9]/g,
-                ""
+                "",
             );
 
             // Extract required fields from Excel
@@ -357,7 +357,7 @@ export const bulkRegisterRetailers = async (req, res) => {
                 failedRows.push({
                     rowNumber: i + 2,
                     reason: `Missing required fields: ${missingFields.join(
-                        ", "
+                        ", ",
                     )}`,
                     data: row,
                 });
@@ -433,7 +433,7 @@ export const bulkRegisterRetailers = async (req, res) => {
                 },
 
                 // System Fields
-                phoneVerified: true,
+                phoneVerified: false,
                 tnc: false,
                 pennyCheck: false,
             });
@@ -445,16 +445,16 @@ export const bulkRegisterRetailers = async (req, res) => {
         if (retailersToInsert.length > 0) {
             try {
                 console.log(
-                    `📝 Attempting to insert ${retailersToInsert.length} retailers...`
+                    `📝 Attempting to insert ${retailersToInsert.length} retailers...`,
                 );
 
                 insertedRetailers = await Retailer.insertMany(
                     retailersToInsert,
-                    { ordered: false }
+                    { ordered: false },
                 );
 
                 console.log(
-                    `✅ Successfully inserted ${insertedRetailers.length} retailers`
+                    `✅ Successfully inserted ${insertedRetailers.length} retailers`,
                 );
             } catch (insertError) {
                 console.error("❌ Insert error:", insertError);
@@ -463,14 +463,14 @@ export const bulkRegisterRetailers = async (req, res) => {
                 if (insertError.insertedDocs) {
                     insertedRetailers = insertError.insertedDocs;
                     console.log(
-                        `✅ Partially successful: ${insertedRetailers.length} inserted`
+                        `✅ Partially successful: ${insertedRetailers.length} inserted`,
                     );
                 }
 
                 // Capture failed inserts from MongoDB
                 if (insertError.writeErrors) {
                     console.log(
-                        `❌ Write errors found: ${insertError.writeErrors.length}`
+                        `❌ Write errors found: ${insertError.writeErrors.length}`,
                     );
                     insertError.writeErrors.forEach((err) => {
                         const failedIndex = err.index;
@@ -504,7 +504,7 @@ export const bulkRegisterRetailers = async (req, res) => {
 
                     if (insertError.name === "ValidationError") {
                         const validationErrors = Object.keys(
-                            insertError.errors || {}
+                            insertError.errors || {},
                         )
                             .map((key) => {
                                 return `${key}: ${insertError.errors[key].message}`;

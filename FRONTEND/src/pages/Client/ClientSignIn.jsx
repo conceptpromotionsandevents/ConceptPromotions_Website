@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaEnvelope, FaLock } from "react-icons/fa";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API_URL } from "../../url/base";
 
 import { ToastContainer, toast } from "react-toastify";
@@ -60,11 +60,13 @@ const ClientSignIn = () => {
             {/* NAVBAR */}
             <nav className="fixed top-0 w-full z-50 bg-black shadow-md px-6 md:px-10">
                 <div className="flex justify-between items-center py-4 max-w-screen-xl mx-auto">
-                    <img
-                        src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/supreme_chdev9.png"
-                        alt="Logo"
-                        className="h-14 cursor-pointer"
-                    />
+                    <Link to="/">
+                        <img
+                            src="https://res.cloudinary.com/dltqp0vgg/image/upload/v1768037896/supreme_chdev9.png"
+                            alt="Logo"
+                            className="h-14 cursor-pointer"
+                        />
+                    </Link>
                     <h2 className="absolute left-1/2 transform -translate-x-1/2 text-xl md:text-2xl font-bold text-[#E4002B]">
                         Client Login Page
                     </h2>

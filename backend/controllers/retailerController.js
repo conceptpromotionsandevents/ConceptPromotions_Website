@@ -9,7 +9,7 @@ import {
 } from "../utils/cloudinary.config.js";
 import { getResourceType } from "../utils/cloudinary.helper.js";
 
-import XLSX from "xlsx";
+import bcrypt from "bcryptjs";
 dotenv.config();
 
 // ===============================
@@ -139,7 +139,7 @@ export const registerRetailer = async (req, res) => {
             const result = await uploadToCloudinary(
                 files.outletPhoto[0].buffer,
                 "retailers/outlet_photos",
-                getResourceType(files.outletPhoto[0].mimetype)
+                getResourceType(files.outletPhoto[0].mimetype),
             );
             outletPhotoData = {
                 url: result.secure_url,
@@ -186,7 +186,7 @@ export const registerRetailer = async (req, res) => {
             const result = await uploadToCloudinary(
                 files.govtIdPhoto[0].buffer,
                 "retailers/govt_id",
-                getResourceType(files.govtIdPhoto[0].mimetype)
+                getResourceType(files.govtIdPhoto[0].mimetype),
             );
             govtIdPhotoData = {
                 url: result.secure_url,
@@ -198,7 +198,7 @@ export const registerRetailer = async (req, res) => {
             const result = await uploadToCloudinary(
                 files.personPhoto[0].buffer,
                 "retailers/person_photos",
-                getResourceType(files.personPhoto[0].mimetype)
+                getResourceType(files.personPhoto[0].mimetype),
             );
             personPhotoData = {
                 url: result.secure_url,
@@ -210,7 +210,7 @@ export const registerRetailer = async (req, res) => {
             const result = await uploadToCloudinary(
                 files.registrationFormFile[0].buffer,
                 "retailers/registration_forms",
-                getResourceType(files.registrationFormFile[0].mimetype)
+                getResourceType(files.registrationFormFile[0].mimetype),
             );
             registrationFormFileData = {
                 url: result.secure_url,
@@ -234,7 +234,7 @@ export const registerRetailer = async (req, res) => {
             bankDetails,
             partOfIndia: body.partOfIndia || "N",
             createdBy: body.createdBy || "RetailerSelf",
-            phoneVerified: true,
+            phoneVerified: false,
         });
 
         await retailer.save();
@@ -254,24 +254,41 @@ export const registerRetailer = async (req, res) => {
 =============================== */
 export const loginRetailer = async (req, res) => {
     try {
-        const { contactNo, email } = req.body;
+        const { email, contactNo, password } = req.body;
 
-        if (!contactNo || !email) {
-            return res.status(400).json({
-                message: "Email and phone number are both required",
-            });
+        // Require at least one identifier
+        if (!email && !contactNo) {
+            return res
+                .status(400)
+                .json({ message: "Email or phone number is required" });
         }
 
+        if (!password) {
+            return res.status(400).json({ message: "Password is required" });
+        }
+
+        // Find by email or contactNo
         const retailer = await Retailer.findOne({
-            email,
-            contactNo,
+            $or: [
+                email ? { email } : null,
+                contactNo ? { contactNo } : null,
+            ].filter(Boolean),
         });
 
-        if (!retailer)
-            return res.status(400).json({ message: "Retailer not found" });
+        if (!retailer) {
+            return res.status(404).json({ message: "Retailer not found" });
+        }
 
-        if (!retailer.phoneVerified)
+        // Check phone verification
+        if (!retailer.phoneVerified) {
             return res.status(400).json({ message: "Phone not verified" });
+        }
+
+        // Compare password
+        const isMatch = await bcrypt.compare(password, retailer.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
 
         if (!process.env.JWT_SECRET) {
             console.error("JWT_SECRET missing in environment variables");
@@ -288,7 +305,7 @@ export const loginRetailer = async (req, res) => {
                 role: "retailer",
             },
             process.env.JWT_SECRET,
-            { expiresIn: "7d" }
+            { expiresIn: "7d" },
         );
 
         res.status(200).json({
@@ -322,9 +339,8 @@ export const getRetailerProfile = async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const retailerId = decoded.id;
 
-        const retailer = await Retailer.findById(retailerId).select(
-            "-password"
-        );
+        const retailer =
+            await Retailer.findById(retailerId).select("-password");
         if (!retailer)
             return res.status(404).json({ message: "Retailer not found" });
 
@@ -400,7 +416,7 @@ export const getRetailerImageStatus = async (req, res) => {
         const retailerId = decoded.id;
 
         const retailer = await Retailer.findById(retailerId).select(
-            "govtIdPhoto personPhoto registrationFormFile outletPhoto"
+            "govtIdPhoto personPhoto registrationFormFile outletPhoto",
         );
 
         if (!retailer) {
@@ -451,6 +467,10 @@ export const updateRetailer = async (req, res) => {
         if (body.dob) retailer.dob = body.dob;
         if (body.govtIdType) retailer.govtIdType = body.govtIdType;
         if (body.govtIdNumber) retailer.govtIdNumber = body.govtIdNumber;
+        /* PHONE VERIFICATION STATUS */
+        if (body.phoneVerified === "true" || body.phoneVerified === true) {
+            retailer.phoneVerified = true;
+        }
 
         /* SHOP DETAILS - Initialize if not exists */
         if (!retailer.shopDetails) {
@@ -526,14 +546,14 @@ export const updateRetailer = async (req, res) => {
             if (retailer.govtIdPhoto?.publicId) {
                 await deleteFromCloudinary(
                     retailer.govtIdPhoto.publicId,
-                    getResourceType(files.govtIdPhoto[0].mimetype)
+                    getResourceType(files.govtIdPhoto[0].mimetype),
                 );
             }
 
             const result = await uploadToCloudinary(
                 files.govtIdPhoto[0].buffer,
                 "retailers/govt_id",
-                getResourceType(files.govtIdPhoto[0].mimetype)
+                getResourceType(files.govtIdPhoto[0].mimetype),
             );
             retailer.govtIdPhoto = {
                 url: result.secure_url,
@@ -546,14 +566,14 @@ export const updateRetailer = async (req, res) => {
             if (retailer.personPhoto?.publicId) {
                 await deleteFromCloudinary(
                     retailer.personPhoto.publicId,
-                    getResourceType(files.personPhoto[0].mimetype)
+                    getResourceType(files.personPhoto[0].mimetype),
                 );
             }
 
             const result = await uploadToCloudinary(
                 files.personPhoto[0].buffer,
                 "retailers/person_photos",
-                getResourceType(files.personPhoto[0].mimetype)
+                getResourceType(files.personPhoto[0].mimetype),
             );
             retailer.personPhoto = {
                 url: result.secure_url,
@@ -566,14 +586,14 @@ export const updateRetailer = async (req, res) => {
             if (retailer.registrationFormFile?.publicId) {
                 await deleteFromCloudinary(
                     retailer.registrationFormFile.publicId,
-                    getResourceType(files.registrationFormFile[0].mimetype)
+                    getResourceType(files.registrationFormFile[0].mimetype),
                 );
             }
 
             const result = await uploadToCloudinary(
                 files.registrationFormFile[0].buffer,
                 "retailers/registration_forms",
-                getResourceType(files.registrationFormFile[0].mimetype)
+                getResourceType(files.registrationFormFile[0].mimetype),
             );
             retailer.registrationFormFile = {
                 url: result.secure_url,
@@ -586,14 +606,14 @@ export const updateRetailer = async (req, res) => {
             if (retailer.outletPhoto?.publicId) {
                 await deleteFromCloudinary(
                     retailer.outletPhoto.publicId,
-                    getResourceType(files.outletPhoto[0].mimetype)
+                    getResourceType(files.outletPhoto[0].mimetype),
                 );
             }
 
             const result = await uploadToCloudinary(
                 files.outletPhoto[0].buffer,
                 "retailers/outlet_photos",
-                getResourceType(files.outletPhoto[0].mimetype)
+                getResourceType(files.outletPhoto[0].mimetype),
             );
             retailer.outletPhoto = {
                 url: result.secure_url,
@@ -697,7 +717,7 @@ export const getRetailerCampaigns = async (req, res) => {
                 campaign.assignedRetailers?.find(
                     (r) =>
                         r.retailerId &&
-                        r.retailerId._id.toString() === retailerId.toString()
+                        r.retailerId._id.toString() === retailerId.toString(),
                 ) || null;
 
             /* ---- employee mappings ---- */
@@ -707,7 +727,7 @@ export const getRetailerCampaigns = async (req, res) => {
                         (m) =>
                             m.retailerId &&
                             m.employeeId &&
-                            m.retailerId.toString() === retailerId.toString()
+                            m.retailerId.toString() === retailerId.toString(),
                     )
                     .map((m) => ({
                         _id: m.employeeId._id,
@@ -750,7 +770,7 @@ export const getRetailerCampaigns = async (req, res) => {
         ========================== */
         const finalResult = status
             ? mapped.filter(
-                  (c) => c.retailerStatus.status === status.toLowerCase()
+                  (c) => c.retailerStatus.status === status.toLowerCase(),
               )
             : mapped;
 
@@ -1131,7 +1151,7 @@ export const getRetailersByCampaign = async (req, res) => {
         if (!campaignId) {
             const allRetailers = await Retailer.find({})
                 .select(
-                    "name uniqueId shopDetails contactNo email personalAddress"
+                    "name uniqueId shopDetails contactNo email personalAddress",
                 )
                 .lean();
 
@@ -1150,7 +1170,7 @@ export const getRetailersByCampaign = async (req, res) => {
         }
 
         const assignedRetailerIds = campaign.assignedRetailers.map(
-            (ar) => ar.retailerId
+            (ar) => ar.retailerId,
         );
 
         if (assignedRetailerIds.length === 0) {
@@ -1201,7 +1221,7 @@ export const getRetailerCampaignStatus = async (req, res) => {
             return res.status(404).json({ message: "Campaign not found" });
 
         const retailerEntry = campaign.assignedRetailers.find(
-            (r) => r.retailerId?.toString() === retailerId.toString()
+            (r) => r.retailerId?.toString() === retailerId.toString(),
         );
 
         if (!retailerEntry)
@@ -1269,7 +1289,7 @@ export const updateCampaignStatus = async (req, res) => {
                 .json({ message: "No retailers assigned to this campaign" });
 
         const retailerEntry = campaign.assignedRetailers.find(
-            (r) => r.retailerId?.toString() === retailerId.toString()
+            (r) => r.retailerId?.toString() === retailerId.toString(),
         );
 
         if (!retailerEntry)
@@ -1307,7 +1327,7 @@ export const getRetailerCampaignPayments = async (req, res) => {
 
         const payments = await Payment.find({ retailer: retailerId }).populate(
             "campaign",
-            "name _id"
+            "name _id",
         );
 
         if (!payments || payments.length === 0)
@@ -1366,7 +1386,7 @@ export const submitRetailerReport = async (req, res) => {
         }
 
         const isAssigned = campaign.assignedRetailers.some(
-            (r) => r.retailerId.toString() === retailerId.toString()
+            (r) => r.retailerId.toString() === retailerId.toString(),
         );
 
         if (!isAssigned) {
@@ -1384,7 +1404,7 @@ export const submitRetailerReport = async (req, res) => {
                 const result = await uploadToCloudinary(
                     file.buffer,
                     "reports/retailer_images",
-                    getResourceType(file.mimetype)
+                    getResourceType(file.mimetype),
                 );
                 uploadedImages.push({
                     url: result.secure_url,
@@ -1506,7 +1526,7 @@ export const getRetailerReports = async (req, res) => {
             .populate("campaignId", "name type client")
             .populate(
                 "retailerId",
-                "name uniqueId retailerCode shopDetails contactNo"
+                "name uniqueId retailerCode shopDetails contactNo",
             )
             .populate("visitScheduleId", "visitDate status visitType")
             .sort({ createdAt: -1 });
@@ -1584,7 +1604,7 @@ export const deleteRetailerProfilePicture = async (req, res) => {
         if (!retailer) {
             return res.status(404).json({
                 success: false,
-                message: "Retailer not found"
+                message: "Retailer not found",
             });
         }
 
@@ -1592,15 +1612,18 @@ export const deleteRetailerProfilePicture = async (req, res) => {
         if (!retailer.personPhoto?.publicId) {
             return res.status(400).json({
                 success: false,
-                message: "No profile picture to delete"
+                message: "No profile picture to delete",
             });
         }
 
         // Delete from Cloudinary
-        console.log("🗑️ Deleting from Cloudinary:", retailer.personPhoto.publicId);
+        console.log(
+            "🗑️ Deleting from Cloudinary:",
+            retailer.personPhoto.publicId,
+        );
         const deleteResult = await deleteFromCloudinary(
             retailer.personPhoto.publicId,
-            "image"
+            "image",
         );
 
         console.log("✅ Cloudinary delete result:", deleteResult);
@@ -1608,7 +1631,7 @@ export const deleteRetailerProfilePicture = async (req, res) => {
         // Remove from database
         retailer.personPhoto = {
             url: null,
-            publicId: null
+            publicId: null,
         };
 
         await retailer.save();
@@ -1618,17 +1641,15 @@ export const deleteRetailerProfilePicture = async (req, res) => {
             message: "Profile picture deleted successfully",
             retailer: {
                 ...retailer.toObject(),
-                password: undefined // Don't send password
-            }
+                password: undefined, // Don't send password
+            },
         });
-
     } catch (error) {
         console.error("❌ Delete profile picture error:", error);
         res.status(500).json({
             success: false,
             message: "Failed to delete profile picture",
-            error: error.message
+            error: error.message,
         });
     }
 };
-
