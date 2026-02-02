@@ -439,6 +439,13 @@ export const bulkRegisterRetailers = async (req, res) => {
             });
         }
 
+        // hash passwords before saving
+        for (let retailer of retailersToInsert) {
+            if (retailer.password) {
+                retailer.password = await bcrypt.hash(retailer.password, 10);
+            }
+        }
+
         /* ---------------- INSERT INTO DATABASE ---------------- */
 
         let insertedRetailers = [];
