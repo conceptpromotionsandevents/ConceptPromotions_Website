@@ -280,9 +280,9 @@ export const loginRetailer = async (req, res) => {
         }
 
         // Check phone verification
-        if (!retailer.phoneVerified) {
-            return res.status(400).json({ message: "Phone not verified" });
-        }
+        // if (!retailer.phoneVerified) {
+        //     return res.status(400).json({ message: "Phone not verified" });
+        // }
 
         // Compare password
         const isMatch = await bcrypt.compare(password, retailer.password);

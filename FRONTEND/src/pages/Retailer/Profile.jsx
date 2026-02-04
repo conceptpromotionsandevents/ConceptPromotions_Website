@@ -862,22 +862,19 @@ const RetailerProfile = () => {
                                     <input
                                         type="tel"
                                         value={contactNo}
-                                        onChange={(e) =>
-                                            setContactNo(
+                                        onChange={(e) => {
+                                            const value =
                                                 e.target.value.replace(
                                                     /\D/g,
                                                     "",
-                                                ),
-                                            )
-                                        }
+                                                );
+                                            setContactNo(value);
+                                            setContactVerified(false);
+                                        }}
                                         placeholder="+91 1234567890"
                                         maxLength={10}
-                                        disabled={contactVerified}
-                                        className={`w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B] ${
-                                            contactVerified
-                                                ? "bg-gray-100 cursor-not-allowed"
-                                                : ""
-                                        }`}
+                                        // disabled={contactVerified}
+                                        className={`w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#E4002B] `}
                                         required
                                     />
                                     <button
