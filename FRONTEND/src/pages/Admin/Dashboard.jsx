@@ -1,46 +1,51 @@
-// Admin/Dashboard.jsx
-import React, { useState, useEffect } from "react";
-import { FaPlus, FaUpload, FaBriefcase, FaWallet, FaBullseye, FaFileInvoice } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import {
+    FaBriefcase,
+    FaBullseye,
+    FaPlus,
+    FaUpload,
+    FaWallet,
+} from "react-icons/fa";
 import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Create Operation
 import CreateClient from "../Client/CreateClient";
-import CreateRetailer from "../Retailer/CreateRetailer";
 import CreateEmployee from "../Employee/CreateEmployee";
+import CreateRetailer from "../Retailer/CreateRetailer";
 
 // Campaign Pages
-import CampaignHome from "../Campaign/CampaignHome";
-import CreateCampaign from "../Campaign/CreateCampaign";
-import AssignCampaign from "../Campaign/AssignCampaign";
-import EditCampaign from "../Campaign/EditCampaign";
-import UpdateCampaign from "../Campaign/UpdateCampaign";
 import ActivateDeactivateCampaign from "../Campaign/ActivateDeactivateCampaign";
+import AssignCampaign from "../Campaign/AssignCampaign";
+import CampaignHome from "../Campaign/CampaignHome";
 import CampaignStaus from "../Campaign/CampaignStatus";
+import CreateCampaign from "../Campaign/CreateCampaign";
+import EditCampaign from "../Campaign/EditCampaign";
 import MapEmployee from "../Campaign/MapEmployee";
 import ScheduleUnscheduleTask from "../Campaign/ScheduleUnscheduleTask";
+import UpdateCampaign from "../Campaign/UpdateCampaign";
 
 // Job
+import ManageReports from "../Campaign/ManageReports";
+import BulkUpload from "./BulkUpload";
+import EditJob from "./EditJob";
+import JobDetails from "./JobDetails";
+import JobTracking from "./JobTracking";
 import PostJob from "./PostJob";
 import UpdateJob from "./UpdateJob";
-import EditJob from "./EditJob";
-import JobTracking from "./JobTracking";
-import JobDetails from "./JobDetails";
-import BulkUpload from "./BulkUpload";
-import ManageReports from "../Campaign/ManageReports";
 
 // Passbook Pages
+import ManageInstallments from "./ManageInstallments";
 import PassbookHome from "./PassbookHome";
 import SetBudget from "./SetBudget";
-import ManageInstallments from "./ManageInstallments";
-import TDSCertificates from "./TDSCertificates"; // NEW
 
 const Dashboard = () => {
     const [openMenu, setOpenMenu] = useState("");
     const [selectedComponent, setSelectedComponent] = useState("welcome");
     const [selectedJobId, setSelectedJobId] = useState(null);
     const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+    const [selectedPaymentId, setSelectedPaymentId] = useState(null);
 
     // Scroll to top whenever selectedComponent changes
     useEffect(() => {
@@ -52,10 +57,10 @@ const Dashboard = () => {
             // If clicking same menu → close it
             if (prev === menuName) {
                 if (menuName === "campaignManagement") {
-                    setSelectedComponent("campaignHome");
+                    setSelectedComponent("campaignHome"); // Show home when closed
                 }
                 if (menuName === "passbook") {
-                    setSelectedComponent("passbookHome");
+                    setSelectedComponent("passbookHome"); // Show home when closed
                 }
                 return "";
             }
@@ -75,16 +80,19 @@ const Dashboard = () => {
     };
 
     const handleLogout = () => {
+        // Clear storage
         localStorage.removeItem("token");
         localStorage.removeItem("adminName");
         localStorage.removeItem("adminEmail");
 
+        // Show toast
         toast.success("Logout successful!", {
             position: "top-right",
             autoClose: 1000,
             theme: "dark",
         });
 
+        // Redirect after 1.5 sec
         setTimeout(() => {
             window.location.href = "/signin";
         }, 1000);
@@ -102,6 +110,7 @@ const Dashboard = () => {
                 return <CreateEmployee />;
 
             /* JOB MANAGEMENT */
+
             case "postJob":
                 return <PostJob />;
 
@@ -142,6 +151,7 @@ const Dashboard = () => {
                 );
 
             /* CAMPAIGN MANAGEMENT */
+
             case "campaignHome":
                 return <CampaignHome />;
 
@@ -181,7 +191,7 @@ const Dashboard = () => {
                         onViewCampaign={(id) => {
                             setSelectedCampaignId(id);
                             setSelectedComponent(
-                                "activateDeactivateCampaignDetails"
+                                "activateDeactivateCampaignDetails",
                             );
                         }}
                     />
@@ -207,10 +217,8 @@ const Dashboard = () => {
             case "manageinstallments":
                 return <ManageInstallments />;
 
-            case "tdsCertificates": // NEW
-                return <TDSCertificates />;
-
             /* BULK UPLOAD */
+
             case "bulkUpload":
                 return <BulkUpload />;
 
@@ -263,7 +271,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("create")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaPlus className="text-[#E4002B]" />
@@ -325,7 +333,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("job")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaBriefcase className="text-[#E4002B]" />
@@ -359,9 +367,7 @@ const Dashboard = () => {
                                             setSelectedComponent("updateJob")
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
-                                            ["updateJob", "editJob"].includes(
-                                                selectedComponent
-                                            )
+                                            selectedComponent === "updateJob"
                                                 ? "text-[#E4002B] font-semibold"
                                                 : ""
                                         }`}
@@ -374,9 +380,7 @@ const Dashboard = () => {
                                             setSelectedComponent("jobTracking")
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
-                                            ["jobTracking", "jobDetails"].includes(
-                                                selectedComponent
-                                            )
+                                            selectedComponent === "jobTracking"
                                                 ? "text-[#E4002B] font-semibold"
                                                 : ""
                                         }`}
@@ -391,7 +395,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("campaignManagement")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaBullseye className="text-[#E4002B]" />
@@ -410,7 +414,7 @@ const Dashboard = () => {
                                     <li
                                         onClick={() =>
                                             setSelectedComponent(
-                                                "createCampaign"
+                                                "createCampaign",
                                             )
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
@@ -426,7 +430,7 @@ const Dashboard = () => {
                                     <li
                                         onClick={() =>
                                             setSelectedComponent(
-                                                "assignCampaign"
+                                                "assignCampaign",
                                             )
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
@@ -444,10 +448,7 @@ const Dashboard = () => {
                                             setSelectedComponent("editCampaign")
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
-                                            [
-                                                "editCampaign",
-                                                "editCampaignDetails",
-                                            ].includes(selectedComponent)
+                                            selectedComponent === "editCampaign"
                                                 ? "text-[#E4002B] font-semibold"
                                                 : ""
                                         }`}
@@ -458,14 +459,12 @@ const Dashboard = () => {
                                     <li
                                         onClick={() =>
                                             setSelectedComponent(
-                                                "activateDeactivateCampaign"
+                                                "activateDeactivateCampaign",
                                             )
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
-                                            [
-                                                "activateDeactivateCampaign",
-                                                "activateDeactivateCampaignDetails",
-                                            ].includes(selectedComponent)
+                                            selectedComponent ===
+                                            "activateDeactivateCampaign"
                                                 ? "text-[#E4002B] font-semibold"
                                                 : ""
                                         }`}
@@ -488,7 +487,7 @@ const Dashboard = () => {
                                     <li
                                         onClick={() =>
                                             setSelectedComponent(
-                                                "scheduleUnscheduleTask"
+                                                "scheduleUnscheduleTask",
                                             )
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
@@ -503,7 +502,7 @@ const Dashboard = () => {
                                     <li
                                         onClick={() =>
                                             setSelectedComponent(
-                                                "manageReports"
+                                                "manageReports",
                                             )
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
@@ -523,7 +522,7 @@ const Dashboard = () => {
                         <li>
                             <button
                                 onClick={() => toggleMenu("passbook")}
-                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+                                className="flex items-center justify-between w-full text-white font-medium px-3 py-2 rounded-lg hover:bg-gray-800 transition"
                             >
                                 <span className="flex items-center gap-2">
                                     <FaWallet className="text-[#E4002B]" />
@@ -554,7 +553,7 @@ const Dashboard = () => {
                                     <li
                                         onClick={() =>
                                             setSelectedComponent(
-                                                "manageinstallments"
+                                                "manageinstallments",
                                             )
                                         }
                                         className={`hover:text-[#E4002B] cursor-pointer ${
@@ -565,22 +564,6 @@ const Dashboard = () => {
                                         }`}
                                     >
                                         Manage Installments
-                                    </li>
-                                    {/* NEW: TDS Certificates */}
-                                    <li
-                                        onClick={() =>
-                                            setSelectedComponent(
-                                                "tdsCertificates"
-                                            )
-                                        }
-                                        className={`hover:text-[#E4002B] cursor-pointer ${
-                                            selectedComponent ===
-                                            "tdsCertificates"
-                                                ? "text-[#E4002B] font-semibold"
-                                                : ""
-                                        }`}
-                                    >
-                                        TDS Certificates
                                     </li>
                                 </ul>
                             )}

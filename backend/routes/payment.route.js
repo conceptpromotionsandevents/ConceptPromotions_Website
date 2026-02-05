@@ -1,8 +1,11 @@
 // routes/budgetRoutes.js
 import express from "express";
+import multer from "multer";
 import {
     addCampaignTCA,
     addPayment,
+    bulkAddCampaignTCA,
+    bulkAddPayments,
     deleteCampaign,
     deletePayment,
     editPayment,
@@ -11,10 +14,7 @@ import {
     getBudgetByRetailerId,
     getPassbookData,
     updateCampaignTCA,
-    bulkAddCampaignTCA,
-    bulkAddPayments,
 } from "../controllers/payment.controller.js";
-import multer from "multer";
 
 import { protect } from "../middleware/authMiddleware.js";
 const upload = multer({ storage: multer.memoryStorage() });

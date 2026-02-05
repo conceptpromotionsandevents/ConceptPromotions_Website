@@ -1,7 +1,5 @@
 // models/payments.model.js
 import mongoose from "mongoose";
-import { Retailer } from "./retailer.model.js";
-import { getFiscalYear, TDSRecord } from "./tds.model.js";
 
 // Installment/Payment sub-schema
 const installmentSchema = new mongoose.Schema(
