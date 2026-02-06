@@ -8,8 +8,10 @@ import careerRoutes from "./routes/careerRoutes.js"; // ✅ added
 import clientRoutes from "./routes/clientRoutes.js";
 import contactRoutes from "./routes/contactUsRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
 import paymentRoutes from "./routes/payment.route.js";
 import reportRoutes from "./routes/report.route.js";
+import resetPassword from "./routes/reset-password.route.js";
 import retailerRoutes from "./routes/retailerRoutes.js";
 dotenv.config();
 
@@ -43,6 +45,8 @@ app.use("/api/career", careerRoutes); // ✅ Career API
 app.use("/api/contact", contactRoutes);
 app.use("/api/budgets", paymentRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/password-reset", resetPassword);
+app.use("/api/otp", otpRoutes);
 // ===== Health Check =====
 app.get("/", (req, res) => {
     res.status(200).send("Supreme Backend API is running");
